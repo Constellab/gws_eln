@@ -11,27 +11,43 @@ version: '2.0'
 
 # Architecture Decision Document v2
 
-_This document builds collaboratively through step-by-step discovery. Sections are appended as we work through each architectural decision together._
+**📄 Quick Navigation:**
+- **1-Page Summary**: [architecture-summary-v2.md](architecture-summary-v2.md) - Start here for quick reference
+- **Database Schema**: [database-schema-v2.md](database-schema-v2.md) - Complete schema with all tables and relationships
+- **Implementation Patterns**: [implementation-patterns.md](implementation-patterns.md) - Naming, structure, and format conventions
+- **Project Structure**: [project-structure.md](project-structure.md) - Complete directory organization and domain boundaries
+- **Development Sequence**: [development-sequence.md](development-sequence.md) - Step-by-step implementation guide with time estimates
+
+_This document is the complete architecture reference. For focused information, use the modular documents above._
 
 **VERSION 2 CHANGES:**
-- Introduced `material_types` table (product catalog) separate from `material_lots` (physical inventory)
-- Unified `material_lots` to handle both received lots and aliquots via `parent_lot_id` self-reference
-- Removed `aliquots` table (functionality merged into `material_lots`)
+- Renamed: `material_types` → `materials` (product catalog), `material_lots` → `material_batches` (physical inventory)
+- Added dedicated `suppliers` table with full CRUD operations
+- **Unified data model: removed `samples` and `instruments` tables - everything managed via `materials` and `material_batches`**
+- `materials.is_consumable` flag differentiates consumables (chemicals, reagents) from non-consumables (instruments, equipment)
+- Simplified `materials`: added `is_consumable` flag; removed category, packaging_info, storage_conditions, safety_info, is_active
+- Simplified `material_batches`: removed lot_number (kept batch_number only), received_date, initial_quantity, status, qc_status, generation, version
+- Simplified `locations`: removed code, location_type, is_active fields
+- Simplified `activities`: removed correction_flag, corrected_activity_id, performed_by_id, performed_at, metadata fields; removed 'correct' activity_type
+- Separated activity types: 'consume' for consumables (decrements quantity), 'use' for non-consumables (reference only)
+- Removed optimistic locking (version fields) - not needed for MVP
+- Unified `material_batches` to handle both received batches and aliquots via `parent_batch_id` self-reference
+- Removed `aliquots` table (functionality merged into `material_batches`)
 - Removed `units` table (replaced with `unit_type` ENUM and base unit storage)
 - Quantities stored in base units (L, kg, m, units) with application-side conversion
-- Maintained separate tables for `samples` and `instruments` (no single inheritance table)
+- Aliquots automatically inherit supplier_id from parent batch
+- Standardized audit fields: all tables use `created_by_id`, `last_modified_by_id`, `created_at`, `last_modified_at`
 
 ## Project Context Analysis
 
 ### Requirements Overview
 
-	- Inventory: register materials (supplier, lot/batch, expiry, packaging), receive deliveries, view/edit metadata, simple location assignment and movement, location-filtered views.
-	- Aliquoting: create single-level aliquots, view lineage, relabel without breaking lineage.
-	- Usage & Decrement: log usage with quantity/unit, discard/remove with reason, confirmations and updated stock.
-	- Note-Linked Actions: open inventory tool from Notes, perform actions in-note, link actions (product, lot, aliquot chain, instrument, quantities, units), view linked actions from Notes.
-	- Samples & Instruments: register samples with storage, sample aliquots and lineage, reference instruments and simple maintenance notes.
+	- Inventory: register materials (consumable and non-consumable), supplier, batch, expiry; receive deliveries, view/edit metadata, simple location assignment and movement, location-filtered views.
+	- Aliquoting: create multi-level aliquots, view lineage, relabel without breaking lineage.
+	- Usage & Decrement: log 'consume' with quantity decrement for consumables, log 'use' as reference for non-consumables; discard/remove with reason, confirmations and updated stock.
+	- Note-Linked Actions: open inventory tool from Notes, perform actions in-note, link actions (material, batch, aliquot chain, quantities, units), view linked actions from Notes.
 	- Constellab Integration: access via existing auth/session, app-managed simple location list.
-	- Activity & Correction: chronological activity log, misassignment correction with retained history, manual reorder flagging.
+	- Activity Log: chronological activity log with full audit trail.
 	- Units: support common units (volume, mass, length, count); stored in base units, displayed with smart conversion.
 
 	- Performance: responsive Reflex pages; typical actions complete without long blocking; views refresh post-action (no realtime websockets in MVP).
@@ -42,7 +58,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 ### Scale & Complexity
 
-Single lab instance; ~100-500 material types; ~1000-5000 active lots/samples; ~10-50 concurrent users; modest transaction volume.
+Single lab instance; ~100-500 materials (consumables + non-consumables); ~1000-5000 active batches; ~10-50 concurrent users; modest transaction volume.
 
 ### Technical Constraints & Dependencies
 
@@ -53,10 +69,11 @@ Single lab instance; ~100-500 material types; ~1000-5000 active lots/samples; ~1
 
 ### Cross-Cutting Concerns Identified
 
-- Concurrency: optimistic locking via version/updated_at
-- Audit: activity log for all changes
-- Lineage: parent-child relationships in material_lots and samples
+- Concurrency: simple timestamp checks via last_modified_at (no optimistic locking in MVP)
+- Audit: activity log for all changes; standardized audit fields (created_by_id, last_modified_by_id, created_at, last_modified_at) on all tables
+- Lineage: parent-child relationships in material_batches via parent_batch_id
 - Unit conversion: centralized conversion logic in application layer
+- Consumable vs non-consumable: differentiated behavior via materials.is_consumable flag
 
 ## Starter Template Evaluation
 
@@ -77,6 +94,12 @@ Web application based on project requirements analysis
 
 **Rationale for Selection:** Seamless alignment with service/entity/ORM architecture, proven example, immediate compatibility with Constellab tooling and session model.
 
+**CRITICAL: Follow gws_project Repository Pattern**
+- **Backend structure**: Services and entities co-located by domain (as in gws_project)
+- **Frontend structure**: Reflex application with pages and states (as in gws_project)
+- **Reference repository**: `gws_project` contains the complete reference implementation for both backend and frontend patterns
+- **Do NOT deviate** from gws_project structure without explicit justification
+
 **Initialization Command:**
 
 ```bash
@@ -89,7 +112,7 @@ gws reflex run bricks/gws_eln/src/gws_eln/project_app/_project_app/rxconfig.py
 - Styling Solution: Reflex component library; no external CSS framework by default.
 - Build Tooling: Reflex build/dev server; sitemap plugin configured in rxconfig.
 - Testing Framework: Backend/services via pytest; UI tests optional post-MVP.
-- Code Organization: MVC via core (DB manager, model base), entity/service packages, and project_app for UI pages/states.
+- Code Organization: MVC via core (DB manager, model base), entity/service packages, and project_app for UI pages/states. **FOLLOW gws_project repository structure exactly** - it demonstrates the complete backend (services/entities) and frontend (Reflex app) pattern.
 - Development Experience: Hot reload, environment-driven API URL, session reuse via Constellab.
 
 ## Core Architectural Decisions
@@ -103,9 +126,10 @@ gws reflex run bricks/gws_eln/src/gws_eln/project_app/_project_app/rxconfig.py
 - Unit handling: ENUM `unit_type` with base unit storage (L, kg, m, units); conversions in application layer.
 
 **Important Decisions (Shape Architecture):**
-- Data modeling: normalized entities (MaterialType, MaterialLot with lineage, Location, Sample, Instrument, Activity) without separate Units or Aliquots tables.
-- Material catalog vs inventory: `material_types` for product definitions, `material_lots` for physical inventory and aliquots.
-- Concurrency: optimistic check per item on update (version/updated_at guard), user confirmation on conflicts.
+- Data modeling: unified entities (Material, MaterialBatch with lineage, Supplier, Location, Activity) - no separate Samples, Instruments, Units, or Aliquots tables.
+- Material catalog vs inventory: `materials` for product definitions (with is_consumable flag), `material_batches` for physical inventory and aliquots.
+- Consumable differentiation: `is_consumable` flag in materials determines batch behavior (decrement vs reference usage).
+- Concurrency: simple timestamp checks (updated_at) for MVP; no optimistic locking (version field).
 - API pattern: service-layer REST-like functions consumed by Reflex states; no GraphQL; internal endpoints.
 - Frontend state: Reflex state classes per page/flow; route-based pages; no global complex state in MVP.
 
@@ -123,88 +147,51 @@ gws reflex run bricks/gws_eln/src/gws_eln/project_app/_project_app/rxconfig.py
 **Core Entities:**
 
 ```
-material_types (Product Catalog)
+materials (Unified Product Catalog - Chemicals, Instruments, Equipment, Samples)
 ├── id (PK)
-├── name (e.g., "Éthanol 99%")
-├── supplier (e.g., "Sigma-Aldrich")
-├── catalog_number (e.g., "E7023")
+├── name (e.g., "Éthanol 99%", "Spectrophotomètre UV-Vis", "Échantillon Sang")
 ├── description
-├── category (e.g., "Solvent", "Enzyme", "Buffer")
-├── packaging_info
+├── supplier_id (FK → suppliers, optional)
+├── catalog_number (e.g., "E7023", optional)
+├── is_consumable (BOOLEAN - TRUE: quantity decrements on use, FALSE: usage reference only)
 ├── default_unit_type (ENUM: 'volume', 'mass', 'length', 'count')
-├── storage_conditions
-├── safety_info
-├── is_active
-├── created_by_id (FK), created_at
-├── updated_by_id (FK), updated_at
+├── created_by_id (FK), last_modified_by_id (FK)
+├── created_at, last_modified_at
 
-material_lots (Physical Inventory: Received Lots + Aliquots)
+material_batches (Unified Physical Inventory: Batches, Aliquots, Instrument Instances, Sample Instances)
 ├── id (PK)
-├── material_type_id (FK → material_types)
-├── parent_lot_id (FK → material_lots, NULL if received lot)
-├── lot_number (supplier lot, NULL for aliquots)
-├── batch_number (NULL for aliquots)
-├── label (aliquot label, NULL for received lots)
-├── received_date (NULL for aliquots)
-├── expiry_date
-├── initial_quantity (for received lots)
-├── quantity (DECIMAL(20,12) - in base unit)
-├── unit_type (ENUM: 'volume', 'mass', 'length', 'count')
+├── material_id (FK → materials)
+├── parent_batch_id (FK → material_batches, NULL if original batch/instance)
+├── batch_number (for received batches, NULL for aliquots)
+├── label (for aliquots or custom identification)
+├── expiry_date (optional)
+├── quantity (DECIMAL(20,12) - in base unit; NULL for non-quantifiable items)
+├── unit_type (ENUM: 'volume', 'mass', 'length', 'count'; NULL if not applicable)
 ├── location_id (FK → locations)
-├── status (ENUM: 'active', 'depleted', 'expired', 'discarded')
-├── qc_status (ENUM: 'pending', 'passed', 'failed')
-├── generation (0 for received lot, 1+ for aliquots)
 ├── notes
-├── created_by_id (FK), created_at
-├── updated_by_id (FK), updated_at
-├── version (for optimistic locking)
+├── created_by_id (FK), last_modified_by_id (FK)
+├── created_at, last_modified_at
 
-samples (Biological/Experimental Samples)
+suppliers (Material Suppliers)
 ├── id (PK)
 ├── name
-├── sample_type
-├── description
-├── source
-├── parent_sample_id (FK → samples, NULL if original)
-├── quantity (DECIMAL(20,12) - in base unit)
-├── unit_type (ENUM: 'volume', 'mass', 'length', 'count')
-├── location_id (FK → locations)
-├── status (ENUM: 'active', 'depleted', 'discarded')
-├── storage_conditions
-├── generation (0 for original, 1+ for aliquots)
-├── created_by_id (FK), created_at
-├── updated_by_id (FK), updated_at
-├── version
-
-instruments (Lab Equipment)
-├── id (PK)
-├── name
-├── model
-├── serial_number
-├── description
-├── location_id (FK → locations)
-├── status (ENUM: 'operational', 'maintenance', 'out_of_service')
-├── last_maintenance
-├── maintenance_notes
-├── created_by_id (FK), created_at
-├── updated_by_id (FK), updated_at
+├── contact_info
+├── created_by_id (FK), last_modified_by_id (FK)
+├── created_at, last_modified_at
 
 locations (Storage Locations)
 ├── id (PK)
 ├── name
-├── code
 ├── description
-├── location_type
-├── is_active
-├── created_by_id (FK), created_at
-├── updated_by_id (FK), updated_at
+├── created_by_id (FK), last_modified_by_id (FK)
+├── created_at, last_modified_at
 
 activities (Audit Log)
 ├── id (PK)
-├── activity_type (ENUM: 'receive', 'move', 'use', 'discard', 'aliquot', 'relabel', 'correct')
-├── entity_type (ENUM: 'material_lot', 'sample', 'instrument')
-├── entity_id (references id in respective table)
-├── related_entity_id (for lineage, e.g., child aliquot)
+├── activity_type (ENUM: 'receive', 'move', 'consume', 'use', 'discard', 'aliquot', 'relabel')
+├── entity_type (ENUM: 'material_batch')
+├── entity_id (FK → material_batches)
+├── related_entity_id (for lineage, e.g., child aliquot or related batch)
 ├── quantity (DECIMAL(20,12), NULL for non-quantity actions)
 ├── unit_type (ENUM, NULL for non-quantity actions)
 ├── from_location_id (FK → locations, NULL if not move)
@@ -212,33 +199,28 @@ activities (Audit Log)
 ├── reason
 ├── notes
 ├── note_id (Constellab Note link)
-├── instrument_id (FK → instruments, if action involves instrument)
-├── correction_flag (BOOLEAN)
-├── corrected_activity_id (FK → activities, if this corrects another)
-├── performed_by_id (FK)
-├── performed_at
-├── metadata (JSON)
+├── created_by_id (FK), last_modified_by_id (FK)
+├── created_at, last_modified_at
 ```
 
 **Relationships:**
-- material_types 1:N material_lots
-- material_lots 1:N material_lots (parent_lot_id self-reference for lineage)
-- samples 1:N samples (parent_sample_id self-reference for lineage)
-- locations 1:N material_lots, samples, instruments
-- activities references material_lots, samples, instruments via entity_type/entity_id
+- suppliers 1:N materials (optional)
+- materials 1:N material_batches
+- material_batches 1:N material_batches (parent_batch_id self-reference for lineage; aliquots inherit supplier_id from parent)
+- locations 1:N material_batches
+- activities references material_batches via entity_type='material_batch' and entity_id
 
 **Indices:**
 ```sql
-CREATE INDEX idx_material_lots_type ON material_lots(material_type_id);
-CREATE INDEX idx_material_lots_parent ON material_lots(parent_lot_id);
-CREATE INDEX idx_material_lots_location ON material_lots(location_id);
-CREATE INDEX idx_material_lots_status ON material_lots(status);
-CREATE INDEX idx_material_lots_lot_number ON material_lots(lot_number);
+CREATE INDEX idx_materials_supplier ON materials(supplier_id);
+CREATE INDEX idx_materials_consumable ON materials(is_consumable);
 
-CREATE INDEX idx_samples_parent ON samples(parent_sample_id);
-CREATE INDEX idx_samples_location ON samples(location_id);
+CREATE INDEX idx_material_batches_material ON material_batches(material_id);
+CREATE INDEX idx_material_batches_parent ON material_batches(parent_batch_id);
+CREATE INDEX idx_material_batches_location ON material_batches(location_id);
+CREATE INDEX idx_material_batches_batch_number ON material_batches(batch_number);
 
-CREATE INDEX idx_activities_entity ON activities(entity_type, entity_id);
+CREATE INDEX idx_activities_entity ON activities(entity_id);
 CREATE INDEX idx_activities_performed_at ON activities(performed_at DESC);
 CREATE INDEX idx_activities_type ON activities(activity_type);
 CREATE INDEX idx_activities_note ON activities(note_id);
@@ -265,35 +247,15 @@ CREATE INDEX idx_activities_note ON activities(note_id);
 - Conversion on display (base unit → user-friendly unit)
 - Example: 500 mL input → 0.5 L stored → display as "500 mL" if < 1 L
 
-**Example Conversions:**
-```python
-# Volume
-1 L = 1
-1 mL = 0.001 L
-1 µL = 0.000001 L
-
-# Mass
-1 kg = 1
-1 g = 0.001 kg
-1 mg = 0.000001 kg
-1 µg = 0.000000001 kg
-
-# Length
-1 m = 1
-1 cm = 0.01 m
-1 mm = 0.001 m
-
-# Count
-1 unit = 1
-```
 
 #### Data Modeling Details
 
 - Database: MariaDB (Constellab production and development environments) behind Peewee `DatabaseProxy` and `ElnDbManager`-style manager.
-- Modeling: normalized tables with foreign keys; lineage tracked via parent-child self-references in material_lots and samples; activity log table for movements and corrections.
-- Validation: service-layer input validation (quantities/units presence, non-negative stock, location existence, unit_type consistency) before model operations.
+- Modeling: normalized tables with foreign keys; lineage tracked via parent-child self-references in material_batches; activity log table for all changes; standardized audit fields on all tables.
+- Audit Fields: All tables include `created_by_id`, `last_modified_by_id`, `created_at`, `last_modified_at` for complete change tracking.
+- Validation: service-layer input validation (quantities/units presence for consumables, non-negative stock, location existence, unit_type consistency, supplier existence, is_consumable consistency) before model operations.
 - Migrations: migration scripts aligned with `gws_project` pattern (versioned migration modules); schema evolution tracked in brick.
-- Caching: none for MVP; rely on DB queries; consider simple in-memory caching for static lists (locations, material_types) if needed later.
+- Caching: none for MVP; rely on DB queries; consider simple in-memory caching for static lists (locations, materials, suppliers) if needed later.
 
 ### Authentication & Security
 
@@ -313,8 +275,8 @@ CREATE INDEX idx_activities_note ON activities(note_id);
 ### Frontend Architecture
 
 - State management: Reflex `State` classes per page/feature; actions trigger service calls and refresh views.
-- Components: reusable form components for quantity/unit input with conversion, location picker, lineage viewer; page components for inventory, note-linked tool.
-- Routing: route-per-page via `@rx.page`; index lists inventory grouped by material_type; dedicated pages for detail and note tool entry.
+- Components: reusable form components for quantity/unit input with conversion, location picker, supplier picker, lineage viewer, consumable/non-consumable indicator; page components for inventory, note-linked tool.
+- Routing: route-per-page via `@rx.page`; index lists inventory grouped by material with consumable/non-consumable filters; dedicated pages for detail and note tool entry.
 - Performance: avoid heavy client state; server roundtrips for actions; no websockets in MVP.
 - Bundle: default Reflex bundling; defer optimization until needed.
 
@@ -328,19 +290,37 @@ CREATE INDEX idx_activities_note ON activities(note_id);
 
 ### Decision Impact Analysis
 
-**Implementation Sequence:**
-1. Define entity schemas (MaterialType, MaterialLot, Location, Sample, Instrument, Activity).
-2. Implement unit conversion utilities in `utils/units.py`.
-3. Implement service-layer operations (receive/add material_lots, move, aliquot via parent_lot_id, use/decrement, note-linkage hooks).
-4. Wire Reflex states/pages to call services and refresh views with display conversions.
-5. Add concurrency checks and user confirmations on updates.
-6. Populate initial material_types, locations; finalize activity logging.
+**Implementation Sequence (Backend-First Approach):**
+
+**Phase 1: Backend Foundation (Complete before UI)**
+1. Define entity schemas (Material, MaterialBatch, Supplier, Location, Activity)
+2. Implement unit conversion utilities in `utils/units.py` with comprehensive tests
+3. Implement all service-layer operations:
+   - MaterialService: CRUD, consumable flag logic, handle all material types (chemicals, instruments, equipment, samples)
+   - MaterialBatchService: receive, aliquot (via parent_batch_id with supplier inheritance), move, use/decrement for consumables, usage reference for non-consumables
+   - SupplierService: CRUD operations
+   - LocationService: CRUD, default "labo" creation
+   - ActivityService: logging, lineage tracking, note-linkage hooks
+4. Write comprehensive unit tests for all services and entities
+5. Validate data integrity, lineage tracking, and supplier inheritance
+6. Test consumable vs non-consumable behavior across all material types
+7. Populate seed data (initial materials - consumables and non-consumables, suppliers, default location "labo")
+
+**Phase 2: Frontend Implementation (After backend is stable)**
+8. Wire Reflex states/pages to call services and refresh views with display conversions
+9. Implement UI components (quantity input, location picker, supplier picker, lineage viewer, consumable/non-consumable indicator)
+10. Build inventory pages with filters (consumable/non-consumable), material detail, note-linked tool
+11. Add user confirmations on critical operations
+12. Integration testing between UI and services
 
 **Cross-Component Dependencies:**
-- Lineage touches material_lots (via parent_lot_id) and samples (via parent_sample_id); activity log depends on all action services.
-- Unit conversion utilities used by all services and UI components dealing with quantities.
-- Location list used across all inventory views.
-- Concurrency checks rely on model timestamps/versions and service enforcement.
+- Lineage tracked via material_batches.parent_batch_id self-reference with supplier inheritance from parent.
+- Activity log depends on MaterialBatchService for all batch operations.
+- Unit conversion utilities used by all services and UI components dealing with quantities (only for consumables and quantifiable items).
+- Supplier references used in materials; inherited by aliquots from parent batch.
+- Location list used across all inventory views; default "labo" location created at startup.
+- Consumable flag (materials.is_consumable) determines batch operation behavior throughout services and UI.
+- Concurrency checks rely on model timestamps (updated_at) and service enforcement (no optimistic locking in MVP).
 
 ## Implementation Patterns & Consistency Rules
 
@@ -351,15 +331,16 @@ CREATE INDEX idx_activities_note ON activities(note_id);
 ### Naming Patterns
 
 **Database Naming Conventions:**
-- Tables: snake_case plural (e.g., `material_types`, `material_lots`, `locations`, `samples`, `instruments`, `activities`).
-- Columns: snake_case (e.g., `created_by_id`, `updated_at`, `parent_lot_id`, `unit_type`).
-- Foreign keys: `<entity>_id` (e.g., `material_type_id`, `location_id`, `parent_lot_id`).
-- Indices: `idx_<table>_<column>` (e.g., `idx_material_lots_type`, `idx_samples_parent`).
+- Tables: snake_case plural (e.g., `materials`, `material_batches`, `suppliers`, `locations`, `activities`).
+- Columns: snake_case (e.g., `created_by_id`, `last_modified_by_id`, `last_modified_at`, `parent_batch_id`, `unit_type`, `is_consumable`).
+- Foreign keys: `<entity>_id` (e.g., `material_id`, `supplier_id`, `location_id`, `parent_batch_id`).
+- Indices: `idx_<table>_<column>` (e.g., `idx_material_batches_material`, `idx_material_batches_parent`).
+- Audit fields: All tables include `created_by_id`, `last_modified_by_id`, `created_at`, `last_modified_at`.
 
 **API Naming Conventions:**
-- REST endpoints: plural nouns (e.g., `/material_types`, `/material_lots`, `/samples`, `/locations`).
-- Route params: `/:id` (numeric/UUID) with lowercase names (e.g., `/material_lots/:id`).
-- Query params: snake_case (e.g., `location_id`, `parent_lot_id`, `material_type_id`).
+- REST endpoints: plural nouns (e.g., `/materials`, `/material_batches`, `/suppliers`, `/locations`).
+- Route params: `/:id` (numeric/UUID) with lowercase names (e.g., `/material_batches/:id`).
+- Query params: snake_case (e.g., `location_id`, `parent_batch_id`, `material_id`, `supplier_id`, `is_consumable`).
 - Headers: standard plus `X-Constellab-*` when needed.
 
 **Code Naming Conventions:**
@@ -371,11 +352,11 @@ CREATE INDEX idx_activities_note ON activities(note_id);
 ### Structure Patterns
 
 **Project Organization:**
-- **Domain-driven directories**: Each domain (`materials/`, `samples/`, `instruments/`, `locations/`, `activities/`) contains its models and services together.
+- **Domain-driven directories**: Each domain (`materials/`, `suppliers/`, `locations/`, `activities/`) contains its models and services together.
 - Core infrastructure: `core/` for DB manager and base models.
-- Frontend: `project_app/` for Reflex UI.
+- Frontend: `project_app/` for Reflex UI (developed after backend is stable).
 - Shared utilities: `utils/` for conversion logic, helpers.
-- Tests: mirror domain structure under `tests/` (e.g., `tests/materials/`, `tests/samples/`).
+- Tests: mirror domain structure under `tests/` (e.g., `tests/materials/`, `tests/suppliers/`, `tests/locations/`).
 - Pattern: `<domain>/<entity>.py` (model) + `<domain>/<entity>_service.py` (service) co-located.
 
 **File Structure Patterns:**
@@ -444,15 +425,19 @@ CREATE INDEX idx_activities_note ON activities(note_id);
 ### Pattern Examples
 
 **Good Examples:**
-- Endpoint: `POST /material_lots/{id}/use` → body `{quantity: 10, unit: "mL"}` → response `{data: {remaining_quantity: 490, unit: "mL", quantity_base: 0.49, unit_type: "volume"}}`.
-- DB: table `material_lots` with columns `id`, `material_type_id`, `quantity` (DECIMAL), `unit_type` (ENUM), `parent_lot_id`.
+- Endpoint: `POST /material_batches/{id}/consume` → body `{quantity: 10, unit: "mL"}` → response `{data: {remaining_quantity: 490, unit: "mL", quantity_base: 0.49, unit_type: "volume"}}` (for consumables).
+- Endpoint: `POST /material_batches/{id}/use` → body `{}` → response `{data: {message: "Usage recorded"}}` (for non-consumables).
+- DB: table `material_batches` with columns `id`, `material_id`, `quantity` (DECIMAL), `unit_type` (ENUM), `parent_batch_id`, `created_by_id`, `last_modified_by_id`, `created_at`, `last_modified_at`.
 - Service call: `to_base_unit(500, "mL", "volume")` returns `Decimal('0.5')`.
+- Aliquot creation: child batch inherits `supplier_id` from parent batch automatically.
+- Activity types: 'receive', 'move', 'consume' (for consumables), 'use' (for non-consumables), 'discard', 'aliquot', 'relabel'.
 
 **Anti-Patterns:**
 - Mixed casing in JSON (`userId`, `created_at`) within same payload.
-- Singular table names (`material_type`) alongside plural (`locations`).
+- Singular table names (`material`) alongside plural (`locations`).
 - Storing quantities in user-selected units (e.g., "500 mL" as string).
 - Using FLOAT for quantities (precision loss).
+- Not inheriting supplier_id when creating aliquots from parent batches.
 
 ## Project Structure & Boundaries
 
@@ -472,18 +457,14 @@ bricks/gws_eln/
 │       │   └── model_with_user.py
 │       ├── materials/
 │       │   ├── __init__.py
-│       │   ├── material_type.py          # Entity/Model
-│       │   ├── material_lot.py           # Entity/Model
-│       │   ├── material_type_service.py  # Service
-│       │   └── material_lot_service.py   # Service
-│       ├── samples/
+│       │   ├── material.py               # Entity/Model (unified: chemicals, instruments, samples, equipment)
+│       │   ├── material_batch.py         # Entity/Model (unified: batches, aliquots, instances)
+│       │   ├── material_service.py       # Service (manages all material types)
+│       │   └── material_batch_service.py # Service (manages all batch operations)
+│       ├── suppliers/
 │       │   ├── __init__.py
-│       │   ├── sample.py                 # Entity/Model
-│       │   └── sample_service.py         # Service
-│       ├── instruments/
-│       │   ├── __init__.py
-│       │   ├── instrument.py             # Entity/Model
-│       │   └── instrument_service.py     # Service
+│       │   ├── supplier.py               # Entity/Model
+│       │   └── supplier_service.py       # Service
 │       ├── locations/
 │       │   ├── __init__.py
 │       │   ├── location.py               # Entity/Model
@@ -525,12 +506,10 @@ bricks/gws_eln/
 │           └── database-schema-v2.md
 ├── tests/
 │   ├── materials/
-│   │   ├── test_material_type_service.py
-│   │   └── test_material_lot_service.py
-│   ├── samples/
-│   │   └── test_sample_service.py
-│   ├── instruments/
-│   │   └── test_instrument_service.py
+│   │   ├── test_material_service.py         # Tests for all material types (consumables, non-consumables)
+│   │   └── test_material_batch_service.py   # Tests for all batch operations
+│   ├── suppliers/
+│   │   └── test_supplier_service.py
 │   ├── locations/
 │   │   └── test_location_service.py
 │   ├── activities/
@@ -555,25 +534,35 @@ bricks/gws_eln/
 - Unit conversion logic isolated in `utils/units.py`; used by services and UI.
 
 **Service Boundaries:**
-- Each domain has dedicated models and services co-located (e.g., `materials/` contains MaterialType, MaterialLot, and their services).
+- Each domain has dedicated models and services co-located:
+  - `materials/` contains Material, MaterialBatch, and their services - handles ALL material types (chemicals, instruments, equipment, samples) with consumable/non-consumable differentiation
+  - `suppliers/` contains Supplier and SupplierService
+  - `locations/` contains Location and LocationService
+  - `activities/` contains Activity and ActivityService
 - Cross-domain operations orchestrated via activity service in `activities/` domain.
-- Note-linked actions integrate through `note_tool_state` invoking corresponding domain services.
-- Clear domain boundaries: `materials/` (catalog + inventory), `samples/` (biological specimens), `instruments/` (equipment), `locations/` (storage), `activities/` (audit log).
+- Note-linked actions integrate through `note_tool_state` invoking MaterialBatchService.
+- Clear domain boundaries: `materials/` (unified catalog + inventory with consumable logic for all types), `suppliers/` (supplier management), `locations/` (storage), `activities/` (audit log).
 
 **Data Boundaries:**
-- Entities encapsulate DB schema and relations; lineage defined via `parent_lot_id` in MaterialLot and `parent_sample_id` in Sample.
-- Locations are global catalogs used across features.
-- Activities table polymorphically references material_lots, samples, instruments via entity_type/entity_id.
+- Entities encapsulate DB schema and relations; lineage defined via `parent_batch_id` in MaterialBatch (with supplier inheritance).
+- Suppliers and Locations are global catalogs used across features.
+- Activities table references material_batches via entity_type='material_batch' and entity_id.
+- Consumable flag in Material determines decrement behavior in MaterialBatch operations:
+  - is_consumable=TRUE: chemicals, reagents, samples → quantity decrements on use
+  - is_consumable=FALSE: instruments, equipment → usage reference only, no quantity decrement.
 
 ### Requirements to Structure Mapping
 
 **Feature/Epic Mapping:**
-- Inventory Management (FR1–FR7, FR12–FR14): `materials/` domain (material_type.py, material_lot.py, services), `locations/` domain, `project_app/inventory/*`.
-- Aliquoting & Lineage (FR8–FR11): `materials/material_lot.py` with `parent_lot_id`, `materials/material_lot_service.py` (aliquot creation), lineage viewer in `project_app/common/lineage_viewer.py`.
-- Note-Linked Actions (FR15–FR18): `project_app/note_tool/*` states/pages with calls to domain services; activity linkage via `activities/activity_service.py`.
-- Samples & Instruments (FR19–FR22): `samples/` domain (sample.py, sample_service.py), `instruments/` domain (instrument.py, instrument_service.py).
-- Activity & Correction (FR25–FR27): `activities/` domain (activity.py, activity_service.py), inventory pages display activity history.
-- Units & Consistency (FR28–FR29): `utils/units.py` for conversion logic; used by forms, validations, and display components.
+- Material Management (FR1–FR4, all types): `materials/` domain (material.py for chemicals, instruments, samples, equipment; material_service.py handles all types with is_consumable differentiation).
+- Supplier Management (FR23–FR26): `suppliers/` domain (supplier.py, supplier_service.py).
+- Batch Operations (FR5–FR10): `materials/material_batch_service.py` with consumable logic from Material.is_consumable for all material types.
+- Aliquoting & Lineage (FR11–FR13): `materials/material_batch.py` with `parent_batch_id` and supplier inheritance, `materials/material_batch_service.py` (aliquot creation for all material types), lineage viewer in `project_app/common/lineage_viewer.py`.
+- Consumption & Usage (FR14–FR16, FR19–FR22): `materials/material_batch_service.py` creates 'consume' activities for consumables (with quantity decrement) and 'use' activities for non-consumables (reference only) based on Material.is_consumable.
+- Note-Linked Actions (FR17–FR18): `project_app/note_tool/*` states/pages with calls to MaterialBatchService; activity linkage via `activities/activity_service.py`.
+- Location Management (FR27–FR31): `locations/` domain (location.py, location_service.py) with simplified schema (name, description only) and default "labo" creation.
+- Activity Log: `activities/` domain (activity.py, activity_service.py), simplified audit trail without correction tracking; inventory pages display activity history for all material types.
+- Units & Consistency (FR34–FR36): `utils/units.py` for conversion logic; used by forms, validations, and display components for quantifiable materials.
 
 **Cross-Cutting Concerns:**
 - Concurrency checks and confirmations implemented in services; surfaced in states/pages.
@@ -590,9 +579,13 @@ bricks/gws_eln/
 - Constellab Notes integration via state hooks; actions create links using provided Constellab APIs.
 
 **Data Flow:**
-- Material catalog (material_types) → material lots (received) → material lots (aliquots via parent_lot_id).
-- Material lots and samples flow through services for receive/use/move/aliquot; activity records appended; lineage updated consistently.
-- Quantities converted on input/output; stored uniformly in base units.
+- Supplier → Material catalog (materials with is_consumable flag for all types: chemicals, instruments, samples, equipment) → material batches (received with supplier_id) → material batches (aliquots via parent_batch_id inheriting supplier_id).
+- Material batches flow through MaterialBatchService for receive/use/move/aliquot operations; activity records appended; lineage updated consistently.
+- Consumable vs non-consumable behavior determined by Material.is_consumable; enforced in MaterialBatchService:
+  - Consumable materials: quantity decrements on use
+  - Non-consumable materials: usage referenced without quantity change
+- Quantities converted on input/output; stored uniformly in base units (for quantifiable materials).
+- Default location "labo" created at Constellab startup.
 
 ### File Organization Patterns
 
@@ -607,16 +600,21 @@ bricks/gws_eln/
 - `rxconfig.py` under app; `settings.json` for brick dependencies; `.env` handled by Constellab.
 
 **Source Organization:**
-- **Domain-based** with clear boundaries; each domain directory (`materials/`, `samples/`, `instruments/`, `locations/`, `activities/`) contains related models and services.
+- **Domain-based** with clear boundaries; each domain directory (`materials/`, `suppliers/`, `locations/`, `activities/`) contains related models and services.
+- `materials/` is unified domain handling all material types (chemicals, instruments, samples, equipment) via is_consumable flag.
 - `core/` for DB manager and base model classes.
 - `utils/` for shared logic like unit conversion.
-- `project_app/` for UI layer (Reflex pages/states).
+- `project_app/` for UI layer (Reflex pages/states) - developed after backend is stable.
 
 **Test Organization:**
-- Tests mirror domain structure: `tests/materials/`, `tests/samples/`, `tests/instruments/`, `tests/locations/`, `tests/activities/`.
+- Tests mirror domain structure: `tests/materials/`, `tests/suppliers/`, `tests/locations/`, `tests/activities/`.
 - Unit tests per service co-located with domain tests.
+- Material tests cover ALL material types (consumables: chemicals, reagents, samples; non-consumables: instruments, equipment).
 - Unit tests for conversion utilities in `tests/utils/`.
-- Fixtures in `tests/fixtures`; integration tests optional post-MVP.
+- Test supplier inheritance in aliquot creation for all material types.
+- Test consumable vs non-consumable behavior across different material types.
+- Fixtures in `tests/fixtures` with examples of all material types; integration tests optional post-MVP.
+- **All backend tests must pass before starting frontend development.**
 
 **Asset Organization:**
 - UI assets under `assets/`; no external static hosting needed.
@@ -653,7 +651,7 @@ bricks/gws_eln/
 ### Requirements Coverage Validation ✅
 
 **Feature Coverage:**
-- Inventory, Aliquoting & Lineage (via parent_lot_id), Note-Linked Actions, Samples & Instruments, Activity & Correction, Units (via unit_type and utils) are all mapped to specific entities, services, and pages/states.
+- Inventory (all material types unified), Supplier Management, Aliquoting & Lineage (via parent_batch_id with supplier inheritance), Note-Linked Actions, Consumable vs Non-Consumable Logic (chemicals/samples vs instruments/equipment), Activity & Correction, Units (via unit_type and utils for quantifiable materials) are all mapped to specific entities, services, and pages/states.
 
 **Functional Requirements Coverage:**
 - All FRs in PRD are architecturally supported via entities and services with Reflex pages/states.
@@ -685,8 +683,10 @@ bricks/gws_eln/
 
 **Important Gaps:**
 - Define concrete migration scripts and versioning standards in `migrations/` before first release.
-- Confirm initial material_types catalog and location list seed data.
+- Confirm initial materials catalog (covering all types: consumables and non-consumables), suppliers list, and location list seed data.
 - Document unit conversion examples in `utils/units.py` docstrings.
+- Ensure default location "labo" is created via Constellab startup code.
+- Define clear guidelines for categorizing new materials as consumable vs non-consumable.
 
 **Nice-to-Have Gaps:**
 - Add integration tests for note-linked actions.
@@ -696,8 +696,15 @@ bricks/gws_eln/
 ### Validation Issues Addressed
 
 - Database selection updated to MariaDB and reflected across decisions.
-- Unified material_lots table with parent_lot_id for aliquot lineage.
+- Renamed tables: material_types → materials, material_lots → material_batches.
+- **Unified data model: removed separate `samples` and `instruments` tables - all managed via `materials` with is_consumable flag.**
+- Added dedicated suppliers table with full CRUD.
+- Simplified schemas: removed category, packaging_info, storage_conditions, safety_info, status fields, qc_status, generation, version fields.
+- Added is_consumable flag to materials for consumption behavior (TRUE for chemicals/samples, FALSE for instruments/equipment).
+- Unified material_batches table with parent_batch_id for aliquot lineage with supplier inheritance.
+- Removed optimistic locking (version fields) for MVP simplicity.
 - Removed separate units and aliquots tables; unit handling via ENUM and conversion utilities.
+- Simplified entity_type in activities to just 'material_batch'.
 
 ### Architecture Completeness Checklist
 
@@ -734,10 +741,16 @@ bricks/gws_eln/
 **Confidence Level:** high based on validation results and simplified unit handling
 
 **Key Strengths:**
-- Clear separation between material catalog (material_types) and physical inventory (material_lots).
-- Unified material_lots table handles received lots and aliquots via parent_lot_id, simplifying lineage.
-- No separate units table; base unit storage with application-layer conversion is pragmatic and performant.
+- **Fully unified data model: single `materials` and `material_batches` schema handles all types (chemicals, instruments, equipment, samples).**
+- Clear separation between material catalog (materials with is_consumable) and physical inventory (material_batches).
+- Consumable/non-consumable differentiation via simple boolean flag eliminates need for separate entity types.
+- Dedicated suppliers table with CRUD operations; supplier_id inherited by aliquots from parent batch.
+- Maximally simplified schemas focused on MVP essentials; removed unnecessary fields and entire tables.
+- Unified material_batches table handles received batches and aliquots via parent_batch_id, simplifying lineage.
+- No separate units, samples, instruments, or aliquots tables; minimal table count (4 core entities).
+- No optimistic locking for MVP; simple timestamp-based concurrency.
 - Strong Constellab alignment for session and deployment.
+- Backend-first development approach ensures solid foundation before UI work.
 - Enforced patterns avoiding agent inconsistencies.
 
 **Areas for Future Enhancement:**
@@ -752,11 +765,17 @@ bricks/gws_eln/
 - Respect project structure and boundaries.
 - Use this document for all architectural questions.
 - Implement unit conversions via `utils/units.py` with tests.
+- **CRITICAL: Use gws_project repository as reference** for both backend structure (services/entities co-located by domain) and frontend structure (Reflex pages/states).
 
 **First Implementation Priority:**
 ```bash
 gws reflex run bricks/gws_eln/src/gws_eln/project_app/_project_app/rxconfig.py
 ```
+
+**Reference Repository:**
+- Study `gws_project` for complete backend and frontend patterns
+- Backend: domain-driven structure with co-located services and entities
+- Frontend: Reflex application with page components and state management
 
 ## Architecture Completion Summary
 
@@ -773,9 +792,11 @@ gws reflex run bricks/gws_eln/src/gws_eln/project_app/_project_app/rxconfig.py
 **📋 Complete Architecture Document v2**
 
 - All architectural decisions documented with specific versions
-- Simplified data model: material_types + material_lots (with lineage), samples, instruments, activities, locations
-- No separate aliquots or units tables
+- **Maximally simplified unified data model: materials (with is_consumable for all types) + material_batches (with lineage & supplier inheritance), suppliers, locations, activities**
+- **No separate samples, instruments, aliquots, or units tables**
+- No optimistic locking (version fields) for MVP
 - Base unit storage (L, kg, m, units) with application-layer conversion
+- Backend-first development approach mandated
 - Implementation patterns ensuring AI agent consistency
 - Complete project structure with all files and directories
 - Requirements to architecture mapping
@@ -785,8 +806,9 @@ gws reflex run bricks/gws_eln/src/gws_eln/project_app/_project_app/rxconfig.py
 
 - 20+ architectural decisions made
 - Comprehensive implementation patterns defined
-- 6 core entities specified (MaterialType, MaterialLot, Sample, Instrument, Location, Activity)
-- All PRD requirements supported with simplified unit handling
+- **5 core entities (Material, MaterialBatch, Supplier, Location, Activity) - unified model handles all material types**
+- All PRD requirements supported with maximally simplified schemas and unit handling
+- Clear backend-first development sequence
 
 **📚 AI Agent Implementation Guide**
 
@@ -806,13 +828,37 @@ gws reflex run bricks/gws_eln/src/gws_eln/project_app/_project_app/rxconfig.py
 
 **Development Sequence:**
 
-1. Initialize project using documented starter template
-2. Set up development environment per architecture
-3. Implement core architectural foundations (entities: material_type, material_lot, location, sample, instrument, activity)
-4. Implement unit conversion utilities (`utils/units.py`) with tests
-5. Build services using entities and conversion utilities
-6. Build Reflex pages/states following established patterns
-7. Maintain consistency with documented rules
+**CRITICAL: Backend-First Approach - Complete Phase 1 before Phase 2**
+
+**Phase 1: Backend Development (Must be 100% complete with passing tests)**
+1. **Study gws_project repository structure** - understand the backend pattern (services/entities co-located by domain)
+2. Initialize project using documented starter template
+3. Set up development environment per architecture
+3. Implement core architectural foundations (entities: material, material_batch, supplier, location, activity) - **only 5 core entities**
+4. Implement unit conversion utilities (`utils/units.py`) with comprehensive tests
+5. Build all domain services with full functionality:
+   - MaterialService with is_consumable logic handling ALL material types (chemicals, instruments, equipment, samples)
+   - MaterialBatchService with supplier inheritance on aliquot creation for all material types
+   - SupplierService with CRUD
+   - LocationService with default "labo" creation
+   - ActivityService for unified audit logging
+6. Write and validate all unit tests for services and entities
+7. Test critical behaviors across ALL material types:
+   - Consumable materials (chemicals, reagents, samples): quantity decrement on use
+   - Non-consumable materials (instruments, equipment): usage reference without decrement
+   - Supplier inheritance in aliquots for all types
+   - Lineage tracking across all material types
+   - Unit conversions for quantifiable materials
+   - Activity logging for all operations
+8. Seed initial data (materials of all types, suppliers, default location "labo")
+
+**Phase 2: Frontend Development (Only after Phase 1 complete)**
+9. **Study gws_project Reflex application structure** - understand page/state pattern
+10. Build Reflex pages/states following gws_project patterns
+11. Implement UI components (quantity input, supplier picker, location picker, lineage viewer)
+11. Wire UI to backend services
+12. Integration testing
+13. Maintain consistency with documented rules
 
 ### Quality Assurance Checklist
 
@@ -854,7 +900,10 @@ Requirements are mapped from business needs to technical implementation.
 **🏗️ Solid Foundation**
 Starter and patterns provide production-ready baseline.
 
-**🔢 Simplified Unit Handling**
+**� Reference Implementation**
+gws_project repository provides complete working example of backend (services/entities) and frontend (Reflex) structure.
+
+**�🔢 Simplified Unit Handling**
 Base unit storage with application-layer conversion balances simplicity and flexibility.
 
 ---
@@ -867,92 +916,5 @@ Base unit storage with application-layer conversion balances simplicity and flex
 
 ---
 
-## Appendix: Key Architectural Changes v1 → v2
-
-### Major Changes
-
-1. **Material Catalog Separation**
-   - v1: Single `materials` table with lot_number
-   - v2: `material_types` (catalog) + `material_lots` (inventory)
-   - Benefit: No duplication; easier reordering; cleaner lot tracking
-
-2. **Aliquot Handling**
-   - v1: Separate `aliquots` table
-   - v2: Unified in `material_lots` via `parent_lot_id` self-reference
-   - Benefit: Simpler queries; consistent operations; same interface for lots and aliquots
-
-3. **Unit Storage**
-   - v1: Separate `units` table with foreign keys
-   - v2: `unit_type` ENUM + base unit storage (L, kg, m, units) + `utils/units.py` for conversion
-   - Benefit: No joins for units; direct calculations; smart display conversion
-
-4. **Entity Structure**
-   - v1: materials, aliquots, samples, instruments, activities, units, locations
-   - v2: material_types, material_lots, samples, instruments, activities, locations
-   - Result: 6 core entities instead of 7; clearer separation of concerns
-
-### Impact on Implementation
-
-**Services:**
-- `MaterialTypeService`: manage product catalog (in `materials/` domain)
-- `MaterialLotService`: manage physical inventory (lots + aliquots, in `materials/` domain)
-- No `AliquotService` or `UnitService` needed
-
-**Utilities:**
-- New `utils/units.py` module for conversion logic
-- Centralized, testable, reusable across all quantity operations
-
-**Database:**
-- MariaDB in both production AND development (Constellab environment)
-- Fewer tables, fewer joins
-- Lineage via self-reference (more SQL-standard pattern)
-- Base unit storage enables direct aggregation queries
-
-**Project Structure:**
-- **Domain-driven organization** instead of layered (entity/service separation)
-- Each domain is self-contained with models + services
-- Benefits: better cohesion, discoverability, and team collaboration
-
-**Authentication:**
-- **Completely managed by Constellab** - no user management in ELN
-- App relies on Constellab session and `CurrentUserService`
-
-**UI:**
-- Quantity inputs use conversion utilities
-- Display logic converts base units to user-friendly units
-- Inventory grouped by material_type with expandable lots
-
-### Migration Path (if v1 existed)
-
-```sql
--- Conceptual migration from v1 to v2
--- 1. Create material_types from unique materials
-INSERT INTO material_types (name, supplier, catalog_number, ...)
-SELECT DISTINCT name, supplier, catalog_number, ...
-FROM materials;
-
--- 2. Migrate materials to material_lots
-INSERT INTO material_lots (material_type_id, lot_number, quantity, unit_type, ...)
-SELECT mt.id, m.lot_number, m.quantity, 'volume', ...
-FROM materials m
-JOIN material_types mt ON m.name = mt.name AND m.supplier = mt.supplier;
-
--- 3. Migrate aliquots to material_lots with parent_lot_id
-INSERT INTO material_lots (material_type_id, parent_lot_id, label, quantity, unit_type, ...)
-SELECT ml.material_type_id, ml.id, a.label, a.quantity, ml.unit_type, ...
-FROM aliquots a
-JOIN material_lots ml ON a.material_id = ml.id;
-
--- 4. Convert quantities to base units
-UPDATE material_lots SET quantity = quantity * 0.001 WHERE unit_type = 'volume' AND <stored as mL>;
--- Repeat for all unit conversions
-
--- 5. Drop old tables
-DROP TABLE aliquots;
-DROP TABLE units;
-DROP TABLE materials;
-```
-
----
 
 **End of Architecture Document v2**
