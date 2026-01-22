@@ -1,12 +1,18 @@
 """State for the materials list page."""
 
 import reflex as rx
+from gws_eln.core.unit_type import UnitType
 from gws_eln.materials.material_dto import MaterialDTO
 from gws_eln.materials.material_search_builder import MaterialSearchBuilder
 from gws_eln.materials.material_service import MaterialService
+from gws_eln.suppliers.supplier_dto import SupplierDTO
+from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..material_form_dialog.material_form_dialog_state import MaterialFormDialogState
+
+# Constants for "all" filter options
+ALL_FILTER_VALUE = "__all__"
 
 
 class MaterialsListState(rx.State):
@@ -20,13 +26,27 @@ class MaterialsListState(rx.State):
     is_loading: bool = False
     error_message: str = ""
 
+    # Available suppliers for dropdown filter
+    available_suppliers: list[SupplierDTO] = []
+
     # Filter state
     search_text: str = ""
+    filter_supplier_id: str = "__all__"
+    filter_is_consumable: str = "__all__"  # "__all__", "true", "false"
+    filter_unit_type: str = "__all__"
+
+    async def _load_suppliers(self):
+        """Load available suppliers for the filter dropdown."""
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            search_builder = SupplierSearchBuilder()
+            suppliers = search_builder.search_all()
+            self.available_suppliers = [supplier.to_dto() for supplier in suppliers]
 
     async def load_materials(self):
         """Load the list of materials with applied filters.
 
-        Uses MaterialSearchBuilder to apply text search filter.
+        Uses MaterialSearchBuilder to apply filters.
         """
         main_state = await self.get_state(ReflexMainState)
         if not await main_state.check_authentication():
@@ -39,8 +59,23 @@ class MaterialsListState(rx.State):
         try:
             search_builder = MaterialSearchBuilder()
 
+            # Apply text search filter
             if self.search_text:
                 search_builder.add_name_filter(self.search_text)
+
+            # Apply supplier filter
+            if self.filter_supplier_id and self.filter_supplier_id != ALL_FILTER_VALUE:
+                search_builder.add_supplier_filter(self.filter_supplier_id)
+
+            # Apply consumable filter
+            if self.filter_is_consumable and self.filter_is_consumable != ALL_FILTER_VALUE:
+                is_consumable = self.filter_is_consumable == "true"
+                search_builder.add_is_consumable_filter(is_consumable)
+
+            # Apply unit type filter
+            if self.filter_unit_type and self.filter_unit_type != ALL_FILTER_VALUE:
+                unit_type = UnitType(self.filter_unit_type)
+                search_builder.add_unit_type_filter(unit_type)
 
             materials = search_builder.search_all()
 
@@ -51,6 +86,7 @@ class MaterialsListState(rx.State):
 
     async def on_load(self):
         """Event handler called when the page loads."""
+        await self._load_suppliers()
         await self.load_materials()
 
     @rx.event
@@ -64,9 +100,42 @@ class MaterialsListState(rx.State):
         await self.load_materials()
 
     @rx.event
+    async def handle_supplier_filter_change(self, value: str):
+        """Handle supplier filter change.
+
+        :param value: The supplier ID or ALL_FILTER_VALUE
+        :type value: str
+        """
+        self.filter_supplier_id = value
+        await self.load_materials()
+
+    @rx.event
+    async def handle_consumable_filter_change(self, value: str):
+        """Handle consumable filter change.
+
+        :param value: "true", "false", or ALL_FILTER_VALUE
+        :type value: str
+        """
+        self.filter_is_consumable = value
+        await self.load_materials()
+
+    @rx.event
+    async def handle_unit_type_filter_change(self, value: str):
+        """Handle unit type filter change.
+
+        :param value: The unit type value or ALL_FILTER_VALUE
+        :type value: str
+        """
+        self.filter_unit_type = value
+        await self.load_materials()
+
+    @rx.event
     async def clear_filters(self):
         """Clear all filters and reload materials."""
         self.search_text = ""
+        self.filter_supplier_id = ALL_FILTER_VALUE
+        self.filter_is_consumable = ALL_FILTER_VALUE
+        self.filter_unit_type = ALL_FILTER_VALUE
         await self.load_materials()
 
     @rx.event
@@ -89,6 +158,7 @@ class MaterialsListState(rx.State):
 
     async def on_dialog_close(self, _: MaterialDTO):
         """Callback when any dialog is closed to refresh the materials list."""
+        await self._load_suppliers()
         await self.load_materials()
 
     @rx.event

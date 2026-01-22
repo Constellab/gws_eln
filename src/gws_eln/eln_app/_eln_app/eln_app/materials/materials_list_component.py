@@ -2,26 +2,69 @@
 
 import reflex as rx
 from gws_eln.materials.material_dto import MaterialDTO
+from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_reflex_main import main_component, user_inline_component
 
 from ..common.page_layout import page_layout
+from ..common.unit_type_select_state import UnitTypeSelectState
 from ..material_form_dialog.material_form_dialog_component import material_update_dialog
-from .materials_list_state import MaterialsListState
+from .materials_list_state import ALL_FILTER_VALUE, MaterialsListState
+
+
+def _supplier_filter_option(supplier: SupplierDTO) -> rx.Component:
+    """Create a select option for a supplier filter."""
+    return rx.select.item(supplier.name, value=supplier.id)
 
 
 def _filter_bar() -> rx.Component:
-    """Create the filter bar with search filter.
+    """Create the filter bar with search and dropdown filters.
 
     :return: The filter bar component
     :rtype: rx.Component
     """
     return rx.hstack(
+        # Search input
         rx.input(
             placeholder="Search materials...",
             value=MaterialsListState.search_text,
             on_change=MaterialsListState.handle_search_change,
-            min_width="300px",
+            width="200px",
         ),
+        # Supplier filter
+        rx.select.root(
+            rx.select.trigger(placeholder="Supplier", width="180px"),
+            rx.select.content(
+                rx.select.item("All suppliers", value=ALL_FILTER_VALUE),
+                rx.foreach(MaterialsListState.available_suppliers, _supplier_filter_option),
+            ),
+            value=MaterialsListState.filter_supplier_id,
+            on_change=MaterialsListState.handle_supplier_filter_change,
+        ),
+        # Consumable filter
+        rx.select.root(
+            rx.select.trigger(placeholder="Type", width="160px"),
+            rx.select.content(
+                rx.select.item("All types", value=ALL_FILTER_VALUE),
+                rx.select.item("Consumable", value="true"),
+                rx.select.item("Non-consumable", value="false"),
+            ),
+            value=MaterialsListState.filter_is_consumable,
+            on_change=MaterialsListState.handle_consumable_filter_change,
+        ),
+        # Unit type filter
+        rx.select.root(
+            rx.select.trigger(placeholder="Unit type", width="180px"),
+            rx.select.content(
+                rx.select.item("All unit types", value=ALL_FILTER_VALUE),
+                rx.foreach(
+                    UnitTypeSelectState.unit_types,
+                    lambda unit_type: rx.select.item(unit_type.label, value=unit_type.value),
+                ),
+            ),
+            value=MaterialsListState.filter_unit_type,
+            on_change=MaterialsListState.handle_unit_type_filter_change,
+        ),
+        # Clear filters button
         rx.button(
             "Clear",
             on_click=MaterialsListState.clear_filters,
@@ -31,6 +74,7 @@ def _filter_bar() -> rx.Component:
         width="100%",
         spacing="3",
         wrap="wrap",
+        align="center",
     )
 
 
@@ -134,7 +178,7 @@ def materials_list_page() -> rx.Component:
 
     This component displays a table of materials with columns for
     name, description, supplier, type, created by, and created at.
-    Includes a search filter for filtering by material name.
+    Includes filters for search, supplier, consumable type, and unit type.
 
     :return: The materials list page component
     :rtype: rx.Component
