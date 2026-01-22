@@ -17,6 +17,7 @@ from gws_core import BadRequestException, BaseTestCase
 from gws_eln.core.unit_type import UnitType
 from gws_eln.metarials.metarial import Metarial
 from gws_eln.suppliers.supplier import Supplier
+from gws_eln.suppliers.supplier_dto import CreateSupplierDTO, UpdateSupplierDTO
 from gws_eln.suppliers.supplier_service import SupplierService
 from gws_eln.user.eln_user_sync_service import ElnUserSyncService
 
@@ -37,10 +38,10 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Act
-        supplier = service.create_supplier(
+        supplier = service.create_supplier(CreateSupplierDTO(
             name="Test Supplier",
             contact_info="contact@test.com"
-        )
+        ))
 
         # Assert
         self.assertIsNotNone(supplier)
@@ -62,7 +63,7 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Act
-        supplier = service.create_supplier(name="Minimal Supplier")
+        supplier = service.create_supplier(CreateSupplierDTO(name="Minimal Supplier"))
 
         # Assert
         self.assertIsNotNone(supplier)
@@ -77,10 +78,10 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Act
-        supplier = service.create_supplier(
+        supplier = service.create_supplier(CreateSupplierDTO(
             name="  Trimmed Supplier  ",
             contact_info="  info@test.com  "
-        )
+        ))
 
         # Assert
         self.assertEqual(supplier.name, "Trimmed Supplier")
@@ -94,11 +95,11 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create first supplier
-        supplier1 = service.create_supplier(name="Unique Supplier")
+        supplier1 = service.create_supplier(CreateSupplierDTO(name="Unique Supplier"))
 
         # Act & Assert: duplicate name should fail
         with self.assertRaises(BadRequestException) as context:
-            service.create_supplier(name="Unique Supplier")
+            service.create_supplier(CreateSupplierDTO(name="Unique Supplier"))
 
         self.assertIn("already exists", str(context.exception))
         self.assertIn("Unique Supplier", str(context.exception))
@@ -112,7 +113,7 @@ class TestSupplierService(BaseTestCase):
 
         # Act & Assert
         with self.assertRaises(BadRequestException) as context:
-            service.create_supplier(name="")
+            service.create_supplier(CreateSupplierDTO(name=""))
 
         self.assertIn("name is required", str(context.exception))
 
@@ -122,7 +123,7 @@ class TestSupplierService(BaseTestCase):
 
         # Act & Assert
         with self.assertRaises(BadRequestException) as context:
-            service.create_supplier(name="   ")
+            service.create_supplier(CreateSupplierDTO(name="   "))
 
         self.assertIn("name is required", str(context.exception))
 
@@ -131,10 +132,10 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier
-        supplier = service.create_supplier(
+        supplier = service.create_supplier(CreateSupplierDTO(
             name="Get Test Supplier",
             contact_info="get@test.com"
-        )
+        ))
 
         # Act
         retrieved = service.get_supplier(supplier.id)
@@ -160,9 +161,9 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create multiple suppliers
-        supplier1 = service.create_supplier(name="Alpha Supplier")
-        supplier2 = service.create_supplier(name="Beta Supplier")
-        supplier3 = service.create_supplier(name="Gamma Supplier")
+        supplier1 = service.create_supplier(CreateSupplierDTO(name="Alpha Supplier"))
+        supplier2 = service.create_supplier(CreateSupplierDTO(name="Beta Supplier"))
+        supplier3 = service.create_supplier(CreateSupplierDTO(name="Gamma Supplier"))
 
         # Act
         suppliers = service.list_suppliers()
@@ -190,17 +191,19 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier
-        supplier = service.create_supplier(
+        supplier = service.create_supplier(CreateSupplierDTO(
             name="Original Name",
             contact_info="original@test.com"
-        )
+        ))
         original_id = supplier.id
 
         # Act
         updated = service.update_supplier(
             supplier_id=supplier.id,
-            name="Updated Name",
-            contact_info="updated@test.com"
+            dto=UpdateSupplierDTO(
+                name="Updated Name",
+                contact_info="updated@test.com"
+            )
         )
 
         # Assert
@@ -221,16 +224,18 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier with contact_info
-        supplier = service.create_supplier(
+        supplier = service.create_supplier(CreateSupplierDTO(
             name="Clear Contact Supplier",
             contact_info="to-be-cleared@test.com"
-        )
+        ))
 
         # Act: update with None contact_info
         updated = service.update_supplier(
             supplier_id=supplier.id,
-            name="Clear Contact Supplier",
-            contact_info=None
+            dto=UpdateSupplierDTO(
+                name="Clear Contact Supplier",
+                contact_info=None
+            )
         )
 
         # Assert
@@ -244,16 +249,18 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier
-        supplier = service.create_supplier(
+        supplier = service.create_supplier(CreateSupplierDTO(
             name="Same Name Supplier",
             contact_info="original@test.com"
-        )
+        ))
 
         # Act: update contact_info only, keep same name
         updated = service.update_supplier(
             supplier_id=supplier.id,
-            name="Same Name Supplier",
-            contact_info="new@test.com"
+            dto=UpdateSupplierDTO(
+                name="Same Name Supplier",
+                contact_info="new@test.com"
+            )
         )
 
         # Assert
@@ -268,14 +275,14 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create two suppliers
-        supplier1 = service.create_supplier(name="Supplier One")
-        supplier2 = service.create_supplier(name="Supplier Two")
+        supplier1 = service.create_supplier(CreateSupplierDTO(name="Supplier One"))
+        supplier2 = service.create_supplier(CreateSupplierDTO(name="Supplier Two"))
 
         # Act & Assert: try to rename supplier2 to supplier1's name
         with self.assertRaises(BadRequestException) as context:
             service.update_supplier(
                 supplier_id=supplier2.id,
-                name="Supplier One"
+                dto=UpdateSupplierDTO(name="Supplier One")
             )
 
         self.assertIn("already exists", str(context.exception))
@@ -289,13 +296,13 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier
-        supplier = service.create_supplier(name="To Update Supplier")
+        supplier = service.create_supplier(CreateSupplierDTO(name="To Update Supplier"))
 
         # Act & Assert
         with self.assertRaises(BadRequestException) as context:
             service.update_supplier(
                 supplier_id=supplier.id,
-                name=""
+                dto=UpdateSupplierDTO(name="")
             )
 
         self.assertIn("name is required", str(context.exception))
@@ -308,7 +315,7 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier
-        supplier = service.create_supplier(name="To Delete Supplier")
+        supplier = service.create_supplier(CreateSupplierDTO(name="To Delete Supplier"))
         supplier_id = supplier.id
 
         # Act
@@ -323,7 +330,7 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier
-        supplier = service.create_supplier(name="Referenced Supplier")
+        supplier = service.create_supplier(CreateSupplierDTO(name="Referenced Supplier"))
 
         # Create metarial that references the supplier
         metarial = Metarial()
@@ -360,7 +367,7 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Act
-        supplier = service.create_supplier(name="Audit Test Supplier")
+        supplier = service.create_supplier(CreateSupplierDTO(name="Audit Test Supplier"))
 
         # Assert
         self.assertIsNotNone(supplier.created_at)
@@ -376,13 +383,13 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier
-        supplier = service.create_supplier(name="Audit Update Supplier")
+        supplier = service.create_supplier(CreateSupplierDTO(name="Audit Update Supplier"))
         original_created_by_id = supplier.created_by.id
 
         # Act: update supplier
         updated = service.update_supplier(
             supplier_id=supplier.id,
-            name="Audit Update Supplier Modified"
+            dto=UpdateSupplierDTO(name="Audit Update Supplier Modified")
         )
 
         # Assert: created_by unchanged, last_modified_by is set

@@ -9,6 +9,7 @@ from gws_core import BadRequestException, CurrentUserService
 
 from gws_eln.metarials.metarial import Metarial
 from gws_eln.suppliers.supplier import Supplier
+from gws_eln.suppliers.supplier_dto import CreateSupplierDTO, UpdateSupplierDTO
 
 
 class SupplierService:
@@ -42,47 +43,38 @@ class SupplierService:
         CurrentUserService.get_and_check_current_user()
         return list(Supplier.select().order_by(Supplier.name))
 
-    def create_supplier(self, name: str, contact_info: str | None = None) -> Supplier:
+    def create_supplier(self, dto: CreateSupplierDTO) -> Supplier:
         """
         Create a new supplier.
 
-        :param name: Supplier name (required, must be unique)
-        :type name: str
-        :param contact_info: Optional contact information
-        :type contact_info: Optional[str]
+        :param dto: DTO containing supplier data
+        :type dto: CreateSupplierDTO
         :return: The created supplier
         :rtype: Supplier
         :raises BadRequestException: If name is empty or already exists
         """
         # Validate input
-        self._validate_supplier_name(name)
-        self._check_unique_name(name)
+        self._validate_supplier_name(dto.name)
+        self._check_unique_name(dto.name)
 
         # Create supplier
         supplier = Supplier()
-        supplier.name = name.strip()
-        supplier.contact_info = contact_info.strip() if contact_info else None
+        supplier.name = dto.name.strip()
+        supplier.contact_info = dto.contact_info.strip() if dto.contact_info else None
 
         # Save (created_by/last_modified_by set automatically by ModelWithUser)
         supplier.save()
 
         return supplier
 
-    def update_supplier(
-        self,
-        supplier_id: str,
-        name: str,
-        contact_info: str | None = None,
-    ) -> Supplier:
+    def update_supplier(self, supplier_id: str, dto: UpdateSupplierDTO) -> Supplier:
         """
         Update an existing supplier.
 
         :param supplier_id: The ID of the supplier to update
         :type supplier_id: str
-        :param name: Updated supplier name (required, must be unique)
-        :type name: str
-        :param contact_info: Updated contact information
-        :type contact_info: Optional[str]
+        :param dto: DTO containing updated supplier data
+        :type dto: UpdateSupplierDTO
         :return: The updated supplier
         :rtype: Supplier
         :raises NotFoundException: If supplier not found
@@ -92,15 +84,15 @@ class SupplierService:
         supplier = self.get_supplier(supplier_id)
 
         # Validate input
-        self._validate_supplier_name(name)
+        self._validate_supplier_name(dto.name)
 
         # Check unique name (only if name changed)
-        if supplier.name != name.strip():
-            self._check_unique_name(name, exclude_id=supplier_id)
+        if supplier.name != dto.name.strip():
+            self._check_unique_name(dto.name, exclude_id=supplier_id)
 
         # Update fields
-        supplier.name = name.strip()
-        supplier.contact_info = contact_info.strip() if contact_info else None
+        supplier.name = dto.name.strip()
+        supplier.contact_info = dto.contact_info.strip() if dto.contact_info else None
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         supplier.save()

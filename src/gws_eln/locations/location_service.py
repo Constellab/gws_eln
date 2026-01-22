@@ -8,6 +8,7 @@ Implements Story 3.3 from Epic 3: Service Layer - Suppliers & Locations.
 from gws_core import BadRequestException, CurrentUserService
 
 from gws_eln.locations.location import Location
+from gws_eln.locations.location_dto import CreateLocationDTO, UpdateLocationDTO
 from gws_eln.metarials.metarial_batch import MetarialBatch
 
 
@@ -60,47 +61,38 @@ class LocationService:
         CurrentUserService.get_and_check_current_user()
         return list(Location.select().order_by(Location.name))
 
-    def create_location(self, name: str, description: str | None = None) -> Location:
+    def create_location(self, dto: CreateLocationDTO) -> Location:
         """
         Create a new location.
 
-        :param name: Location name (required, must be unique)
-        :type name: str
-        :param description: Optional description
-        :type description: Optional[str]
+        :param dto: DTO containing location data
+        :type dto: CreateLocationDTO
         :return: The created location
         :rtype: Location
         :raises BadRequestException: If name is empty or already exists
         """
         # Validate input
-        self._validate_location_name(name)
-        self._check_unique_name(name)
+        self._validate_location_name(dto.name)
+        self._check_unique_name(dto.name)
 
         # Create location
         location = Location()
-        location.name = name.strip()
-        location.description = description.strip() if description else None
+        location.name = dto.name.strip()
+        location.description = dto.description.strip() if dto.description else None
 
         # Save (created_by/last_modified_by set automatically by ModelWithUser)
         location.save()
 
         return location
 
-    def update_location(
-        self,
-        location_id: str,
-        name: str,
-        description: str | None = None,
-    ) -> Location:
+    def update_location(self, location_id: str, dto: UpdateLocationDTO) -> Location:
         """
         Update an existing location.
 
         :param location_id: The ID of the location to update
         :type location_id: str
-        :param name: Updated location name (required, must be unique)
-        :type name: str
-        :param description: Updated description
-        :type description: Optional[str]
+        :param dto: DTO containing updated location data
+        :type dto: UpdateLocationDTO
         :return: The updated location
         :rtype: Location
         :raises NotFoundException: If location not found
@@ -110,15 +102,15 @@ class LocationService:
         location = self.get_location(location_id)
 
         # Validate input
-        self._validate_location_name(name)
+        self._validate_location_name(dto.name)
 
         # Check unique name (only if name changed)
-        if location.name != name.strip():
-            self._check_unique_name(name, exclude_id=location_id)
+        if location.name != dto.name.strip():
+            self._check_unique_name(dto.name, exclude_id=location_id)
 
         # Update fields
-        location.name = name.strip()
-        location.description = description.strip() if description else None
+        location.name = dto.name.strip()
+        location.description = dto.description.strip() if dto.description else None
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         location.save()
