@@ -185,7 +185,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `src/gws_eln/metarials/metarial.py`
-- Fields: id, name, description, supplier_id (FK), catalog_number, is_consumable, default_unit_type
+- Fields: id, name, description, supplier_id (FK), is_consumable, default_unit_type
 - Audit fields: created_by_id, last_modified_by_id, created_at, last_modified_at
 - Indices: supplier_id, is_consumable, name
 - Model extends `gws_core.ModelWithUser`
@@ -480,10 +480,10 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `src/gws_eln/metarials/metarial_service.py`
-- Method: `create_metarial(name, description, supplier_id, catalog_number, is_consumable, default_unit_type, user_id)` → Metarial
+- Method: `create_metarial(name, description, supplier_id, is_consumable, default_unit_type, user_id)` → Metarial
 - Method: `get_metarial(metarial_id)` → Metarial
 - Method: `list_metarials(filter_consumable=None)` → List[Metarial]
-- Method: `update_metarial(metarial_id, name, description, supplier_id, catalog_number, is_consumable, default_unit_type, user_id)` → Metarial
+- Method: `update_metarial(metarial_id, name, description, supplier_id, is_consumable, default_unit_type, user_id)` → Metarial
 - Method: `delete_metarial(metarial_id, user_id)` → bool (prevent if batches exist)
 - Validate supplier_id exists if provided
 - Track audit fields
@@ -913,7 +913,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `pages/metarials/list.py`
-- Display: metarial name, type (consumable/non-consumable), supplier, catalog_number
+- Display: metarial name, type (consumable/non-consumable), supplier
 - Filter: by consumable flag
 - Search: by name
 - Actions: Create New, Edit, Delete (if unused)
@@ -932,7 +932,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `pages/metarials/form.py`
-- Form fields: name, description, supplier (dropdown), catalog_number, is_consumable (toggle), default_unit_type (dropdown)
+- Form fields: name, description, supplier (dropdown), is_consumable (toggle), default_unit_type (dropdown)
 - Validation: required fields, unique name
 - On submit: call MetarialService.create_metarial() or update_metarial()
 - Success: show confirmation, navigate to list

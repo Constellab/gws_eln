@@ -20,7 +20,6 @@ materials
 │   Examples: "Éthanol 99%", "Spectrophotomètre UV-Vis", "Échantillon Sang"
 ├── description (TEXT)
 ├── supplier_id (FK → suppliers.id, NULL)
-├── catalog_number (VARCHAR(100), NULL)
 │   Supplier's catalog number (e.g., "E7023")
 ├── is_consumable (BOOLEAN, NOT NULL)
 │   TRUE: chemicals, reagents, samples → quantity decrements on use
@@ -53,7 +52,7 @@ material_batches
 ├── parent_batch_id (FK → material_batches.id, NULL)
 │   NULL: original batch/instance
 │   NOT NULL: aliquot/sub-batch (inherits supplier_id from parent)
-├── batch_number (VARCHAR(100), NULL)
+├── batch_number (VARCHAR(100))
 │   For received batches; NULL for aliquots
 ├── label (VARCHAR(255), NULL)
 │   For aliquots or custom identification

@@ -122,7 +122,6 @@ class Material(ModelWithUser):
     name = CharField(max_length=255)
     description = TextField(null=True)
     supplier = ForeignKeyField(Supplier, null=True, backref='materials')
-    catalog_number = CharField(max_length=100, null=True)
     is_consumable = BooleanField()  # TRUE: chemicals/samples, FALSE: instruments
     default_unit_type = CharField(choices=['volume', 'mass', 'length', 'count'])
     # audit fields inherited
@@ -163,7 +162,7 @@ class Location(ModelWithUser):
 class MaterialBatch(ModelWithUser):
     material = ForeignKeyField(Material, backref='batches')
     parent_batch = ForeignKeyField('self', null=True, backref='children')
-    batch_number = CharField(max_length=100, null=True)
+    batch_number = CharField(max_length=100, null=False)
     label = CharField(max_length=255, null=True)
     expiry_date = DateField(null=True)
     quantity = DecimalField(max_digits=20, decimal_places=12, null=True)
