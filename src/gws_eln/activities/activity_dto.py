@@ -21,7 +21,6 @@ class CreateActivityDTO(BaseModelDTO):
     unit_type: UnitType | None = None
     from_location_id: str | None = None
     to_location_id: str | None = None
-    reason: str | None = None
     notes: str | None = None
     note_id: str | None = None  # Link to Constellab Note
     related_entity_id: str | None = None  # For aliquot: child batch ID

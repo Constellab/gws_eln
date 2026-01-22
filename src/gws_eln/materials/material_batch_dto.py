@@ -39,7 +39,7 @@ class IncrementQuantityDTO(BaseModelDTO):
 
     quantity: Decimal
     unit_type: UnitType
-    reason: str | None = None
+    notes: str | None = None
 
 
 class DecrementQuantityDTO(BaseModelDTO):
@@ -47,7 +47,7 @@ class DecrementQuantityDTO(BaseModelDTO):
 
     quantity: Decimal
     unit_type: UnitType
-    reason: str
+    notes: str
 
 
 class MoveBatchDTO(BaseModelDTO):

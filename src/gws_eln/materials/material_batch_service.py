@@ -243,7 +243,7 @@ class MaterialBatchService:
                 quantity=validated_quantity,
                 unit_type=dto.unit_type,
                 to_location_id=batch.location.id,
-                reason=dto.reason,
+                notes=dto.notes,
             )
         )
 
@@ -299,7 +299,7 @@ class MaterialBatchService:
                 entity_id=batch.id,
                 quantity=validated_quantity,
                 unit_type=dto.unit_type,
-                reason=dto.reason,
+                notes=dto.notes,
             )
         )
 
@@ -442,7 +442,7 @@ class MaterialBatchService:
         return batch
 
     @ElnDbManager.transaction()
-    def delete_batch(self, batch_id: str, reason: str | None = None) -> dict:
+    def delete_batch(self, batch_id: str, notes: str | None = None) -> dict:
         """
         Delete or discard a batch if it has no child batches (aliquots).
 
@@ -451,8 +451,8 @@ class MaterialBatchService:
 
         :param batch_id: The ID of the batch to delete
         :type batch_id: str
-        :param reason: Optional reason for discarding the batch
-        :type reason: Optional[str]
+        :param notes: Optional notes for discarding the batch
+        :type notes: Optional[str]
         :return: Dict with 'deleted' (bool) and 'hard_deleted' (bool) keys
         :rtype: dict
         :raises NotFoundException: If batch not found
@@ -479,7 +479,7 @@ class MaterialBatchService:
             )
 
         # Count activities for this batch
-        activity_count = Activity.select().where(Activity.entity == batch).count()
+        activity_count = Activity.count_by_batch_id(batch.id)
 
         # If only 1 activity (the creation 'receive'), hard delete
         if activity_count <= 1:
@@ -497,7 +497,7 @@ class MaterialBatchService:
                 entity_id=batch.id,
                 quantity=batch.quantity,
                 unit_type=batch.unit_type,
-                reason=reason if reason else "Batch discarded",
+                notes=notes if notes else "Batch discarded",
             )
         )
 

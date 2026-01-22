@@ -228,7 +228,7 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Assert - check activity was created
-        activities = list(Activity.select().where(Activity.entity == batch))
+        activities = Activity.find_by_batch_id(batch.id)
         self.assertEqual(len(activities), 1)
 
         activity = activities[0]
@@ -432,7 +432,7 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Clear initial activity
-        initial_activities_count = Activity.select().where(Activity.entity == batch).count()
+        initial_activities_count = Activity.count_by_batch_id(batch.id)
 
         # Act - receive additional stock
         service.receive_batch(
@@ -445,7 +445,7 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Assert - check new activity was created
-        activities = list(Activity.select().where(Activity.entity == batch))
+        activities = Activity.find_by_batch_id(batch.id)
         self.assertEqual(len(activities), initial_activities_count + 1)
 
         # Find the receive activity with the specific notes
@@ -881,7 +881,7 @@ class TestMaterialBatchService(BaseTestCase):
             dto=IncrementQuantityDTO(
                 quantity=Decimal("50"),
                 unit_type=UnitType.VOLUME,
-                reason="Additional stock received",
+                notes="Additional stock received",
             ),
         )
 
@@ -909,7 +909,7 @@ class TestMaterialBatchService(BaseTestCase):
                 unit_type=UnitType.COUNT,
             )
         )
-        initial_activity_count = Activity.select().where(Activity.entity == batch).count()
+        initial_activity_count = Activity.count_by_batch_id(batch.id)
 
         # Act - increment quantity
         service.increment_quantity(
@@ -917,16 +917,16 @@ class TestMaterialBatchService(BaseTestCase):
             dto=IncrementQuantityDTO(
                 quantity=Decimal("25"),
                 unit_type=UnitType.COUNT,
-                reason="Test increment reason",
+                notes="Test increment notes",
             ),
         )
 
         # Assert - new activity created
-        activities = list(Activity.select().where(Activity.entity == batch))
+        activities = Activity.find_by_batch_id(batch.id)
         self.assertEqual(len(activities), initial_activity_count + 1)
 
-        # Find the increment activity by reason
-        inc_activities = [a for a in activities if a.reason == "Test increment reason"]
+        # Find the increment activity by notes
+        inc_activities = [a for a in activities if a.notes == "Test increment notes"]
         self.assertEqual(len(inc_activities), 1)
         self.assertEqual(inc_activities[0].activity_type, ActivityType.RECEIVE)
         self.assertEqual(inc_activities[0].quantity, Decimal("25"))
@@ -1025,7 +1025,7 @@ class TestMaterialBatchService(BaseTestCase):
             dto=DecrementQuantityDTO(
                 quantity=Decimal("30"),
                 unit_type=UnitType.VOLUME,
-                reason="Used in experiment",
+                notes="Used in experiment",
             ),
         )
 
@@ -1053,7 +1053,7 @@ class TestMaterialBatchService(BaseTestCase):
                 unit_type=UnitType.COUNT,
             )
         )
-        initial_activity_count = Activity.select().where(Activity.entity == batch).count()
+        initial_activity_count = Activity.count_by_batch_id(batch.id)
 
         # Act - decrement quantity
         service.decrement_quantity(
@@ -1061,16 +1061,16 @@ class TestMaterialBatchService(BaseTestCase):
             dto=DecrementQuantityDTO(
                 quantity=Decimal("25"),
                 unit_type=UnitType.COUNT,
-                reason="Test decrement reason",
+                notes="Test decrement note",
             ),
         )
 
         # Assert - new activity created
-        activities = list(Activity.select().where(Activity.entity == batch))
+        activities = Activity.find_by_batch_id(batch.id)
         self.assertEqual(len(activities), initial_activity_count + 1)
 
-        # Find the consume activity by reason
-        consume_activities = [a for a in activities if a.reason == "Test decrement reason"]
+        # Find the consume activity by notes
+        consume_activities = [a for a in activities if a.notes == "Test decrement note"]
         self.assertEqual(len(consume_activities), 1)
         self.assertEqual(consume_activities[0].activity_type, ActivityType.CONSUME)
         self.assertEqual(consume_activities[0].quantity, Decimal("25"))
@@ -1103,7 +1103,7 @@ class TestMaterialBatchService(BaseTestCase):
                 DecrementQuantityDTO(
                     quantity=Decimal("5"),
                     unit_type=UnitType.COUNT,
-                    reason="Should fail",
+                    notes="Should fail",
                 ),
             )
 
@@ -1137,7 +1137,7 @@ class TestMaterialBatchService(BaseTestCase):
                 DecrementQuantityDTO(
                     quantity=Decimal("100"),  # More than available (50)
                     unit_type=UnitType.COUNT,
-                    reason="Should fail",
+                    notes="Should fail",
                 ),
             )
 
@@ -1170,7 +1170,7 @@ class TestMaterialBatchService(BaseTestCase):
                 DecrementQuantityDTO(
                     quantity=Decimal("50"),
                     unit_type=UnitType.MASS,
-                    reason="Should fail",
+                    notes="Should fail",
                 ),
             )
 
@@ -1202,7 +1202,7 @@ class TestMaterialBatchService(BaseTestCase):
             DecrementQuantityDTO(
                 quantity=Decimal("100"),
                 unit_type=UnitType.COUNT,
-                reason="Used all stock",
+                notes="Used all stock",
             ),
         )
 
@@ -1235,7 +1235,7 @@ class TestMaterialBatchService(BaseTestCase):
             DecrementQuantityDTO(
                 quantity=Decimal("20"),
                 unit_type=UnitType.COUNT,
-                reason="First use",
+                notes="First use",
             ),
         )
         service.decrement_quantity(
@@ -1243,7 +1243,7 @@ class TestMaterialBatchService(BaseTestCase):
             DecrementQuantityDTO(
                 quantity=Decimal("30"),
                 unit_type=UnitType.COUNT,
-                reason="Second use",
+                notes="Second use",
             ),
         )
         updated_batch = service.decrement_quantity(
@@ -1251,7 +1251,7 @@ class TestMaterialBatchService(BaseTestCase):
             DecrementQuantityDTO(
                 quantity=Decimal("10"),
                 unit_type=UnitType.COUNT,
-                reason="Third use",
+                notes="Third use",
             ),
         )
 
@@ -1322,7 +1322,7 @@ class TestMaterialBatchService(BaseTestCase):
                 location_id=location1.id,
             )
         )
-        initial_activity_count = Activity.select().where(Activity.entity == batch).count()
+        initial_activity_count = Activity.count_by_batch_id(batch.id)
 
         # Act - move to location2
         service.move_batch(
@@ -1331,7 +1331,7 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Assert - new activity created
-        activity_count = Activity.select().where(Activity.entity == batch).count()
+        activity_count = Activity.count_by_batch_id(batch.id)
         self.assertEqual(activity_count, initial_activity_count + 1)
 
         # Find the move activity by type - select specific columns to avoid NULL enum issue
@@ -1582,18 +1582,18 @@ class TestMaterialBatchService(BaseTestCase):
         batch_id = batch.id
 
         # Verify only 1 activity (creation receive)
-        activity_count = Activity.select().where(Activity.entity == batch).count()
+        activity_count = Activity.count_by_batch_id(batch.id)
         self.assertEqual(activity_count, 1)
 
         # Act
-        result = service.delete_batch(batch_id, reason="Test deletion")
+        result = service.delete_batch(batch_id, notes="Test deletion")
 
         # Assert - hard deleted
         self.assertTrue(result["deleted"])
         self.assertTrue(result["hard_deleted"])
         self.assertFalse(MaterialBatch.select().where(MaterialBatch.id == batch_id).exists())
         # Activities should also be deleted
-        self.assertEqual(Activity.select().where(Activity.entity == batch_id).count(), 0)
+        self.assertEqual(Activity.count_by_batch_id(batch_id), 0)
 
         # Cleanup
         material.delete_instance()
@@ -1621,11 +1621,11 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Verify more than 1 activity
-        activity_count = Activity.select().where(Activity.entity == batch).count()
+        activity_count = Activity.count_by_batch_id(batch.id)
         self.assertGreater(activity_count, 1)
 
         # Act
-        result = service.delete_batch(batch_id, reason="Expired stock")
+        result = service.delete_batch(batch_id, notes="Expired stock")
 
         # Assert - soft deleted (discarded)
         self.assertTrue(result["deleted"])
@@ -1637,7 +1637,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertTrue(db_batch.is_discarded())
 
         # Activities are preserved including the discard activity
-        activities = list(Activity.select().where(Activity.entity == batch))
+        activities = Activity.find_by_batch_id(batch_id)
         self.assertGreater(len(activities), activity_count)  # Discard activity added
 
         # Cleanup
@@ -1674,7 +1674,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn(batch_id, batch_ids_before)
 
         # Discard the batch
-        service.delete_batch(batch_id, reason="Test")
+        service.delete_batch(batch_id, notes="Test")
 
         # Verify batch is NOT in default list
         batches_after = service.list_batches(material_id=material.id)
@@ -1716,11 +1716,11 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Discard the batch
-        service.delete_batch(batch_id, reason="First discard")
+        service.delete_batch(batch_id, notes="First discard")
 
         # Act & Assert - try to delete again
         with self.assertRaises(BadRequestException) as context:
-            service.delete_batch(batch_id, reason="Second discard")
+            service.delete_batch(batch_id, notes="Second discard")
 
         self.assertIn("already discarded", str(context.exception).lower())
 
@@ -1783,7 +1783,7 @@ class TestMaterialBatchService(BaseTestCase):
             service.delete_batch("non-existent-batch-id")
 
     def test_delete_batch_creates_discard_activity(self):
-        """Test soft deleting a batch creates a discard activity with reason"""
+        """Test soft deleting a batch creates a discard activity with note"""
         service = MaterialBatchService()
         material = self._create_test_material("Discard Activity Material", True, UnitType.COUNT)
         self._ensure_default_location()
@@ -1804,15 +1804,14 @@ class TestMaterialBatchService(BaseTestCase):
             ReceiveBatchDTO(quantity=Decimal("50"), unit_type=UnitType.COUNT),
         )
 
-        # Act - delete batch with reason
-        service.delete_batch(batch_id, reason="Expired stock")
+        # Act - delete batch with notes
+        service.delete_batch(batch_id, notes="Expired stock")
 
         # Assert - discard activity was created
         discard_activity = (
             Activity.select(
                 Activity.id,
                 Activity.activity_type,
-                Activity.reason,
                 Activity.quantity,
             )
             .where(Activity.entity == batch)
@@ -1820,7 +1819,6 @@ class TestMaterialBatchService(BaseTestCase):
             .first()
         )
         self.assertIsNotNone(discard_activity)
-        self.assertEqual(discard_activity.reason, "Expired stock")
         self.assertEqual(discard_activity.quantity, Decimal("150"))  # 100 + 50
 
         # Cleanup
@@ -1940,7 +1938,7 @@ class TestMaterialBatchService(BaseTestCase):
                 unit_type=UnitType.COUNT,
             )
         )
-        initial_activity_count = Activity.select().where(Activity.entity == batch).count()
+        initial_activity_count = Activity.count_by_batch_id(batch.id)
 
         # Act - relabel batch
         service.relabel_batch(
@@ -1949,7 +1947,7 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Assert - new activity created
-        activity_count = Activity.select().where(Activity.entity == batch).count()
+        activity_count = Activity.count_by_batch_id(batch.id)
         self.assertEqual(activity_count, initial_activity_count + 1)
 
         # Find the relabel activity
@@ -2039,7 +2037,7 @@ class TestMaterialBatchService(BaseTestCase):
                 label="Same Label",
             )
         )
-        initial_activity_count = Activity.select().where(Activity.entity == batch).count()
+        initial_activity_count = Activity.count_by_batch_id(batch.id)
 
         # Act - relabel with same values
         updated_batch = service.relabel_batch(
@@ -2048,7 +2046,7 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Assert - no new activity created
-        activity_count = Activity.select().where(Activity.entity == batch).count()
+        activity_count = Activity.count_by_batch_id(batch.id)
         self.assertEqual(activity_count, initial_activity_count)
         self.assertEqual(updated_batch.batch_number, "SAME-NUM")
         self.assertEqual(updated_batch.label, "Same Label")

@@ -84,11 +84,11 @@ development_status:
   epic-5-retrospective: optional
   
   # Epic 6: Service Layer - Aliquots & Lineage
-  epic-6: backlog
-  6-1-aliquot-creation-service: backlog
-  6-2-lineage-query-service: backlog
-  6-3-relabel-batch-without-breaking-lineage: backlog
-  6-4-aliquot-service-tests: backlog
+  epic-6: done
+  6-1-aliquot-creation-service: done
+  6-2-lineage-query-service: skip
+  6-3-relabel-batch-without-breaking-lineage: skip
+  6-4-aliquot-service-tests: skip
   epic-6-retrospective: optional
   
   # Epic 7: Activity Service & Audit Log

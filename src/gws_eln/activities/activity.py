@@ -2,7 +2,6 @@ from gws_core import EnumField
 from peewee import CharField, DecimalField, ForeignKeyField, TextField
 
 from gws_eln.activities.activity_type import ActivityType
-from gws_eln.activities.entity_type import EntityType
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
 from gws_eln.core.unit_type import UnitType
@@ -21,7 +20,7 @@ class Activity(ModelWithUser):
     - move: Change location
     - consume: Use consumable (decrements quantity)
     - use: Use non-consumable (reference only)
-    - discard: Remove with reason
+    - discard: Remove
     - aliquot: Create child batch
     - relabel: Change label only
 
@@ -34,17 +33,12 @@ class Activity(ModelWithUser):
         unit_type: Unit type for quantity
         from_location: Source location for move actions
         to_location: Destination location for move actions
-        reason: Reason for discard actions (required for discard)
         notes: Additional notes
         note_id: Link to Constellab Note for Note-linked actions
     """
 
     # Activity classification
     activity_type = EnumField(choices=ActivityType, max_length=20, null=False, index=True)
-
-    entity_type = EnumField(
-        choices=EntityType, max_length=20, default=EntityType.MATERIAL_BATCH, null=False
-    )
 
     # Entity being acted upon
     entity = ForeignKeyField(
@@ -65,11 +59,34 @@ class Activity(ModelWithUser):
     to_location = ForeignKeyField(Location, null=True, backref="+", on_delete="SET NULL")
 
     # Additional information
-    reason = TextField(null=True)
     notes = TextField(null=True)
 
     # Link to Constellab Note (for Note-linked actions)
     note_id = CharField(max_length=255, null=True, index=True)
+
+    @classmethod
+    def find_by_batch_id(cls, batch_id: str) -> list["Activity"]:
+        """
+        Find all activities for a given batch ID.
+
+        :param batch_id: The ID of the batch
+        :type batch_id: str
+        :return: List of activities for the batch
+        :rtype: list[Activity]
+        """
+        return list(cls.select().where(cls.entity == batch_id).order_by(cls.created_at.desc()))
+
+    @classmethod
+    def count_by_batch_id(cls, batch_id: str) -> int:
+        """
+        Count all activities for a given batch ID.
+
+        :param batch_id: The ID of the batch
+        :type batch_id: str
+        :return: Count of activities for the batch
+        :rtype: int
+        """
+        return cls.select().where(cls.entity == batch_id).count()
 
     class Meta:
         table_name = "gws_eln_activities"

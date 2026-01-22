@@ -9,7 +9,7 @@ class ActivityType(Enum):
     - MOVE: Change location of a batch
     - CONSUME: Use consumable material (decrements quantity)
     - USE: Use non-consumable material (reference only, no decrement)
-    - DISCARD: Remove batch with reason
+    - DISCARD: Remove batch
     - ALIQUOT: Quantity taken from parent batch to create an aliquot (logged on parent)
     - ALIQUOT_CREATED: Aliquot created from a parent batch (logged on the new aliquot)
     - RELABEL: Change label of a batch

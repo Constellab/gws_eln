@@ -10,7 +10,6 @@ from gws_core import BadRequestException, CurrentUserService
 from gws_eln.activities.activity import Activity
 from gws_eln.activities.activity_dto import CreateActivityDTO
 from gws_eln.activities.activity_type import ActivityType
-from gws_eln.activities.entity_type import EntityType
 from gws_eln.locations.location import Location
 from gws_eln.materials.material_batch import MaterialBatch
 
@@ -27,7 +26,7 @@ class ActivityService:
     - MOVE: Change location of a batch
     - CONSUME: Use consumable material (decrements quantity)
     - USE: Use non-consumable material (reference only)
-    - DISCARD: Remove batch with reason
+    - DISCARD: Remove batch
     - ALIQUOT: Create child batch from parent
     - RELABEL: Change label of a batch
     """
@@ -61,13 +60,11 @@ class ActivityService:
         # Create activity
         activity = Activity()
         activity.activity_type = dto.activity_type
-        activity.entity_type = EntityType.MATERIAL_BATCH
         activity.entity = entity
         activity.quantity = dto.quantity
         activity.unit_type = dto.unit_type
         activity.from_location = from_location
         activity.to_location = to_location
-        activity.reason = dto.reason.strip() if dto.reason else None
         activity.notes = dto.notes.strip() if dto.notes else None
         activity.note_id = dto.note_id
         activity.related_entity_id = dto.related_entity_id
@@ -89,11 +86,7 @@ class ActivityService:
         # Validate batch exists
         self._validate_entity_exists(batch_id)
 
-        return list(
-            Activity.select()
-            .where(Activity.entity == batch_id)
-            .order_by(Activity.created_at.desc())
-        )
+        return Activity.find_by_batch_id(batch_id)
 
     def get_note_activities(self, note_id: str) -> list[Activity]:
         """
@@ -181,9 +174,9 @@ class ActivityService:
         :type dto: CreateActivityDTO
         :raises BadRequestException: If validation fails
         """
-        # DISCARD requires a reason
-        if dto.activity_type == ActivityType.DISCARD and not dto.reason:
-            raise BadRequestException("Discard activity requires a reason")
+        # DISCARD requires a notes
+        if dto.activity_type == ActivityType.DISCARD and not dto.notes:
+            raise BadRequestException("Discard activity requires a notes")
 
         # MOVE requires to_location
         if dto.activity_type == ActivityType.MOVE and not dto.to_location_id:

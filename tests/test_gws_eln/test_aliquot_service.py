@@ -305,7 +305,7 @@ class TestAliquotService(BaseTestCase):
         )
 
         # Get initial activity count on parent (should have 1 RECEIVE)
-        initial_parent_activities = Activity.select().where(Activity.entity == parent).count()
+        initial_parent_activities = Activity.count_by_batch_id(parent.id)
         self.assertEqual(initial_parent_activities, 1)
 
         # Act
@@ -703,7 +703,7 @@ class TestAliquotService(BaseTestCase):
             parent.id,
             ReceiveBatchDTO(quantity=Decimal("10"), unit_type=UnitType.VOLUME),
         )
-        service.delete_batch(parent.id, reason="Testing discarded")
+        service.delete_batch(parent.id, notes="Testing discarded")
 
         # Act & Assert
         with self.assertRaises(BadRequestException) as context:
