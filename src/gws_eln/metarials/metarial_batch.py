@@ -3,9 +3,9 @@ from peewee import CharField, DateField, DecimalField, ForeignKeyField, TextFiel
 
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
+from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location import Location
 from gws_eln.metarials.metarial import Metarial
-from gws_eln.metarials.unit_type import UnitType
 
 
 class MetarialBatch(ModelWithUser):
@@ -65,6 +65,10 @@ class MetarialBatch(ModelWithUser):
     def is_original_batch(self) -> bool:
         """Check if this is an original batch (no parent)."""
         return self.parent_batch is None
+
+    def is_consumable(self) -> bool:
+        """Check if the metarial of this batch is consumable."""
+        return self.metarial.is_consumable
 
     class Meta:
         table_name = "gws_eln_metarial_batches"

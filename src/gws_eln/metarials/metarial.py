@@ -3,7 +3,7 @@ from peewee import BooleanField, CharField, ForeignKeyField, TextField
 
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
-from gws_eln.metarials.unit_type import UnitType
+from gws_eln.core.unit_type import UnitType
 from gws_eln.suppliers.supplier import Supplier
 
 
@@ -31,7 +31,9 @@ class Metarial(ModelWithUser):
     description = TextField(null=True)
 
     # Supplier relationship (optional FK to suppliers table)
-    supplier = ForeignKeyField(Supplier, null=True, backref="metarials", on_delete="SET NULL", index=True)
+    supplier = ForeignKeyField(
+        Supplier, null=True, backref="metarials", on_delete="SET NULL", index=True
+    )
 
     # Behavior flag
     is_consumable = BooleanField(default=True, null=False, index=True)

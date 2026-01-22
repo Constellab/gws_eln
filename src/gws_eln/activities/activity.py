@@ -5,9 +5,9 @@ from gws_eln.activities.activity_type import ActivityType
 from gws_eln.activities.entity_type import EntityType
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
+from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location import Location
 from gws_eln.metarials.metarial_batch import MetarialBatch
-from gws_eln.metarials.unit_type import UnitType
 
 
 class Activity(ModelWithUser):
@@ -40,27 +40,15 @@ class Activity(ModelWithUser):
     """
 
     # Activity classification
-    activity_type = EnumField(
-        choices=ActivityType,
-        max_length=20,
-        null=False,
-        index=True
-    )
+    activity_type = EnumField(choices=ActivityType, max_length=20, null=False, index=True)
 
     entity_type = EnumField(
-        choices=EntityType,
-        max_length=20,
-        default=EntityType.METARIAL_BATCH,
-        null=False
+        choices=EntityType, max_length=20, default=EntityType.METARIAL_BATCH, null=False
     )
 
     # Entity being acted upon
     entity = ForeignKeyField(
-        MetarialBatch,
-        null=False,
-        backref="activities",
-        on_delete="CASCADE",
-        index=True
+        MetarialBatch, null=False, backref="activities", on_delete="CASCADE", index=True
     )
 
     # Related entity (for aliquot creation - points to child batch)
@@ -72,19 +60,9 @@ class Activity(ModelWithUser):
     unit_type = EnumField(choices=UnitType, max_length=20, null=True)
 
     # Location tracking (for move actions)
-    from_location = ForeignKeyField(
-        Location,
-        null=True,
-        backref="+",
-        on_delete="SET NULL"
-    )
+    from_location = ForeignKeyField(Location, null=True, backref="+", on_delete="SET NULL")
 
-    to_location = ForeignKeyField(
-        Location,
-        null=True,
-        backref="+",
-        on_delete="SET NULL"
-    )
+    to_location = ForeignKeyField(Location, null=True, backref="+", on_delete="SET NULL")
 
     # Additional information
     reason = TextField(null=True)

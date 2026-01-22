@@ -22,6 +22,8 @@ bricks/gws_eln/
 
 ### Test Class Structure
 
+**Important**: When the test requires the database extends the class `BaseTestCase` otherwise use `BaseTestCaseLight` from `gws_core`.
+
 **Pattern from gws_project:**
 ```python
 from gws_core import BaseTestCase, CurrentUserService
