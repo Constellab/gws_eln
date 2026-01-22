@@ -9,8 +9,7 @@ from gws_core import BadRequestException, CurrentUserService
 
 from gws_eln.locations.location import Location
 from gws_eln.locations.location_dto import CreateLocationDTO, UpdateLocationDTO
-from gws_eln.metarials.metarial_batch import MetarialBatch
-
+from gws_eln.materials.material_batch import MaterialBatch
 
 # Default location name that cannot be deleted
 DEFAULT_LOCATION_NAME = "labo"
@@ -198,7 +197,7 @@ class LocationService:
         :type location: Location
         :raises BadRequestException: If location is referenced
         """
-        if MetarialBatch.select().where(MetarialBatch.location == location).exists():
+        if MaterialBatch.select().where(MaterialBatch.location == location).exists():
             raise BadRequestException(
                 f"Cannot delete location '{location.name}' because it is referenced by one or more batches. "
                 "Move all batches to a different location first."

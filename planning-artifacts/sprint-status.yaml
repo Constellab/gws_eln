@@ -45,8 +45,8 @@ development_status:
   # Epic 1: Core Infrastructure & Database Entities
   epic-1: done
   1-1-study-gws-project-backend-structure: done
-  1-2-define-metarial-entity: done
-  1-3-define-metarial-batch-entity: done
+  1-2-define-material-entity: done
+  1-3-define-material-batch-entity: done
   1-4-define-supplier-entity: done
   1-5-define-location-entity: done
   1-6-define-activity-entity: done
@@ -68,19 +68,19 @@ development_status:
   3-4-location-service-tests: done
   epic-3-retrospective: optional
   
-  # Epic 4: Service Layer - Metarials
-  epic-4: backlog
-  4-1-metarial-service-implementation: backlog
-  4-2-metarial-service-tests: backlog
+  # Epic 4: Service Layer - Materials
+  epic-4: done
+  4-1-material-service-implementation: done
+  4-2-material-service-tests: done
   epic-4-retrospective: optional
   
-  # Epic 5: Service Layer - Metarial Batches
-  epic-5: backlog
-  5-1-metarial-batch-service-create-receive: backlog
-  5-2-metarial-batch-service-increment-decrement: backlog
-  5-3-metarial-batch-service-move-location: backlog
-  5-4-metarial-batch-service-view-delete: backlog
-  5-5-metarial-batch-service-tests: backlog
+  # Epic 5: Service Layer - Material Batches
+  epic-5: done
+  5-1-material-batch-service-create-receive: done
+  5-2-material-batch-service-increment-decrement: done
+  5-3-material-batch-service-move-location: done
+  5-4-material-batch-service-view-delete: done
+  5-5-material-batch-service-tests: done
   epic-5-retrospective: optional
   
   # Epic 6: Service Layer - Aliquots & Lineage
@@ -109,11 +109,11 @@ development_status:
   8-4-reusable-form-components: backlog
   epic-8-retrospective: optional
   
-  # Epic 9: Metarial & Batch Management UI
+  # Epic 9: Material & Batch Management UI
   epic-9: backlog
-  9-1-metarial-list-page: backlog
-  9-2-metarial-create-edit-form: backlog
-  9-3-metarial-detail-page: backlog
+  9-1-material-list-page: backlog
+  9-2-material-create-edit-form: backlog
+  9-3-material-detail-page: backlog
   9-4-batch-list-page: backlog
   9-5-batch-create-receive-form: backlog
   9-6-batch-detail-page-with-actions: backlog

@@ -5,22 +5,23 @@ from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
 from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location import Location
-from gws_eln.metarials.metarial import Metarial
+from gws_eln.materials.batch_status import BatchStatus
+from gws_eln.materials.material import Material
 
 
-class MetarialBatch(ModelWithUser):
+class MaterialBatch(ModelWithUser):
     """
-    MetarialBatch entity - represents physical inventory (batches and aliquots).
+    MaterialBatch entity - represents physical inventory (batches and aliquots).
 
     Handles: received batches, aliquots, instrument instances, sample instances.
 
     Key behaviors:
     - parent_batch_id NULL = original batch/instance
-    - parent_batch_id NOT NULL = aliquot/sub-batch (inherits supplier from parent's metarial)
+    - parent_batch_id NOT NULL = aliquot/sub-batch (inherits supplier from parent's material)
     - Quantity stored in BASE UNITS (L, kg, m, units)
 
     Attributes:
-        metarial: Reference to the material catalog entry (required)
+        material: Reference to the material catalog entry (required)
         parent_batch: Self-reference for aliquots (NULL for original batches)
         batch_number: Batch number from supplier (NULL for aliquots)
         label: Custom label for aliquots or identification
@@ -32,8 +33,8 @@ class MetarialBatch(ModelWithUser):
     """
 
     # Required relationships
-    metarial = ForeignKeyField(
-        Metarial, null=False, backref="batches", on_delete="CASCADE", index=True
+    material = ForeignKeyField(
+        Material, null=False, backref="batches", on_delete="RESTRICT", index=True
     )
 
     location = ForeignKeyField(Location, null=False, backref="+", on_delete="RESTRICT", index=True)
@@ -58,6 +59,11 @@ class MetarialBatch(ModelWithUser):
     # Additional information
     notes = TextField(null=True)
 
+    # Status for soft delete
+    status = EnumField(
+        choices=BatchStatus, max_length=20, default=BatchStatus.ACTIVE, null=False, index=True
+    )
+
     def is_aliquot(self) -> bool:
         """Check if this batch is an aliquot (has a parent batch)."""
         return self.parent_batch is not None
@@ -67,11 +73,19 @@ class MetarialBatch(ModelWithUser):
         return self.parent_batch is None
 
     def is_consumable(self) -> bool:
-        """Check if the metarial of this batch is consumable."""
-        return self.metarial.is_consumable
+        """Check if the material of this batch is consumable."""
+        return self.material.is_consumable
+
+    def is_active(self) -> bool:
+        """Check if this batch is active (not discarded)."""
+        return bool(self.status == BatchStatus.ACTIVE)
+
+    def is_discarded(self) -> bool:
+        """Check if this batch has been discarded."""
+        return bool(self.status == BatchStatus.DISCARDED)
 
     class Meta:
-        table_name = "gws_eln_metarial_batches"
+        table_name = "gws_eln_material_batches"
         database = ElnDbManager.get_instance().db
         is_table = True
         db_manager = ElnDbManager.get_instance()

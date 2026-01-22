@@ -7,7 +7,7 @@ Implements Story 3.1 from Epic 3: Service Layer - Suppliers & Locations.
 
 from gws_core import BadRequestException, CurrentUserService
 
-from gws_eln.metarials.metarial import Metarial
+from gws_eln.materials.material import Material
 from gws_eln.suppliers.supplier import Supplier
 from gws_eln.suppliers.supplier_dto import CreateSupplierDTO, UpdateSupplierDTO
 
@@ -101,14 +101,14 @@ class SupplierService:
 
     def delete_supplier(self, supplier_id: str) -> bool:
         """
-        Delete a supplier if not referenced by any metarials.
+        Delete a supplier if not referenced by any materials.
 
         :param supplier_id: The ID of the supplier to delete
         :type supplier_id: str
         :return: True if deletion was successful
         :rtype: bool
         :raises NotFoundException: If supplier not found
-        :raises BadRequestException: If supplier is referenced by metarials
+        :raises BadRequestException: If supplier is referenced by materials
         """
         # Get existing supplier
         supplier = self.get_supplier(supplier_id)
@@ -151,14 +151,14 @@ class SupplierService:
 
     def _check_no_references(self, supplier: Supplier) -> None:
         """
-        Check that supplier is not referenced by any metarials.
+        Check that supplier is not referenced by any materials.
 
         :param supplier: Supplier to check
         :type supplier: Supplier
         :raises BadRequestException: If supplier is referenced
         """
-        if Metarial.select().where(Metarial.supplier == supplier).exists():
+        if Material.select().where(Material.supplier == supplier).exists():
             raise BadRequestException(
-                f"Cannot delete supplier '{supplier.name}' because it is referenced by one or more metarials. "
-                "Remove the supplier reference from all metarials first."
+                f"Cannot delete supplier '{supplier.name}' because it is referenced by one or more materials. "
+                "Remove the supplier reference from all materials first."
             )

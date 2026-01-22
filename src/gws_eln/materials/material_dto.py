@@ -1,7 +1,7 @@
 """
-Metarial DTOs for create and update operations.
+Material DTOs for create and update operations.
 
-Defines data transfer objects for MetarialService operations.
+Defines data transfer objects for MaterialService operations.
 """
 
 from gws_core import BaseModelDTO
@@ -9,8 +9,8 @@ from gws_core import BaseModelDTO
 from gws_eln.core.unit_type import UnitType
 
 
-class CreateMetarialDTO(BaseModelDTO):
-    """DTO for creating a new metarial."""
+class CreateMaterialDTO(BaseModelDTO):
+    """DTO for creating a new material."""
 
     name: str
     description: str | None = None
@@ -19,8 +19,8 @@ class CreateMetarialDTO(BaseModelDTO):
     default_unit_type: UnitType = UnitType.COUNT
 
 
-class UpdateMetarialDTO(BaseModelDTO):
-    """DTO for updating an existing metarial."""
+class UpdateMaterialDTO(BaseModelDTO):
+    """DTO for updating an existing material."""
 
     name: str
     description: str | None = None

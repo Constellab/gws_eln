@@ -8,14 +8,14 @@ lastEdited: 2026-01-21
 editHistory:
 	- date: 2026-01-21
 	  editor: Ben
-	  changes: "Complete rewrite: backend-first approach with 12 epics (7 backend, 5 frontend); aligned with unified Metarial/Metarial_Batch model; separated Phase 1 (backend+tests) from Phase 2 (UI)"
+	  changes: "Complete rewrite: backend-first approach with 12 epics (7 backend, 5 frontend); aligned with unified Material/Material_Batch model; separated Phase 1 (backend+tests) from Phase 2 (UI)"
 ---
 
 # gws_eln - Epic Breakdown v2
 
 ## Overview
 
-Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomposed following **backend-first** implementation strategy with unified data model (Metarial, Metarial_Batch).
+Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomposed following **backend-first** implementation strategy with unified data model (Material, Material_Batch).
 
 **Critical Implementation Rule:** ALL Phase 1 epics (1-7) MUST be completed with passing tests BEFORE starting Phase 2 epics (8-12).
 
@@ -28,15 +28,15 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 **Epic 1:** Core Infrastructure & Database Entities  
 **Epic 2:** Units System & Validators  
 **Epic 3:** Service Layer - Suppliers & Locations  
-**Epic 4:** Service Layer - Metarials  
-**Epic 5:** Service Layer - Metarial Batches  
+**Epic 4:** Service Layer - Materials  
+**Epic 5:** Service Layer - Material Batches  
 **Epic 6:** Service Layer - Aliquots & Lineage  
 **Epic 7:** Activity Service & Audit Log
 
 ### PHASE 2: FRONTEND (Epics 8-12) — AFTER PHASE 1 TESTS PASS
 
 **Epic 8:** Reflex UI Foundation  
-**Epic 9:** Metarial & Batch Management UI  
+**Epic 9:** Material & Batch Management UI  
 **Epic 10:** Suppliers & Locations UI  
 **Epic 11:** Aliquots & Lineage UI  
 **Epic 12:** Activity Log & Note Integration
@@ -50,14 +50,14 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 ### Functional Requirements (from PRD)
 
 **Material Management:**
-- FR1: Create metarial with name, description, consumable flag
-- FR2: Edit metarial metadata
-- FR3: View metarial catalog
-- FR4: Delete unused metarial definitions
+- FR1: Create material with name, description, consumable flag
+- FR2: Edit material metadata
+- FR3: View material catalog
+- FR4: Delete unused material definitions
 
 **Batch Management:**
-- FR5: Create batch with metarial, optional supplier, location assignment (default: "labo")
-- FR6: View batch details (metarial, batch_number, supplier, location, quantity, parent_batch_id)
+- FR5: Create batch with material, optional supplier, location assignment (default: "labo")
+- FR6: View batch details (material, batch_number, supplier, location, quantity, parent_batch_id)
 - FR7: Increment batch quantity (receive stock)
 - FR8: Decrement consumable batch quantity
 - FR9: Move batch between locations
@@ -66,7 +66,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 **Aliquot Creation:**
 - FR11: Create aliquot from parent batch with quantity/unit
 - FR12: Create multi-level aliquots (aliquot from aliquot, no depth limit)
-- FR13: Aliquot inherits metarial reference, maintains independent quantity/location
+- FR13: Aliquot inherits material reference, maintains independent quantity/location
 
 **Consumption & Usage:**
 - FR14: Decrement consumable batch from batch management interface
@@ -79,7 +79,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - FR19: Perform consumption action on consumable batch (decrement)
 - FR20: Perform usage reference on non-consumable batch (no decrement)
 - FR21: Link action to Note with batch details
-- FR22: Note captures traceability (metarial, batch, parent chain, quantities, units)
+- FR22: Note captures traceability (material, batch, parent chain, quantities, units)
 
 **Supplier Management:**
 - FR23: Create supplier with name, contact info
@@ -101,7 +101,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 **Units & Consistency:**
 - FR34: Select quantities in supported units (volume, mass, length, count)
 - FR35: Display units on all quantities (no auto-conversion in MVP)
-- FR36: Enforce referential integrity (batch→metarial, batch→location, aliquot→parent)
+- FR36: Enforce referential integrity (batch→material, batch→location, aliquot→parent)
 
 ### Non-Functional Requirements
 
@@ -177,14 +177,14 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 ---
 
-### Story 1.2: Define Metarial Entity
+### Story 1.2: Define Material Entity
 
 **As a** developer  
-**I want to** create the Metarial entity with all required fields  
+**I want to** create the Material entity with all required fields  
 **So that** we can catalog all lab materials (chemicals, instruments, samples)
 
 **Acceptance Criteria:**
-- Create `src/gws_eln/metarials/metarial.py`
+- Create `src/gws_eln/materials/material.py`
 - Fields: id, name, description, supplier_id (FK), is_consumable, default_unit_type
 - Audit fields: created_by_id, last_modified_by_id, created_at, last_modified_at
 - Indices: supplier_id, is_consumable, name
@@ -192,28 +192,28 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - Unit test for entity creation
 
 **Technical Notes:**
-- Table name: `metarials` (plural, snake_case)
+- Table name: `materials` (plural, snake_case)
 - is_consumable: Boolean (TRUE=consumable, FALSE=non-consumable)
 - default_unit_type: ENUM('volume', 'mass', 'length', 'count')
 
 ---
 
-### Story 1.3: Define Metarial_Batch Entity
+### Story 1.3: Define Material_Batch Entity
 
 **As a** developer  
-**I want to** create the Metarial_Batch entity  
+**I want to** create the Material_Batch entity  
 **So that** we can track physical instances and aliquots
 
 **Acceptance Criteria:**
-- Create `src/gws_eln/metarials/metarial_batch.py`
-- Fields: id, metarial_id (FK), parent_batch_id (self-FK), batch_number, label, expiry_date, quantity, unit_type, location_id (FK), notes
+- Create `src/gws_eln/materials/material_batch.py`
+- Fields: id, material_id (FK), parent_batch_id (self-FK), batch_number, label, expiry_date, quantity, unit_type, location_id (FK), notes
 - Audit fields included
-- Indices: metarial_id, parent_batch_id, location_id, batch_number, expiry_date
+- Indices: material_id, parent_batch_id, location_id, batch_number, expiry_date
 - Self-reference constraint for aliquots
 - Unit test for batch creation and parent linkage
 
 **Technical Notes:**
-- Table name: `metarial_batches` (plural, snake_case)
+- Table name: `material_batches` (plural, snake_case)
 - quantity: DECIMAL(20,12) stored in base units
 - parent_batch_id NULL = original batch; NOT NULL = aliquot
 
@@ -272,7 +272,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 **Technical Notes:**
 - Table name: `activities` (plural, snake_case)
 - activity_type ENUM: 'receive', 'move', 'consume', 'use', 'discard', 'aliquot', 'relabel'
-- entity_type: always 'metarial_batch' in MVP
+- entity_type: always 'material_batch' in MVP
 
 ---
 
@@ -286,7 +286,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - Create seed script: `src/gws_eln/core/seed_data.py`
 - Seed default location "labo"
 - Seed 3 example suppliers
-- Seed 5 example metarials (mix of consumable/non-consumable)
+- Seed 5 example materials (mix of consumable/non-consumable)
 - Seed 2 example batches
 - Script is idempotent (can run multiple times safely)
 
@@ -397,7 +397,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Technical Notes:**
 - Follow gws_project service patterns
-- Delete only if no metarials reference supplier
+- Delete only if no materials reference supplier
 
 ---
 
@@ -460,82 +460,82 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 ---
 
-## Epic 4: Service Layer - Metarials
+## Epic 4: Service Layer - Materials
 
-**Goal:** Implement CRUD service for Metarials with consumable/non-consumable logic.
+**Goal:** Implement CRUD service for Materials with consumable/non-consumable logic.
 
 **Dependencies:** Epic 3 (Supplier service for FK validation)
 
 **Definition of Done:**
-- MetarialService with full CRUD
+- MaterialService with full CRUD
 - Support for all material types (chemicals, instruments, samples)
 - Consumable flag logic working
 - All operations tested
 
-### Story 4.1: Metarial Service Implementation
+### Story 4.1: Material Service Implementation
 
 **As a** developer  
-**I want to** implement MetarialService with CRUD operations  
-**So that** metarials can be managed programmatically
+**I want to** implement MaterialService with CRUD operations  
+**So that** materials can be managed programmatically
 
 **Acceptance Criteria:**
-- Create `src/gws_eln/metarials/metarial_service.py`
-- Method: `create_metarial(name, description, supplier_id, is_consumable, default_unit_type, user_id)` → Metarial
-- Method: `get_metarial(metarial_id)` → Metarial
-- Method: `list_metarials(filter_consumable=None)` → List[Metarial]
-- Method: `update_metarial(metarial_id, name, description, supplier_id, is_consumable, default_unit_type, user_id)` → Metarial
-- Method: `delete_metarial(metarial_id, user_id)` → bool (prevent if batches exist)
+- Create `src/gws_eln/materials/material_service.py`
+- Method: `create_material(name, description, supplier_id, is_consumable, default_unit_type, user_id)` → Material
+- Method: `get_material(material_id)` → Material
+- Method: `list_materials(filter_consumable=None)` → List[Material]
+- Method: `update_material(material_id, name, description, supplier_id, is_consumable, default_unit_type, user_id)` → Material
+- Method: `delete_material(material_id, user_id)` → bool (prevent if batches exist)
 - Validate supplier_id exists if provided
 - Track audit fields
 
 **Technical Notes:**
 - is_consumable: TRUE (chemicals/reagents/samples), FALSE (instruments/equipment)
-- Delete only if no batches reference metarial
+- Delete only if no batches reference material
 
 ---
 
-### Story 4.2: Metarial Service Tests
+### Story 4.2: Material Service Tests
 
 **As a** developer  
-**I want to** write tests for MetarialService  
+**I want to** write tests for MaterialService  
 **So that** all operations are validated
 
 **Acceptance Criteria:**
-- Create `tests/test_metarial_service.py`
-- Test: create consumable metarial (chemical)
-- Test: create non-consumable metarial (instrument)
-- Test: create metarial with supplier reference
-- Test: create metarial with invalid supplier (fails)
-- Test: update metarial metadata
-- Test: list metarials with consumable filter
-- Test: delete unused metarial (succeeds)
-- Test: delete metarial with batches (fails)
+- Create `tests/test_material_service.py`
+- Test: create consumable material (chemical)
+- Test: create non-consumable material (instrument)
+- Test: create material with supplier reference
+- Test: create material with invalid supplier (fails)
+- Test: update material metadata
+- Test: list materials with consumable filter
+- Test: delete unused material (succeeds)
+- Test: delete material with batches (fails)
 
 ---
 
-## Epic 5: Service Layer - Metarial Batches
+## Epic 5: Service Layer - Material Batches
 
 **Goal:** Implement batch management: create, receive, increment, decrement, move.
 
-**Dependencies:** Epic 4 (Metarial service), Epic 3 (Location service)
+**Dependencies:** Epic 4 (Material service), Epic 3 (Location service)
 
 **Definition of Done:**
-- MetarialBatchService with full operations
+- MaterialBatchService with full operations
 - Quantity tracking (increment/decrement for consumables)
 - Location assignment and movement
 - All operations tested
 
-### Story 5.1: Metarial Batch Service - Create & Receive
+### Story 5.1: Material Batch Service - Create & Receive
 
 **As a** developer  
 **I want to** implement batch creation and receive operations  
 **So that** physical inventory can be tracked
 
 **Acceptance Criteria:**
-- Create `src/gws_eln/metarials/metarial_batch_service.py`
-- Method: `create_batch(metarial_id, batch_number, quantity, unit_type, location_id, expiry_date, notes, user_id)` → Metarial_Batch
-- Method: `receive_batch(batch_id, quantity, unit_type, user_id)` → Metarial_Batch (increments quantity)
-- Validate: metarial_id exists
+- Create `src/gws_eln/materials/material_batch_service.py`
+- Method: `create_batch(material_id, batch_number, quantity, unit_type, location_id, expiry_date, notes, user_id)` → Material_Batch
+- Method: `receive_batch(batch_id, quantity, unit_type, user_id)` → Material_Batch (increments quantity)
+- Validate: material_id exists
 - Validate: location_id exists (default to "labo" if NULL)
 - Convert quantity to base units before storage
 - Create 'receive' activity entry
@@ -547,15 +547,15 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 ---
 
-### Story 5.2: Metarial Batch Service - Increment/Decrement
+### Story 5.2: Material Batch Service - Increment/Decrement
 
 **As a** developer  
 **I want to** implement increment and decrement operations  
 **So that** stock levels can be adjusted
 
 **Acceptance Criteria:**
-- Method: `increment_quantity(batch_id, quantity, unit_type, reason, user_id)` → Metarial_Batch
-- Method: `decrement_quantity(batch_id, quantity, unit_type, reason, user_id)` → Metarial_Batch
+- Method: `increment_quantity(batch_id, quantity, unit_type, reason, user_id)` → Material_Batch
+- Method: `decrement_quantity(batch_id, quantity, unit_type, reason, user_id)` → Material_Batch
 - Validate: batch exists and is consumable
 - Validate: quantity is positive
 - Validate: decrement doesn't result in negative stock
@@ -564,19 +564,19 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - Return updated batch with new quantity
 
 **Technical Notes:**
-- Decrement only allowed for consumable metarials (is_consumable=TRUE)
+- Decrement only allowed for consumable materials (is_consumable=TRUE)
 - Non-consumables cannot be decremented
 
 ---
 
-### Story 5.3: Metarial Batch Service - Move Location
+### Story 5.3: Material Batch Service - Move Location
 
 **As a** developer  
 **I want to** implement batch movement between locations  
 **So that** inventory can be reorganized
 
 **Acceptance Criteria:**
-- Method: `move_batch(batch_id, to_location_id, user_id)` → Metarial_Batch
+- Method: `move_batch(batch_id, to_location_id, user_id)` → Material_Batch
 - Validate: batch exists
 - Validate: to_location_id exists
 - Update batch.location_id
@@ -585,34 +585,34 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 ---
 
-### Story 5.4: Metarial Batch Service - View & Delete
+### Story 5.4: Material Batch Service - View & Delete
 
 **As a** developer  
 **I want to** implement view and delete operations  
 **So that** batch lifecycle is complete
 
 **Acceptance Criteria:**
-- Method: `get_batch(batch_id)` → Metarial_Batch (with metarial, supplier, location joins)
-- Method: `list_batches(metarial_id=None, location_id=None)` → List[Metarial_Batch]
+- Method: `get_batch(batch_id)` → Material_Batch (with material, supplier, location joins)
+- Method: `list_batches(material_id=None, location_id=None)` → List[Material_Batch]
 - Method: `delete_batch(batch_id, reason, user_id)` → bool
 - Delete: prevent if batch has child aliquots
 - Delete: create 'discard' activity with reason
-- Return batch with full details (metarial name, supplier name, location name)
+- Return batch with full details (material name, supplier name, location name)
 
 **Technical Notes:**
 - Delete only if no child aliquots (parent_batch_id references)
 
 ---
 
-### Story 5.5: Metarial Batch Service Tests
+### Story 5.5: Material Batch Service Tests
 
 **As a** developer  
-**I want to** write comprehensive tests for MetarialBatchService  
+**I want to** write comprehensive tests for MaterialBatchService  
 **So that** all operations are validated
 
 **Acceptance Criteria:**
-- Create `tests/test_metarial_batch_service.py`
-- Test: create batch with valid metarial and location
+- Create `tests/test_material_batch_service.py`
+- Test: create batch with valid material and location
 - Test: create batch with default "labo" location
 - Test: receive batch (increment quantity)
 - Test: increment consumable batch
@@ -622,7 +622,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - Test: move batch to new location
 - Test: delete batch without children (succeeds)
 - Test: delete batch with aliquots (fails)
-- Test: list batches by metarial
+- Test: list batches by material
 - Test: list batches by location
 
 ---
@@ -647,12 +647,12 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 **So that** derived samples can be tracked with lineage
 
 **Acceptance Criteria:**
-- Add to MetarialBatchService:
-- Method: `create_aliquot(parent_batch_id, quantity, unit_type, label, location_id, user_id)` → Metarial_Batch
+- Add to MaterialBatchService:
+- Method: `create_aliquot(parent_batch_id, quantity, unit_type, label, location_id, user_id)` → Material_Batch
 - Validate: parent batch exists
 - Create new batch with parent_batch_id set
-- Inherit metarial_id from parent
-- Inherit supplier_id from parent's metarial
+- Inherit material_id from parent
+- Inherit supplier_id from parent's material
 - If parent is consumable: decrement parent quantity
 - Set location_id (or default to parent location)
 - Create 'aliquot' activity linking parent and child
@@ -660,7 +660,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Technical Notes:**
 - parent_batch_id → child_batch.parent_batch_id
-- Supplier inheritance: child inherits from parent's metarial.supplier_id
+- Supplier inheritance: child inherits from parent's material.supplier_id
 - No depth limit for aliquots
 
 ---
@@ -672,7 +672,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 **So that** parent-child chains can be visualized
 
 **Acceptance Criteria:**
-- Add to MetarialBatchService:
+- Add to MaterialBatchService:
 - Method: `get_lineage(batch_id)` → dict with 'ancestors' and 'descendants'
 - Query ancestors: traverse parent_batch_id recursively
 - Query descendants: find all batches with parent_batch_id = batch_id recursively
@@ -692,8 +692,8 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 **So that** labels can be updated without losing lineage
 
 **Acceptance Criteria:**
-- Add to MetarialBatchService:
-- Method: `relabel_batch(batch_id, new_label, user_id)` → Metarial_Batch
+- Add to MaterialBatchService:
+- Method: `relabel_batch(batch_id, new_label, user_id)` → Material_Batch
 - Update batch.label
 - parent_batch_id remains unchanged
 - Create 'relabel' activity
@@ -749,7 +749,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Technical Notes:**
 - activity_type ENUM validation
-- entity_type is always 'metarial_batch' in MVP
+- entity_type is always 'material_batch' in MVP
 
 ---
 
@@ -779,10 +779,10 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - Add to ActivityService:
 - Method: `log_note_activity(note_id, batch_id, activity_type, quantity, unit_type, user_id)` → Activity
 - Validate: activity_type is 'consume' or 'use'
-- Validate: 'use' requires non-consumable metarial
-- Validate: 'consume' requires consumable metarial
+- Validate: 'use' requires non-consumable material
+- Validate: 'consume' requires consumable material
 - Set note_id field
-- For 'consume': decrement batch quantity via MetarialBatchService
+- For 'consume': decrement batch quantity via MaterialBatchService
 - For 'use': log reference only (no quantity change)
 
 **Technical Notes:**
@@ -870,7 +870,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `components/layout.py` with header, sidebar, main content
-- Create navigation menu with links to: Metarials, Batches, Suppliers, Locations, Activities
+- Create navigation menu with links to: Materials, Batches, Suppliers, Locations, Activities
 - Responsive layout (desktop-first)
 - Consistent styling (follow Constellab design)
 
@@ -893,64 +893,64 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 ---
 
-## Epic 9: Metarial & Batch Management UI
+## Epic 9: Material & Batch Management UI
 
-**Goal:** Build UI for creating/viewing/editing metarials and batches.
+**Goal:** Build UI for creating/viewing/editing materials and batches.
 
 **Dependencies:** Epic 8 (UI foundation)
 
 **Definition of Done:**
-- Metarial CRUD pages functional
+- Material CRUD pages functional
 - Batch CRUD pages functional
 - Quantity input with unit conversion working
 - Increment/decrement/move flows complete
 
-### Story 9.1: Metarial List Page
+### Story 9.1: Material List Page
 
 **As a** lab user  
-**I want to** view all metarials in a list  
+**I want to** view all materials in a list  
 **So that** I can browse the catalog
 
 **Acceptance Criteria:**
-- Create `pages/metarials/list.py`
-- Display: metarial name, type (consumable/non-consumable), supplier
+- Create `pages/materials/list.py`
+- Display: material name, type (consumable/non-consumable), supplier
 - Filter: by consumable flag
 - Search: by name
 - Actions: Create New, Edit, Delete (if unused)
-- Click metarial → navigate to detail page
+- Click material → navigate to detail page
 
 **Technical Notes:**
-- Use MetarialService.list_metarials()
+- Use MaterialService.list_materials()
 
 ---
 
-### Story 9.2: Metarial Create/Edit Form
+### Story 9.2: Material Create/Edit Form
 
 **As a** lab user  
-**I want to** create or edit a metarial  
+**I want to** create or edit a material  
 **So that** I can manage the catalog
 
 **Acceptance Criteria:**
-- Create `pages/metarials/form.py`
+- Create `pages/materials/form.py`
 - Form fields: name, description, supplier (dropdown), is_consumable (toggle), default_unit_type (dropdown)
 - Validation: required fields, unique name
-- On submit: call MetarialService.create_metarial() or update_metarial()
+- On submit: call MaterialService.create_material() or update_material()
 - Success: show confirmation, navigate to list
 - Error: display inline errors
 
 ---
 
-### Story 9.3: Metarial Detail Page
+### Story 9.3: Material Detail Page
 
 **As a** lab user  
-**I want to** view metarial details with associated batches  
+**I want to** view material details with associated batches  
 **So that** I can see complete inventory
 
 **Acceptance Criteria:**
-- Create `pages/metarials/detail.py`
-- Display: metarial metadata, supplier info
+- Create `pages/materials/detail.py`
+- Display: material metadata, supplier info
 - Display: list of batches (batch_number, location, quantity, expiry)
-- Actions: Edit Metarial, Create Batch, View Batch
+- Actions: Edit Material, Create Batch, View Batch
 
 ---
 
@@ -962,8 +962,8 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `pages/batches/list.py`
-- Display: batch_number, metarial name, location, quantity + unit, expiry_date
-- Filter: by metarial, by location
+- Display: batch_number, material name, location, quantity + unit, expiry_date
+- Filter: by material, by location
 - Search: by batch_number or label
 - Actions: Create New, View Details, Move, Delete
 - Click batch → navigate to detail page
@@ -978,9 +978,9 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `pages/batches/receive.py`
-- Form fields: metarial (dropdown), batch_number, quantity (with unit picker), location (dropdown with "labo" default), expiry_date, notes
-- Unit picker: shows appropriate units based on metarial.default_unit_type
-- On submit: call MetarialBatchService.create_batch()
+- Form fields: material (dropdown), batch_number, quantity (with unit picker), location (dropdown with "labo" default), expiry_date, notes
+- Unit picker: shows appropriate units based on material.default_unit_type
+- On submit: call MaterialBatchService.create_batch()
 - Quantity converted to base units automatically
 - Success: show confirmation with batch ID
 
@@ -994,7 +994,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `pages/batches/detail.py`
-- Display: batch info, metarial info, current location, quantity + unit, parent batch (if aliquot)
+- Display: batch info, material info, current location, quantity + unit, parent batch (if aliquot)
 - Actions for consumable batches: Increment Quantity, Decrement Quantity, Create Aliquot
 - Actions for all batches: Move Location, Relabel, Delete (if no children)
 - Show activity history timeline
@@ -1013,12 +1013,12 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - Increment form: quantity + unit, reason (optional)
 - Decrement form: quantity + unit, reason (required)
 - Validation: positive numbers, no negative stock
-- On submit: call MetarialBatchService.increment_quantity() or decrement_quantity()
+- On submit: call MaterialBatchService.increment_quantity() or decrement_quantity()
 - Display: current quantity before and after
 - Success: refresh batch details
 
 **Technical Notes:**
-- Decrement only enabled for consumable metarials
+- Decrement only enabled for consumable materials
 
 ---
 
@@ -1032,7 +1032,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - Create `components/move_batch_dialog.py`
 - Display: current location
 - Form: select new location (dropdown)
-- On submit: call MetarialBatchService.move_batch()
+- On submit: call MaterialBatchService.move_batch()
 - Success: refresh batch details, show new location
 - Activity logged automatically
 
@@ -1059,7 +1059,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - Create `pages/suppliers/list.py`: display all suppliers, Create/Edit/Delete actions
 - Create `pages/suppliers/form.py`: name, contact_info fields
 - Validation: unique name
-- Delete: prevent if referenced by metarials
+- Delete: prevent if referenced by materials
 - On submit: call SupplierService methods
 
 ---
@@ -1112,10 +1112,10 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `pages/batches/create_aliquot.py`
-- Display: parent batch info (metarial, quantity, location)
+- Display: parent batch info (material, quantity, location)
 - Form fields: quantity (with unit picker), label, location (defaults to parent location)
 - Validation: positive quantity, doesn't exceed parent if consumable
-- On submit: call MetarialBatchService.create_aliquot()
+- On submit: call MaterialBatchService.create_aliquot()
 - Success: navigate to new aliquot detail page
 - Activity logged automatically
 
@@ -1136,7 +1136,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - Display descendants: children → grandchildren → ... (recursive)
 - Each node shows: label, batch_number, quantity, location
 - Click node → navigate to batch detail
-- Use MetarialBatchService.get_lineage()
+- Use MaterialBatchService.get_lineage()
 
 **Technical Notes:**
 - Tree or list view (MVP can be simple list)
@@ -1154,7 +1154,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - Create `components/relabel_batch_dialog.py`
 - Display: current label
 - Form: new label (text input)
-- On submit: call MetarialBatchService.relabel_batch()
+- On submit: call MaterialBatchService.relabel_batch()
 - Success: refresh batch details
 - Lineage preserved (parent_batch_id unchanged)
 
@@ -1181,7 +1181,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 - Create `pages/activities/log.py`
 - Display: timestamp, activity_type, user, entity (batch), quantity, locations, reason
 - Filter: by activity_type, date range, user
-- Search: by batch_number or metarial name
+- Search: by batch_number or material name
 - Pagination support
 - Use ActivityService.list_activities()
 
@@ -1235,7 +1235,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 **Acceptance Criteria:**
 - Create `pages/note_actions/linked_activities.py` (embedded in Note)
 - Display: all activities with note_id = current note
-- Show: batch info (metarial name, batch_number), activity type, quantity, timestamp
+- Show: batch info (material name, batch_number), activity type, quantity, timestamp
 - Click batch → navigate to batch detail (opens in new tab/context)
 - Use ActivityService.get_note_activities()
 
@@ -1263,7 +1263,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 ### Backend Testing (Phase 1):
 - Unit tests for each service method
-- Integration tests for workflows (create metarial → create batch → create aliquot)
+- Integration tests for workflows (create material → create batch → create aliquot)
 - Test consumable vs non-consumable behavior
 - Test supplier inheritance in aliquots
 - Test activity logging for all types

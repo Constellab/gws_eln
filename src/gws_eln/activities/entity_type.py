@@ -8,4 +8,4 @@ class EntityType(Enum):
     For MVP, only material_batch is supported.
     """
 
-    METARIAL_BATCH = "metarial_batch"
+    MATERIAL_BATCH = "material_batch"

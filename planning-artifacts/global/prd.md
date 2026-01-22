@@ -10,7 +10,7 @@ lastEdited: 2026-01-21
 editHistory:
 	- date: 2026-01-21
 	  editor: Ben
-	  changes: "Major data model refactoring - unified Materials/Instruments into Metarialx entity; introduced Metarialx_Batch as physical instances; aliquots now multi-level without restriction; added Supplier and Location CRUD; differentiated consumable (decrement) vs non-consumable (usage reference) actions"
+	  changes: "Major data model refactoring - unified Materials/Instruments into Materialx entity; introduced Materialx_Batch as physical instances; aliquots now multi-level without restriction; added Supplier and Location CRUD; differentiated consumable (decrement) vs non-consumable (usage reference) actions"
 documentCounts:
 	productBriefs: 1
 	research: 0
@@ -35,11 +35,11 @@ Date: 2026-01-20
 
 ### Core Entities
 
-**Metarial:** Generic material definition (chemical, instrument, consumable, equipment, etc.). Defines what the material is, including a consumable flag to indicate whether it depletes with use.
+**Material:** Generic material definition (chemical, instrument, consumable, equipment, etc.). Defines what the material is, including a consumable flag to indicate whether it depletes with use.
 
-**Metarial Batch :** Physical instance of a material with supplier reference, location assignment, and quantity tracking. Represents actual stock in the lab. Each batch must be assigned to a location (default: "labo" if not specified).
+**Material Batch :** Physical instance of a material with supplier reference, location assignment, and quantity tracking. Represents actual stock in the lab. Each batch must be assigned to a location (default: "labo" if not specified).
 
-**Aliquot:** A Metarial Batch derived from a parent batch. An aliquot references its parent via parent_batch_id. Multi-level aliquots are supported without depth limit—an aliquot can itself be the parent of another aliquot.
+**Aliquot:** A Material Batch derived from a parent batch. An aliquot references its parent via parent_batch_id. Multi-level aliquots are supported without depth limit—an aliquot can itself be the parent of another aliquot.
 
 **Consumable vs Non-Consumable:** Determines action behavior:
 - **Consumable:** Quantity decrements on usage (e.g., reagents, samples).
@@ -104,7 +104,7 @@ All actions are available to any user in MVP; there are no roles or bulk operati
 
 ### Technical Constraints
 - Authentication: Reuse Constellab auth/session.
-- Data Model: Three-tier hierarchy: Metarialx (generic definitions) → Metarialx_Batch (physical instances) → Aliquots (batchs with parent_batch_id). Persist materials, batchs, suppliers, locations; track batch quantities and parent references; support single lab instance.
+- Data Model: Three-tier hierarchy: Materialx (generic definitions) → Materialx_Batch (physical instances) → Aliquots (batchs with parent_batch_id). Persist materials, batchs, suppliers, locations; track batch quantities and parent references; support single lab instance.
 - Locations: Simple selectable list with CRUD operations; default location "labo" assigned if not specified on batch creation.
 - Suppliers: Simple CRUD operations; optional on batch creation.
 - Performance: Responsive Reflex pages; fast actions for create/increment/decrement/move/aliquot with minimal blocking.

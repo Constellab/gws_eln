@@ -13,9 +13,8 @@ Tests cover:
 """
 
 from gws_core import BadRequestException, BaseTestCase
-
 from gws_eln.core.unit_type import UnitType
-from gws_eln.metarials.metarial import Metarial
+from gws_eln.materials.material import Material
 from gws_eln.suppliers.supplier import Supplier
 from gws_eln.suppliers.supplier_dto import CreateSupplierDTO, UpdateSupplierDTO
 from gws_eln.suppliers.supplier_service import SupplierService
@@ -38,10 +37,9 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Act
-        supplier = service.create_supplier(CreateSupplierDTO(
-            name="Test Supplier",
-            contact_info="contact@test.com"
-        ))
+        supplier = service.create_supplier(
+            CreateSupplierDTO(name="Test Supplier", contact_info="contact@test.com")
+        )
 
         # Assert
         self.assertIsNotNone(supplier)
@@ -78,10 +76,9 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Act
-        supplier = service.create_supplier(CreateSupplierDTO(
-            name="  Trimmed Supplier  ",
-            contact_info="  info@test.com  "
-        ))
+        supplier = service.create_supplier(
+            CreateSupplierDTO(name="  Trimmed Supplier  ", contact_info="  info@test.com  ")
+        )
 
         # Assert
         self.assertEqual(supplier.name, "Trimmed Supplier")
@@ -132,10 +129,9 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier
-        supplier = service.create_supplier(CreateSupplierDTO(
-            name="Get Test Supplier",
-            contact_info="get@test.com"
-        ))
+        supplier = service.create_supplier(
+            CreateSupplierDTO(name="Get Test Supplier", contact_info="get@test.com")
+        )
 
         # Act
         retrieved = service.get_supplier(supplier.id)
@@ -191,19 +187,15 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier
-        supplier = service.create_supplier(CreateSupplierDTO(
-            name="Original Name",
-            contact_info="original@test.com"
-        ))
+        supplier = service.create_supplier(
+            CreateSupplierDTO(name="Original Name", contact_info="original@test.com")
+        )
         original_id = supplier.id
 
         # Act
         updated = service.update_supplier(
             supplier_id=supplier.id,
-            dto=UpdateSupplierDTO(
-                name="Updated Name",
-                contact_info="updated@test.com"
-            )
+            dto=UpdateSupplierDTO(name="Updated Name", contact_info="updated@test.com"),
         )
 
         # Assert
@@ -224,18 +216,14 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier with contact_info
-        supplier = service.create_supplier(CreateSupplierDTO(
-            name="Clear Contact Supplier",
-            contact_info="to-be-cleared@test.com"
-        ))
+        supplier = service.create_supplier(
+            CreateSupplierDTO(name="Clear Contact Supplier", contact_info="to-be-cleared@test.com")
+        )
 
         # Act: update with None contact_info
         updated = service.update_supplier(
             supplier_id=supplier.id,
-            dto=UpdateSupplierDTO(
-                name="Clear Contact Supplier",
-                contact_info=None
-            )
+            dto=UpdateSupplierDTO(name="Clear Contact Supplier", contact_info=None),
         )
 
         # Assert
@@ -249,18 +237,14 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Create supplier
-        supplier = service.create_supplier(CreateSupplierDTO(
-            name="Same Name Supplier",
-            contact_info="original@test.com"
-        ))
+        supplier = service.create_supplier(
+            CreateSupplierDTO(name="Same Name Supplier", contact_info="original@test.com")
+        )
 
         # Act: update contact_info only, keep same name
         updated = service.update_supplier(
             supplier_id=supplier.id,
-            dto=UpdateSupplierDTO(
-                name="Same Name Supplier",
-                contact_info="new@test.com"
-            )
+            dto=UpdateSupplierDTO(name="Same Name Supplier", contact_info="new@test.com"),
         )
 
         # Assert
@@ -281,8 +265,7 @@ class TestSupplierService(BaseTestCase):
         # Act & Assert: try to rename supplier2 to supplier1's name
         with self.assertRaises(BadRequestException) as context:
             service.update_supplier(
-                supplier_id=supplier2.id,
-                dto=UpdateSupplierDTO(name="Supplier One")
+                supplier_id=supplier2.id, dto=UpdateSupplierDTO(name="Supplier One")
             )
 
         self.assertIn("already exists", str(context.exception))
@@ -300,10 +283,7 @@ class TestSupplierService(BaseTestCase):
 
         # Act & Assert
         with self.assertRaises(BadRequestException) as context:
-            service.update_supplier(
-                supplier_id=supplier.id,
-                dto=UpdateSupplierDTO(name="")
-            )
+            service.update_supplier(supplier_id=supplier.id, dto=UpdateSupplierDTO(name=""))
 
         self.assertIn("name is required", str(context.exception))
 
@@ -326,32 +306,32 @@ class TestSupplierService(BaseTestCase):
         self.assertFalse(Supplier.select().where(Supplier.id == supplier_id).exists())
 
     def test_delete_supplier_referenced_fails(self):
-        """Test deleting a supplier referenced by metarials fails"""
+        """Test deleting a supplier referenced by materials fails"""
         service = SupplierService()
 
         # Create supplier
         supplier = service.create_supplier(CreateSupplierDTO(name="Referenced Supplier"))
 
-        # Create metarial that references the supplier
-        metarial = Metarial()
-        metarial.name = "Test Metarial"
-        metarial.supplier = supplier
-        metarial.is_consumable = True
-        metarial.default_unit_type = UnitType.COUNT
-        metarial.save()
+        # Create material that references the supplier
+        material = Material()
+        material.name = "Test Material"
+        material.supplier = supplier
+        material.is_consumable = True
+        material.default_unit_type = UnitType.COUNT
+        material.save()
 
         # Act & Assert
         with self.assertRaises(BadRequestException) as context:
             service.delete_supplier(supplier.id)
 
         self.assertIn("Cannot delete", str(context.exception))
-        self.assertIn("metarial", str(context.exception).lower())
+        self.assertIn("material", str(context.exception).lower())
 
         # Verify supplier still exists
         self.assertTrue(Supplier.select().where(Supplier.id == supplier.id).exists())
 
         # Cleanup
-        metarial.delete_instance()
+        material.delete_instance()
         supplier.delete_instance()
 
     def test_delete_supplier_not_found(self):
@@ -388,8 +368,7 @@ class TestSupplierService(BaseTestCase):
 
         # Act: update supplier
         updated = service.update_supplier(
-            supplier_id=supplier.id,
-            dto=UpdateSupplierDTO(name="Audit Update Supplier Modified")
+            supplier_id=supplier.id, dto=UpdateSupplierDTO(name="Audit Update Supplier Modified")
         )
 
         # Assert: created_by unchanged, last_modified_by is set

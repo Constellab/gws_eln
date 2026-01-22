@@ -15,7 +15,7 @@ from decimal import Decimal, InvalidOperation
 from gws_core import BadRequestException
 
 from gws_eln.core.unit_type import UnitType
-from gws_eln.metarials.metarial_batch import MetarialBatch
+from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.utils.units import UnitConverter
 
 
@@ -87,15 +87,15 @@ class QuantityValidator:
             )
 
     @staticmethod
-    def validate_batch_operation(batch: MetarialBatch, quantity: Decimal, operation: str) -> None:
+    def validate_batch_operation(batch: MaterialBatch, quantity: Decimal, operation: str) -> None:
         """
         Validate that an operation won't result in negative stock.
 
         This validator checks:
         1. For decrement/consume/aliquot operations: batch has sufficient quantity
-        2. For decrement/consume operations: batch metarial is consumable
+        2. For decrement/consume operations: batch material is consumable
 
-        :param batch: The batch object to operate on (must have quantity and metarial attributes)
+        :param batch: The batch object to operate on (must have quantity and material attributes)
         :type batch: Any
         :param quantity: The quantity for the operation (in base units)
         :type quantity: Decimal
@@ -120,8 +120,8 @@ class QuantityValidator:
         if not hasattr(batch, "quantity"):
             raise BadRequestException("Batch object must have 'quantity' attribute")
 
-        if operation in consumable_operations and not hasattr(batch, "metarial"):
-            raise BadRequestException("Batch object must have 'metarial' attribute")
+        if operation in consumable_operations and not hasattr(batch, "material"):
+            raise BadRequestException("Batch object must have 'material' attribute")
 
         # Check if batch has enough quantity
         if operation in quantity_check_operations and batch.quantity < quantity:
@@ -130,10 +130,10 @@ class QuantityValidator:
                 f"Available: {batch.quantity}, Required: {quantity}"
             )
 
-        # Check that batch metarial is consumable for certain operations
+        # Check that batch material is consumable for certain operations
         if operation in consumable_operations and not batch.is_consumable():
             raise BadRequestException(
-                f"Cannot {operation} non-consumable metarial: '{batch.metarial.name}'"
+                f"Cannot {operation} non-consumable material: '{batch.material.name}'"
             )
 
     @staticmethod

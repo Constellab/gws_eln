@@ -1,16 +1,16 @@
-# Story 1.2: Define Metarial Entity
+# Story 1.2: Define Material Entity
 
 Status: ready-for-dev
 
 ## Story
 
 As a developer,
-I want to create the Metarial entity with all required fields,
+I want to create the Material entity with all required fields,
 so that we can catalog all lab materials (chemicals, instruments, samples).
 
 ## Acceptance Criteria
 
-1. Create `src/gws_eln/metarials/metarial.py`
+1. Create `src/gws_eln/materials/material.py`
 2. Fields: id, name, description, supplier_id (FK), is_consumable, default_unit_type
 3. Audit fields: created_by_id, last_modified_by_id, created_at, last_modified_at
 4. Indices: supplier_id, is_consumable, name
@@ -19,9 +19,9 @@ so that we can catalog all lab materials (chemicals, instruments, samples).
 
 ## Context
 
-This is the **second story** in Epic 1 (Core Infrastructure & Database Entities) and represents the **first entity implementation** in the gws_eln project. This story creates the foundational Metarial entity that catalogs ALL types of lab materials (chemicals, instruments, equipment, samples) using a **unified data model** approach.
+This is the **second story** in Epic 1 (Core Infrastructure & Database Entities) and represents the **first entity implementation** in the gws_eln project. This story creates the foundational Material entity that catalogs ALL types of lab materials (chemicals, instruments, equipment, samples) using a **unified data model** approach.
 
-**Critical Architecture Decision:** The Metarial entity uses a single `is_consumable` flag to differentiate behavior:
+**Critical Architecture Decision:** The Material entity uses a single `is_consumable` flag to differentiate behavior:
 - `is_consumable=TRUE`: chemicals, reagents, samples (quantity decrements on consumption)
 - `is_consumable=FALSE`: instruments, equipment (usage reference only, no quantity decrement)
 
@@ -31,14 +31,14 @@ This unified approach eliminates the need for separate tables for samples, instr
 
 ### 1. File Location and Structure
 
-**File Path:** `src/gws_eln/metarials/metarial.py`
+**File Path:** `src/gws_eln/materials/material.py`
 
 **Directory Structure:**
 ```
 src/gws_eln/
-└── metarials/
+└── materials/
     ├── __init__.py
-    └── metarial.py
+    └── material.py
 ```
 
 **Import Pattern:**
@@ -50,7 +50,7 @@ from gws_core.core.classes.enum_field import EnumField
 
 ### 2. Entity Definition
 
-**Class Name:** `Metarial` (singular, note the spelling - "metarial" not "material")
+**Class Name:** `Material` (singular, note the spelling - "material" not "material")
 
 **Extends:** `ModelWithUser` from `gws_core.core.model.model_with_user`
 
@@ -60,16 +60,16 @@ from gws_core.core.classes.enum_field import EnumField
 - Automatically populates `last_modified_by` on update via `_before_update()` hook
 - Inherits from `Model` which provides: `id`, `created_at`, `last_modified_at`
 
-**Table Name:** `metarials` (plural, snake_case)
+**Table Name:** `materials` (plural, snake_case)
 
 ### 3. Field Definitions
 
 Based on [database-schema.md](database-schema.md) and gws_core patterns:
 
 ```python
-class Metarial(ModelWithUser):
+class Material(ModelWithUser):
     """
-    Metarial entity - Unified catalog for ALL lab material types.
+    Material entity - Unified catalog for ALL lab material types.
     
     Handles chemicals, instruments, equipment, samples, and reagents.
     The is_consumable flag determines behavior:
@@ -104,7 +104,7 @@ class Metarial(ModelWithUser):
     )
     
     class Meta:
-        table_name = 'metarials'
+        table_name = 'materials'
         is_table = True
         indexes = (
             # Composite index for supplier lookups
@@ -168,73 +168,73 @@ scenario = ForeignKeyField(
 
 ### 8. Testing Requirements
 
-**Test File:** `tests/test_metarials/test_metarial.py`
+**Test File:** `tests/test_materials/test_material.py`
 
 **Test Structure:**
 ```python
 from unittest import TestCase
 from gws_core.impl.file.file_helper import FileHelper
 from gws_core.core.utils.settings import Settings
-from gws_eln.metarials.metarial import Metarial
+from gws_eln.materials.material import Material
 
-class TestMetarial(TestCase):
+class TestMaterial(TestCase):
     
-    def test_create_metarial(self):
-        """Test basic metarial creation"""
+    def test_create_material(self):
+        """Test basic material creation"""
         # Create consumable material
-        metarial = Metarial.create(
+        material = Material.create(
             name="Éthanol 99%",
             description="High purity ethanol",
             is_consumable=True,
             default_unit_type='volume'
         )
         
-        self.assertIsNotNone(metarial.id)
-        self.assertEqual(metarial.name, "Éthanol 99%")
-        self.assertTrue(metarial.is_consumable)
-        self.assertEqual(metarial.default_unit_type, 'volume')
+        self.assertIsNotNone(material.id)
+        self.assertEqual(material.name, "Éthanol 99%")
+        self.assertTrue(material.is_consumable)
+        self.assertEqual(material.default_unit_type, 'volume')
         
-    def test_create_non_consumable_metarial(self):
+    def test_create_non_consumable_material(self):
         """Test non-consumable material (instrument)"""
-        metarial = Metarial.create(
+        material = Material.create(
             name="Spectrophotomètre UV-Vis",
             description="UV-Visible spectrophotometer",
             is_consumable=False,
             default_unit_type='count'
         )
         
-        self.assertFalse(metarial.is_consumable)
+        self.assertFalse(material.is_consumable)
         
     def test_audit_fields_populated(self):
         """Test that audit fields are automatically populated"""
-        metarial = Metarial.create(
+        material = Material.create(
             name="Test Material",
             is_consumable=True,
             default_unit_type='mass'
         )
         
         # These should be auto-populated by ModelWithUser
-        self.assertIsNotNone(metarial.created_by)
-        self.assertIsNotNone(metarial.last_modified_by)
-        self.assertIsNotNone(metarial.created_at)
-        self.assertIsNotNone(metarial.last_modified_at)
+        self.assertIsNotNone(material.created_by)
+        self.assertIsNotNone(material.last_modified_by)
+        self.assertIsNotNone(material.created_at)
+        self.assertIsNotNone(material.last_modified_at)
 ```
 
 **Run Command:**
 ```bash
 cd bricks/gws_eln
-gws server test test_metarial
+gws server test test_material
 ```
 
 ## Dev Notes
 
 ### Critical Naming Convention
 
-**Spelling:** "Metarial" not "Material"
+**Spelling:** "Material" not "Material"
 - This is the project's chosen naming convention
 - Use consistently: class name, file names, table names, variable names
-- Table name: `metarials` (plural)
-- Entity name: `Metarial` (singular)
+- Table name: `materials` (plural)
+- Entity name: `Material` (singular)
 
 ### ModelWithUser vs Model
 
@@ -262,16 +262,16 @@ This is resolved by Peewee during table creation.
 ### Database Precision
 
 **DECIMAL(20,12) for quantities:**
-- NOT stored in Metarial entity (quantities are in Metarial_Batch)
+- NOT stored in Material entity (quantities are in Material_Batch)
 - Mentioned here for context: when implementing batch quantities in Story 1.3, use high precision
 
 ### Project Structure Alignment
 
 **Follows gws_project patterns:**
-- Domain-based organization: `metarials/` folder
-- Entity file naming: singular lowercase (`metarial.py`)
-- Class naming: singular PascalCase (`Metarial`)
-- Table naming: plural snake_case (`metarials`)
+- Domain-based organization: `materials/` folder
+- Entity file naming: singular lowercase (`material.py`)
+- Class naming: singular PascalCase (`Material`)
+- Table naming: plural snake_case (`materials`)
 
 **Example from gws_project:**
 ```
@@ -287,9 +287,9 @@ src/gws_project/
 ### References
 
 **Source Documents:**
-- [database-schema.md](database-schema.md) - Complete Metarial table definition
+- [database-schema.md](database-schema.md) - Complete Material table definition
 - [architecture-summary.md](architecture-summary.md) - Unified model approach
-- [epics.md - Story 1.2](epics.md#story-12-define-metarial-entity)
+- [epics.md - Story 1.2](epics.md#story-12-define-material-entity)
 - [1-1-study-gws-project-backend-structure.md](1-1-study-gws-project-backend-structure.md) - gws_project patterns
 
 **gws_core References:**
@@ -301,25 +301,25 @@ src/gws_project/
 ## Tasks / Subtasks
 
 - [ ] Create directory structure (AC: #1)
-  - [ ] Create `src/gws_eln/metarials/` directory
-  - [ ] Create `__init__.py` in metarials folder
+  - [ ] Create `src/gws_eln/materials/` directory
+  - [ ] Create `__init__.py` in materials folder
   
-- [ ] Implement Metarial entity (AC: #1, #2, #3, #4, #5)
+- [ ] Implement Material entity (AC: #1, #2, #3, #4, #5)
   - [ ] Import required classes (ModelWithUser, CharField, TextField, etc.)
-  - [ ] Define Metarial class extending ModelWithUser
+  - [ ] Define Material class extending ModelWithUser
   - [ ] Add all field definitions with correct types
   - [ ] Add Meta class with table_name and indexes
   - [ ] Add docstring explaining unified model approach
   
 - [ ] Create test file (AC: #6)
-  - [ ] Create `tests/test_metarials/` directory
-  - [ ] Create `test_metarial.py`
-  - [ ] Implement test_create_metarial
-  - [ ] Implement test_create_non_consumable_metarial
+  - [ ] Create `tests/test_materials/` directory
+  - [ ] Create `test_material.py`
+  - [ ] Implement test_create_material
+  - [ ] Implement test_create_non_consumable_material
   - [ ] Implement test_audit_fields_populated
   
 - [ ] Run tests and verify (AC: #6)
-  - [ ] Run `gws server test test_metarial`
+  - [ ] Run `gws server test test_material`
   - [ ] Verify all tests pass
   - [ ] Verify table created in database with correct schema
 
@@ -340,7 +340,7 @@ _To be filled by Dev agent_
 ### File List
 
 **Expected Files Created:**
-- `src/gws_eln/metarials/__init__.py`
-- `src/gws_eln/metarials/metarial.py`
-- `tests/test_metarials/__init__.py`
-- `tests/test_metarials/test_metarial.py`
+- `src/gws_eln/materials/__init__.py`
+- `src/gws_eln/materials/material.py`
+- `tests/test_materials/__init__.py`
+- `tests/test_materials/test_material.py`

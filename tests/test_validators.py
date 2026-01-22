@@ -150,15 +150,15 @@ class TestValidateBatchOperation(unittest.TestCase):
     """Tests for QuantityValidator.validate_batch_operation()"""
 
     def create_mock_batch(self, quantity: Decimal, is_consumable: bool = True):
-        """Helper to create a mock batch with metarial"""
-        metarial = Mock()
-        metarial.name = "Test Metarial"
-        metarial.is_consumable = is_consumable
+        """Helper to create a mock batch with material"""
+        material = Mock()
+        material.name = "Test Material"
+        material.is_consumable = is_consumable
 
         batch = Mock()
         batch.id = 1
         batch.quantity = quantity
-        batch.metarial = metarial
+        batch.material = material
 
         return batch
 
@@ -190,7 +190,7 @@ class TestValidateBatchOperation(unittest.TestCase):
         QuantityValidator.validate_batch_operation(batch, Decimal("50"), "consume")
 
     def test_validate_batch_operation_non_consumable_aliquot_passes(self):
-        """Can create aliquot from non-consumable metarial (doesn't check consumable)"""
+        """Can create aliquot from non-consumable material (doesn't check consumable)"""
         batch = self.create_mock_batch(Decimal("100"), is_consumable=False)
         # Aliquot only checks quantity, not consumable status
         QuantityValidator.validate_batch_operation(batch, Decimal("10"), "aliquot")
@@ -208,14 +208,14 @@ class TestValidateBatchOperation(unittest.TestCase):
             QuantityValidator.validate_batch_operation(batch, Decimal("10"), "decrement")
         self.assertIn("must have 'quantity' attribute", str(context.exception))
 
-    def test_validate_batch_operation_batch_missing_metarial_fails(self):
-        """Batch without metarial attribute should fail for consumable operations"""
-        batch = Mock(spec=["quantity"])  # Only has quantity, no metarial
+    def test_validate_batch_operation_batch_missing_material_fails(self):
+        """Batch without material attribute should fail for consumable operations"""
+        batch = Mock(spec=["quantity"])  # Only has quantity, no material
         batch.quantity = Decimal("100")
-        # No metarial attribute
+        # No material attribute
         with self.assertRaises(BadRequestException) as context:
             QuantityValidator.validate_batch_operation(batch, Decimal("10"), "decrement")
-        self.assertIn("must have 'metarial' attribute", str(context.exception))
+        self.assertIn("must have 'material' attribute", str(context.exception))
 
     def test_validate_batch_operation_zero_quantity_fails(self):
         """Cannot operate on batch with zero quantity"""

@@ -15,13 +15,12 @@ Tests cover:
 """
 
 from gws_core import BadRequestException, BaseTestCase
-
 from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location import Location
 from gws_eln.locations.location_dto import CreateLocationDTO, UpdateLocationDTO
 from gws_eln.locations.location_service import DEFAULT_LOCATION_NAME, LocationService
-from gws_eln.metarials.metarial import Metarial
-from gws_eln.metarials.metarial_batch import MetarialBatch
+from gws_eln.materials.material import Material
+from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.user.eln_user_sync_service import ElnUserSyncService
 
 
@@ -41,10 +40,9 @@ class TestLocationService(BaseTestCase):
         service = LocationService()
 
         # Act
-        location = service.create_location(CreateLocationDTO(
-            name="Test Location",
-            description="A test location description"
-        ))
+        location = service.create_location(
+            CreateLocationDTO(name="Test Location", description="A test location description")
+        )
 
         # Assert
         self.assertIsNotNone(location)
@@ -81,10 +79,9 @@ class TestLocationService(BaseTestCase):
         service = LocationService()
 
         # Act
-        location = service.create_location(CreateLocationDTO(
-            name="  Trimmed Location  ",
-            description="  trimmed description  "
-        ))
+        location = service.create_location(
+            CreateLocationDTO(name="  Trimmed Location  ", description="  trimmed description  ")
+        )
 
         # Assert
         self.assertEqual(location.name, "Trimmed Location")
@@ -135,10 +132,9 @@ class TestLocationService(BaseTestCase):
         service = LocationService()
 
         # Create location
-        location = service.create_location(CreateLocationDTO(
-            name="Get Test Location",
-            description="A location to get"
-        ))
+        location = service.create_location(
+            CreateLocationDTO(name="Get Test Location", description="A location to get")
+        )
 
         # Act
         retrieved = service.get_location(location.id)
@@ -178,7 +174,7 @@ class TestLocationService(BaseTestCase):
         existing = Location.select().where(Location.name == DEFAULT_LOCATION_NAME).first()
         if existing:
             # Need to check for references first
-            if not MetarialBatch.select().where(MetarialBatch.location == existing).exists():
+            if not MaterialBatch.select().where(MaterialBatch.location == existing).exists():
                 existing.delete_instance()
 
         # Act
@@ -224,19 +220,15 @@ class TestLocationService(BaseTestCase):
         service = LocationService()
 
         # Create location
-        location = service.create_location(CreateLocationDTO(
-            name="Original Name",
-            description="Original description"
-        ))
+        location = service.create_location(
+            CreateLocationDTO(name="Original Name", description="Original description")
+        )
         original_id = location.id
 
         # Act
         updated = service.update_location(
             location_id=location.id,
-            dto=UpdateLocationDTO(
-                name="Updated Name",
-                description="Updated description"
-            )
+            dto=UpdateLocationDTO(name="Updated Name", description="Updated description"),
         )
 
         # Assert
@@ -257,18 +249,14 @@ class TestLocationService(BaseTestCase):
         service = LocationService()
 
         # Create location with description
-        location = service.create_location(CreateLocationDTO(
-            name="Clear Description Location",
-            description="to-be-cleared"
-        ))
+        location = service.create_location(
+            CreateLocationDTO(name="Clear Description Location", description="to-be-cleared")
+        )
 
         # Act: update with None description
         updated = service.update_location(
             location_id=location.id,
-            dto=UpdateLocationDTO(
-                name="Clear Description Location",
-                description=None
-            )
+            dto=UpdateLocationDTO(name="Clear Description Location", description=None),
         )
 
         # Assert
@@ -282,18 +270,14 @@ class TestLocationService(BaseTestCase):
         service = LocationService()
 
         # Create location
-        location = service.create_location(CreateLocationDTO(
-            name="Same Name Location",
-            description="original"
-        ))
+        location = service.create_location(
+            CreateLocationDTO(name="Same Name Location", description="original")
+        )
 
         # Act: update description only, keep same name
         updated = service.update_location(
             location_id=location.id,
-            dto=UpdateLocationDTO(
-                name="Same Name Location",
-                description="new description"
-            )
+            dto=UpdateLocationDTO(name="Same Name Location", description="new description"),
         )
 
         # Assert
@@ -314,8 +298,7 @@ class TestLocationService(BaseTestCase):
         # Act & Assert: try to rename location2 to location1's name
         with self.assertRaises(BadRequestException) as context:
             service.update_location(
-                location_id=location2.id,
-                dto=UpdateLocationDTO(name="Location One")
+                location_id=location2.id, dto=UpdateLocationDTO(name="Location One")
             )
 
         self.assertIn("already exists", str(context.exception))
@@ -333,10 +316,7 @@ class TestLocationService(BaseTestCase):
 
         # Act & Assert
         with self.assertRaises(BadRequestException) as context:
-            service.update_location(
-                location_id=location.id,
-                dto=UpdateLocationDTO(name="")
-            )
+            service.update_location(location_id=location.id, dto=UpdateLocationDTO(name=""))
 
         self.assertIn("name is required", str(context.exception))
 
@@ -365,16 +345,16 @@ class TestLocationService(BaseTestCase):
         # Create location
         location = service.create_location(CreateLocationDTO(name="Referenced Location"))
 
-        # Create a metarial first (needed for batch)
-        metarial = Metarial()
-        metarial.name = "Test Metarial for Location"
-        metarial.is_consumable = True
-        metarial.default_unit_type = UnitType.COUNT
-        metarial.save()
+        # Create a material first (needed for batch)
+        material = Material()
+        material.name = "Test Material for Location"
+        material.is_consumable = True
+        material.default_unit_type = UnitType.COUNT
+        material.save()
 
         # Create batch that references the location
-        batch = MetarialBatch()
-        batch.metarial = metarial
+        batch = MaterialBatch()
+        batch.material = material
         batch.location = location
         batch.batch_number = "TEST-001"
         batch.save()
@@ -391,7 +371,7 @@ class TestLocationService(BaseTestCase):
 
         # Cleanup
         batch.delete_instance()
-        metarial.delete_instance()
+        material.delete_instance()
         location.delete_instance()
 
     def test_delete_default_location_fails(self):
@@ -445,8 +425,7 @@ class TestLocationService(BaseTestCase):
 
         # Act: update location
         updated = service.update_location(
-            location_id=location.id,
-            dto=UpdateLocationDTO(name="Audit Update Location Modified")
+            location_id=location.id, dto=UpdateLocationDTO(name="Audit Update Location Modified")
         )
 
         # Assert: created_by unchanged, last_modified_by is set

@@ -7,9 +7,9 @@ from gws_eln.core.unit_type import UnitType
 from gws_eln.suppliers.supplier import Supplier
 
 
-class Metarial(ModelWithUser):
+class Material(ModelWithUser):
     """
-    Metarial entity - represents a catalog entry for lab materials.
+    Material entity - represents a catalog entry for lab materials.
 
     Handles ALL material types: chemicals, reagents, instruments, equipment, samples.
     The is_consumable flag determines behavior:
@@ -32,7 +32,7 @@ class Metarial(ModelWithUser):
 
     # Supplier relationship (optional FK to suppliers table)
     supplier = ForeignKeyField(
-        Supplier, null=True, backref="metarials", on_delete="SET NULL", index=True
+        Supplier, null=True, backref="materials", on_delete="SET NULL", index=True
     )
 
     # Behavior flag
@@ -44,7 +44,7 @@ class Metarial(ModelWithUser):
     )
 
     class Meta:
-        table_name = "gws_eln_metarials"
+        table_name = "gws_eln_materials"
         database = ElnDbManager.get_instance().db
         is_table = True
         db_manager = ElnDbManager.get_instance()
