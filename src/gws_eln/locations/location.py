@@ -29,3 +29,21 @@ class Location(ModelWithUser):
         database = ElnDbManager.get_instance().db
         is_table = True
         db_manager = ElnDbManager.get_instance()
+
+    def to_dto(self) -> "LocationDTO":
+        """Convert the Location model to a LocationDTO.
+
+        :return: LocationDTO with the location data
+        :rtype: LocationDTO
+        """
+        from gws_eln.locations.location_dto import LocationDTO
+
+        return LocationDTO(
+            id=self.id,
+            name=self.name,
+            description=self.description,
+            created_at=self.created_at,
+            last_modified_at=self.last_modified_at,
+            created_by=self.created_by.to_dto(),
+            last_modified_by=self.last_modified_by.to_dto(),
+        )

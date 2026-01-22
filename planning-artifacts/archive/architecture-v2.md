@@ -174,7 +174,7 @@ material_batches (Unified Physical Inventory: Batches, Aliquots, Instrument Inst
 suppliers (Material Suppliers)
 ├── id (PK)
 ├── name
-├── contact_info
+├── description
 ├── created_by_id (FK), last_modified_by_id (FK)
 ├── created_at, last_modified_at
 

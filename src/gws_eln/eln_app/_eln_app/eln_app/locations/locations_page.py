@@ -1,9 +1,8 @@
 """Locations page component."""
 
 import reflex as rx
-from gws_reflex_main import main_component
 
-from ..common.page_layout import page_layout
+from .locations_list_component import locations_list_page
 
 
 def locations_page() -> rx.Component:
@@ -12,22 +11,4 @@ def locations_page() -> rx.Component:
     :return: The locations page component
     :rtype: rx.Component
     """
-    return main_component(
-        page_layout(
-            rx.vstack(
-                rx.center(
-                    rx.vstack(
-                        rx.icon("map-pin", size=48, color="gray"),
-                        rx.text("Locations page coming soon", size="4", color="gray", margin_top="1rem"),
-                        spacing="2",
-                        align="center",
-                    ),
-                    padding="3rem",
-                    width="100%",
-                ),
-                width="100%",
-                spacing="4",
-            ),
-            header_content=rx.heading("Locations", size="6"),
-        )
-    )
+    return locations_list_page()

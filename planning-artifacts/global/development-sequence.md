@@ -101,7 +101,7 @@ CONVERSION_FACTORS = {
 ```python
 class Supplier(ModelWithUser):
     name = CharField(unique=True, max_length=255)
-    contact_info = TextField(null=True)
+    description = TextField(null=True)
     # audit fields inherited from ModelWithUser
 ```
 
@@ -218,7 +218,7 @@ class Activity(ModelWithUser):
 **Location:** `src/gws_eln/suppliers/supplier_service.py`
 
 **Methods:**
-- `create_supplier(name, contact_info) → Supplier`
+- `create_supplier(name, description) → Supplier`
 - `get_supplier(supplier_id) → Supplier`
 - `list_suppliers() → List[Supplier]`
 - `update_supplier(supplier_id, **kwargs) → Supplier`

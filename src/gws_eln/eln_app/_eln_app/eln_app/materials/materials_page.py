@@ -1,9 +1,8 @@
 """Materials page component."""
 
 import reflex as rx
-from gws_reflex_main import main_component
 
-from ..common.page_layout import page_layout
+from .materials_list_component import materials_list_page
 
 
 def materials_page() -> rx.Component:
@@ -12,22 +11,4 @@ def materials_page() -> rx.Component:
     :return: The materials page component
     :rtype: rx.Component
     """
-    return main_component(
-        page_layout(
-            rx.vstack(
-                rx.center(
-                    rx.vstack(
-                        rx.icon("package", size=48, color="gray"),
-                        rx.text("Materials page coming soon", size="4", color="gray", margin_top="1rem"),
-                        spacing="2",
-                        align="center",
-                    ),
-                    padding="3rem",
-                    width="100%",
-                ),
-                width="100%",
-                spacing="4",
-            ),
-            header_content=rx.heading("Materials", size="6"),
-        )
-    )
+    return materials_list_page()

@@ -25,7 +25,7 @@ material_batches (physical inventory)
   └── location_id (FK)
 
 suppliers (simple catalog)
-  └── name, contact_info
+  └── name, description
 
 locations (simple catalog)
   └── name, description (default: "labo")

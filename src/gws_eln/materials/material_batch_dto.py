@@ -7,9 +7,12 @@ Defines data transfer objects for MaterialBatchService operations.
 from datetime import date
 from decimal import Decimal
 
-from gws_core import BaseModelDTO
+from gws_core import BaseModelDTO, ModelDTO, UserDTO
 
 from gws_eln.core.unit_type import UnitType
+from gws_eln.locations.location_dto import LocationDTO
+from gws_eln.materials.batch_status import BatchStatus
+from gws_eln.suppliers.supplier_dto import SupplierDTO
 
 
 class CreateBatchDTO(BaseModelDTO):
@@ -97,3 +100,22 @@ class CreateAliquotDTO(BaseModelDTO):
     location_id: str | None = None  # Default to parent's location if None
     notes: str | None = None
     supplier_id: str | None = None  # Default to None
+
+
+class MaterialBatchDTO(ModelDTO):
+    """DTO for displaying material batch information in the frontend."""
+
+    material_id: str
+    material_name: str
+    location: LocationDTO
+    parent_batch_id: str | None
+    supplier: SupplierDTO | None
+    batch_number: str
+    label: str | None
+    expiry_date: date | None
+    quantity: Decimal
+    unit_type: UnitType
+    notes: str | None
+    status: BatchStatus
+    created_by: UserDTO
+    last_modified_by: UserDTO

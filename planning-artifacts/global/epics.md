@@ -227,7 +227,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `src/gws_eln/suppliers/supplier.py`
-- Fields: id, name (UNIQUE), contact_info
+- Fields: id, name (UNIQUE), description
 - Audit fields included
 - Index: name (unique)
 - Unit test for supplier creation
@@ -387,10 +387,10 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `src/gws_eln/suppliers/supplier_service.py`
-- Method: `create_supplier(name, contact_info, user_id)` → Supplier
+- Method: `create_supplier(name, description, user_id)` → Supplier
 - Method: `get_supplier(supplier_id)` → Supplier
 - Method: `list_suppliers()` → List[Supplier]
-- Method: `update_supplier(supplier_id, name, contact_info, user_id)` → Supplier
+- Method: `update_supplier(supplier_id, name, description, user_id)` → Supplier
 - Method: `delete_supplier(supplier_id, user_id)` → bool (prevent if referenced)
 - Enforce unique name constraint
 - Track created_by_id, last_modified_by_id
@@ -1057,7 +1057,7 @@ Complete epic and story breakdown for **gws_eln** (ELN Inventory System), decomp
 
 **Acceptance Criteria:**
 - Create `pages/suppliers/list.py`: display all suppliers, Create/Edit/Delete actions
-- Create `pages/suppliers/form.py`: name, contact_info fields
+- Create `pages/suppliers/form.py`: name, description fields
 - Validation: unique name
 - Delete: prevent if referenced by materials
 - On submit: call SupplierService methods

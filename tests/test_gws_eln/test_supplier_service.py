@@ -38,14 +38,14 @@ class TestSupplierService(BaseTestCase):
 
         # Act
         supplier = service.create_supplier(
-            CreateSupplierDTO(name="Test Supplier", contact_info="contact@test.com")
+            CreateSupplierDTO(name="Test Supplier", description="contact@test.com")
         )
 
         # Assert
         self.assertIsNotNone(supplier)
         self.assertIsNotNone(supplier.id)
         self.assertEqual(supplier.name, "Test Supplier")
-        self.assertEqual(supplier.contact_info, "contact@test.com")
+        self.assertEqual(supplier.description, "contact@test.com")
         self.assertIsNotNone(supplier.created_at)
         self.assertIsNotNone(supplier.created_by)
 
@@ -57,7 +57,7 @@ class TestSupplierService(BaseTestCase):
         supplier.delete_instance()
 
     def test_create_supplier_name_only(self):
-        """Test creating a supplier with only name (no contact_info)"""
+        """Test creating a supplier with only name (no description)"""
         service = SupplierService()
 
         # Act
@@ -66,23 +66,23 @@ class TestSupplierService(BaseTestCase):
         # Assert
         self.assertIsNotNone(supplier)
         self.assertEqual(supplier.name, "Minimal Supplier")
-        self.assertIsNone(supplier.contact_info)
+        self.assertIsNone(supplier.description)
 
         # Cleanup
         supplier.delete_instance()
 
     def test_create_supplier_trims_whitespace(self):
-        """Test that supplier name and contact_info are trimmed"""
+        """Test that supplier name and description are trimmed"""
         service = SupplierService()
 
         # Act
         supplier = service.create_supplier(
-            CreateSupplierDTO(name="  Trimmed Supplier  ", contact_info="  info@test.com  ")
+            CreateSupplierDTO(name="  Trimmed Supplier  ", description="  info@test.com  ")
         )
 
         # Assert
         self.assertEqual(supplier.name, "Trimmed Supplier")
-        self.assertEqual(supplier.contact_info, "info@test.com")
+        self.assertEqual(supplier.description, "info@test.com")
 
         # Cleanup
         supplier.delete_instance()
@@ -130,7 +130,7 @@ class TestSupplierService(BaseTestCase):
 
         # Create supplier
         supplier = service.create_supplier(
-            CreateSupplierDTO(name="Get Test Supplier", contact_info="get@test.com")
+            CreateSupplierDTO(name="Get Test Supplier", description="get@test.com")
         )
 
         # Act
@@ -139,7 +139,7 @@ class TestSupplierService(BaseTestCase):
         # Assert
         self.assertEqual(retrieved.id, supplier.id)
         self.assertEqual(retrieved.name, "Get Test Supplier")
-        self.assertEqual(retrieved.contact_info, "get@test.com")
+        self.assertEqual(retrieved.description, "get@test.com")
 
         # Cleanup
         supplier.delete_instance()
@@ -188,46 +188,46 @@ class TestSupplierService(BaseTestCase):
 
         # Create supplier
         supplier = service.create_supplier(
-            CreateSupplierDTO(name="Original Name", contact_info="original@test.com")
+            CreateSupplierDTO(name="Original Name", description="original@test.com")
         )
         original_id = supplier.id
 
         # Act
         updated = service.update_supplier(
             supplier_id=supplier.id,
-            dto=UpdateSupplierDTO(name="Updated Name", contact_info="updated@test.com"),
+            dto=UpdateSupplierDTO(name="Updated Name", description="updated@test.com"),
         )
 
         # Assert
         self.assertEqual(updated.id, original_id)
         self.assertEqual(updated.name, "Updated Name")
-        self.assertEqual(updated.contact_info, "updated@test.com")
+        self.assertEqual(updated.description, "updated@test.com")
 
         # Verify in database
         db_supplier = Supplier.get_by_id(original_id)
         self.assertEqual(db_supplier.name, "Updated Name")
-        self.assertEqual(db_supplier.contact_info, "updated@test.com")
+        self.assertEqual(db_supplier.description, "updated@test.com")
 
         # Cleanup
         supplier.delete_instance()
 
-    def test_update_supplier_clear_contact_info(self):
-        """Test updating supplier to clear contact_info"""
+    def test_update_supplier_clear_description(self):
+        """Test updating supplier to clear description"""
         service = SupplierService()
 
-        # Create supplier with contact_info
+        # Create supplier with description
         supplier = service.create_supplier(
-            CreateSupplierDTO(name="Clear Contact Supplier", contact_info="to-be-cleared@test.com")
+            CreateSupplierDTO(name="Clear Contact Supplier", description="to-be-cleared@test.com")
         )
 
-        # Act: update with None contact_info
+        # Act: update with None description
         updated = service.update_supplier(
             supplier_id=supplier.id,
-            dto=UpdateSupplierDTO(name="Clear Contact Supplier", contact_info=None),
+            dto=UpdateSupplierDTO(name="Clear Contact Supplier", description=None),
         )
 
         # Assert
-        self.assertIsNone(updated.contact_info)
+        self.assertIsNone(updated.description)
 
         # Cleanup
         supplier.delete_instance()
@@ -238,18 +238,18 @@ class TestSupplierService(BaseTestCase):
 
         # Create supplier
         supplier = service.create_supplier(
-            CreateSupplierDTO(name="Same Name Supplier", contact_info="original@test.com")
+            CreateSupplierDTO(name="Same Name Supplier", description="original@test.com")
         )
 
-        # Act: update contact_info only, keep same name
+        # Act: update description only, keep same name
         updated = service.update_supplier(
             supplier_id=supplier.id,
-            dto=UpdateSupplierDTO(name="Same Name Supplier", contact_info="new@test.com"),
+            dto=UpdateSupplierDTO(name="Same Name Supplier", description="new@test.com"),
         )
 
         # Assert
         self.assertEqual(updated.name, "Same Name Supplier")
-        self.assertEqual(updated.contact_info, "new@test.com")
+        self.assertEqual(updated.description, "new@test.com")
 
         # Cleanup
         supplier.delete_instance()

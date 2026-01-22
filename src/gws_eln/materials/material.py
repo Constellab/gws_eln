@@ -49,3 +49,24 @@ class Material(ModelWithUser):
         database = ElnDbManager.get_instance().db
         is_table = True
         db_manager = ElnDbManager.get_instance()
+
+    def to_dto(self) -> "MaterialDTO":
+        """Convert the Material model to a MaterialDTO.
+
+        :return: MaterialDTO with the material data
+        :rtype: MaterialDTO
+        """
+        from gws_eln.materials.material_dto import MaterialDTO
+
+        return MaterialDTO(
+            id=self.id,
+            name=self.name,
+            description=self.description,
+            default_supplier=self.default_supplier.to_dto() if self.default_supplier else None,
+            is_consumable=self.is_consumable,
+            default_unit_type=self.default_unit_type,
+            created_at=self.created_at,
+            last_modified_at=self.last_modified_at,
+            created_by=self.created_by.to_dto(),
+            last_modified_by=self.last_modified_by.to_dto(),
+        )

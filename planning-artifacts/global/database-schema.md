@@ -87,7 +87,7 @@ CREATE INDEX idx_material_batches_expiry ON material_batches(expiry_date);
 suppliers
 ├── id (PK, INT AUTO_INCREMENT)
 ├── name (VARCHAR(255), NOT NULL, UNIQUE)
-├── contact_info (TEXT)
+├── description (TEXT)
 │   Email, phone, address, etc.
 ├── created_by_id (FK → users.id)
 ├── last_modified_by_id (FK → users.id)

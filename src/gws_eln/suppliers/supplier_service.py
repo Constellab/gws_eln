@@ -60,7 +60,7 @@ class SupplierService:
         # Create supplier
         supplier = Supplier()
         supplier.name = dto.name.strip()
-        supplier.contact_info = dto.contact_info.strip() if dto.contact_info else None
+        supplier.description = dto.description.strip() if dto.description else None
 
         # Save (created_by/last_modified_by set automatically by ModelWithUser)
         supplier.save()
@@ -92,7 +92,7 @@ class SupplierService:
 
         # Update fields
         supplier.name = dto.name.strip()
-        supplier.contact_info = dto.contact_info.strip() if dto.contact_info else None
+        supplier.description = dto.description.strip() if dto.description else None
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         supplier.save()
