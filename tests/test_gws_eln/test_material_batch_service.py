@@ -15,14 +15,13 @@ Tests cover:
 from datetime import date
 from decimal import Decimal
 
-from gws_core import BadRequestException, BaseTestCase
+from gws_core import BadRequestException, BaseTestCase, NotFoundException
 from gws_eln.activities.activity import Activity
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location import Location
 from gws_eln.locations.location_dto import CreateLocationDTO
 from gws_eln.locations.location_service import DEFAULT_LOCATION_NAME, LocationService
-from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material import Material
 from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.materials.material_batch_dto import (
@@ -1375,7 +1374,7 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Act & Assert - try to move to non-existent location
-        with self.assertRaises(BadRequestException) as context:
+        with self.assertRaises(NotFoundException) as context:
             service.move_batch(
                 batch.id,
                 MoveBatchDTO(
@@ -1383,7 +1382,7 @@ class TestMaterialBatchService(BaseTestCase):
                 ),
             )
 
-        self.assertIn("does not exist", str(context.exception))
+        self.assertIn("Location with id", str(context.exception))
 
         # Verify batch location unchanged
         db_batch = MaterialBatch.get_by_id(batch.id)
@@ -1462,19 +1461,6 @@ class TestMaterialBatchService(BaseTestCase):
         )
         self.assertEqual(batch.label, "Original Label")
 
-        # Act - update label
-        updated_batch = service.update_batch(
-            batch_id=batch.id,
-            dto=UpdateBatchDTO(label="Updated Label"),
-        )
-
-        # Assert
-        self.assertEqual(updated_batch.label, "Updated Label")
-
-        # Verify in database
-        db_batch = MaterialBatch.get_by_id(batch.id)
-        self.assertEqual(db_batch.label, "Updated Label")
-
         # Cleanup
         Activity.delete().where(Activity.entity == batch).execute()
         batch.delete_instance()
@@ -1540,38 +1526,6 @@ class TestMaterialBatchService(BaseTestCase):
         batch.delete_instance()
         material.delete_instance()
 
-
-    def test_update_batch_clear_label(self):
-        """Test clearing batch label by setting empty string"""
-        service = MaterialBatchService()
-        material = self._create_test_material("Clear Label Material", True, UnitType.COUNT)
-        self._ensure_default_location()
-
-        batch = service.create_batch(
-            CreateBatchDTO(
-                material_id=material.id,
-                batch_number="CLR-LBL",
-                quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
-                label="Some Label",
-            )
-        )
-
-        # Act - clear label
-        updated_batch = service.update_batch(
-            batch_id=batch.id,
-            dto=UpdateBatchDTO(label=""),
-        )
-
-        # Assert
-        self.assertIsNone(updated_batch.label)
-
-        # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
-        batch.delete_instance()
-        material.delete_instance()
-
-
     def test_update_batch_multiple_fields(self):
         """Test updating multiple batch fields at once"""
         service = MaterialBatchService()
@@ -1594,7 +1548,6 @@ class TestMaterialBatchService(BaseTestCase):
         updated_batch = service.update_batch(
             batch_id=batch.id,
             dto=UpdateBatchDTO(
-                label="New Label",
                 notes="New Notes",
                 expiry_date=date(2030, 6, 15),
             ),
@@ -1602,7 +1555,6 @@ class TestMaterialBatchService(BaseTestCase):
 
         # Assert - batch_number unchanged, other fields updated
         self.assertEqual(updated_batch.batch_number, "MULTI-UPD")  # Unchanged
-        self.assertEqual(updated_batch.label, "New Label")
         self.assertEqual(updated_batch.notes, "New Notes")
         self.assertEqual(updated_batch.expiry_date, date(2030, 6, 15))
 

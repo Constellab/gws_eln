@@ -75,7 +75,7 @@ class TestMaterialService(BaseTestCase):
         self.assertEqual(material.description, "Pure ethanol for laboratory use")
         self.assertTrue(material.is_consumable)
         self.assertEqual(material.default_unit_type, UnitType.VOLUME)
-        self.assertIsNone(material.supplier)
+        self.assertIsNone(material.default_supplier)
         self.assertIsNotNone(material.created_at)
         self.assertIsNotNone(material.created_by)
 
@@ -128,9 +128,9 @@ class TestMaterialService(BaseTestCase):
         # Assert
         self.assertIsNotNone(material)
         self.assertEqual(material.name, "Sodium Chloride")
-        self.assertIsNotNone(material.supplier)
-        self.assertEqual(material.supplier.id, supplier.id)
-        self.assertEqual(material.supplier.name, "Sigma-Aldrich")
+        self.assertIsNotNone(material.default_supplier)
+        self.assertEqual(material.default_supplier.id, supplier.id)
+        self.assertEqual(material.default_supplier.name, "Sigma-Aldrich")
 
         # Cleanup
         material.delete_instance()
@@ -162,7 +162,7 @@ class TestMaterialService(BaseTestCase):
         self.assertIsNotNone(material)
         self.assertEqual(material.name, "Minimal Material")
         self.assertIsNone(material.description)
-        self.assertIsNone(material.supplier)
+        self.assertIsNone(material.default_supplier)
         self.assertTrue(material.is_consumable)  # Default
         self.assertEqual(material.default_unit_type, UnitType.COUNT)  # Default
 
@@ -432,7 +432,7 @@ class TestMaterialService(BaseTestCase):
 
         # Create material without supplier
         material = service.create_material(CreateMaterialDTO(name="Without Supplier"))
-        self.assertIsNone(material.supplier)
+        self.assertIsNone(material.default_supplier)
 
         # Act: add supplier
         updated = service.update_material(
@@ -444,8 +444,8 @@ class TestMaterialService(BaseTestCase):
         )
 
         # Assert
-        self.assertIsNotNone(updated.supplier)
-        self.assertEqual(updated.supplier.id, supplier.id)
+        self.assertIsNotNone(updated.default_supplier)
+        self.assertEqual(updated.default_supplier.id, supplier.id)
 
         # Cleanup
         material.delete_instance()
@@ -463,7 +463,7 @@ class TestMaterialService(BaseTestCase):
                 supplier_id=supplier.id,
             )
         )
-        self.assertIsNotNone(material.supplier)
+        self.assertIsNotNone(material.default_supplier)
 
         # Act: remove supplier (set to None)
         updated = service.update_material(
@@ -475,7 +475,7 @@ class TestMaterialService(BaseTestCase):
         )
 
         # Assert
-        self.assertIsNone(updated.supplier)
+        self.assertIsNone(updated.default_supplier)
 
         # Cleanup
         material.delete_instance()

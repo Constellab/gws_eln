@@ -19,7 +19,7 @@ class Material(ModelWithUser):
     Attributes:
         name: Material name (required, indexed)
         description: Optional description text
-        supplier: Optional reference to supplier (FK to gws_eln_suppliers)
+        default_supplier: Optional reference to supplier (FK to gws_eln_suppliers)
         is_consumable: Whether the material is consumable (affects quantity behavior)
         default_unit_type: Default unit type for batches of this material
     """
@@ -30,8 +30,9 @@ class Material(ModelWithUser):
     # Optional fields
     description = TextField(null=True)
 
-    # Supplier relationship (optional FK to suppliers table)
-    supplier = ForeignKeyField(
+    # Default supplier relationship (optional FK to suppliers table)
+    # This is to prefill the front form when receiving new batches
+    default_supplier = ForeignKeyField(
         Supplier, null=True, backref="materials", on_delete="SET NULL", index=True
     )
 

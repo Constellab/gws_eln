@@ -15,7 +15,6 @@ from decimal import Decimal, InvalidOperation
 from gws_core import BadRequestException
 
 from gws_eln.core.unit_type import UnitType
-from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.utils.units import UnitConverter
 
 
@@ -84,56 +83,6 @@ class QuantityValidator:
             raise BadRequestException(
                 f"Unit '{unit}' is not valid for unit_type '{unit_type.value}'. "
                 f"Valid units: {', '.join(valid_units)}"
-            )
-
-    @staticmethod
-    def validate_batch_operation(batch: MaterialBatch, quantity: Decimal, operation: str) -> None:
-        """
-        Validate that an operation won't result in negative stock.
-
-        This validator checks:
-        1. For decrement/consume/aliquot operations: batch has sufficient quantity
-        2. For decrement/consume operations: batch material is consumable
-
-        :param batch: The batch object to operate on (must have quantity and material attributes)
-        :type batch: Any
-        :param quantity: The quantity for the operation (in base units)
-        :type quantity: Decimal
-        :param operation: The operation type ('decrement', 'consume', 'aliquot', etc.)
-        :type operation: str
-        :raises BadRequestException: If operation would create negative stock or violate constraints
-
-        Examples:
-            >>> # Batch with 100 units, consumable
-            >>> QuantityValidator.validate_batch_operation(batch, Decimal('50'), 'decrement')  # OK
-            >>> QuantityValidator.validate_batch_operation(batch, Decimal('150'), 'decrement')  # Raises
-            >>> # Non-consumable batch
-            >>> QuantityValidator.validate_batch_operation(batch, Decimal('10'), 'decrement')  # Raises
-        """
-        # Operations that require quantity checks
-        quantity_check_operations = ["decrement", "consume", "aliquot"]
-
-        # Operations that require consumable check
-        consumable_operations = ["decrement", "consume"]
-
-        # Validate batch has required attributes
-        if not hasattr(batch, "quantity"):
-            raise BadRequestException("Batch object must have 'quantity' attribute")
-
-        if operation in consumable_operations and not hasattr(batch, "material"):
-            raise BadRequestException("Batch object must have 'material' attribute")
-
-        # Check if batch has enough quantity
-        if operation in quantity_check_operations and batch.quantity < quantity:
-            raise BadRequestException(
-                f"Insufficient quantity in batch {getattr(batch, 'id', 'unknown')}. "
-                f"Available: {batch.quantity}, Required: {quantity}"
-            )
-
-        # Check that batch material is consumable for certain operations
-        if operation in consumable_operations and not batch.is_consumable():
-            raise BadRequestException(
-                f"Cannot {operation} non-consumable material: '{batch.material.name}'"
             )
 
     @staticmethod

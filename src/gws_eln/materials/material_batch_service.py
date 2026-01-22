@@ -5,8 +5,6 @@ Handles CRUD operations, validation, and business logic for material batches.
 Implements Story 5.1 from Epic 5: Service Layer - Material Batches.
 """
 
-from decimal import Decimal
-
 from gws_core import BadRequestException, CurrentUserService
 
 from gws_eln.activities.activity import Activity
@@ -15,11 +13,12 @@ from gws_eln.activities.activity_service import ActivityService
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.locations.location import Location
-from gws_eln.locations.location_service import DEFAULT_LOCATION_NAME
+from gws_eln.locations.location_service import LocationService
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material import Material
 from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.materials.material_batch_dto import (
+    CreateAliquotDTO,
     CreateBatchDTO,
     DecrementQuantityDTO,
     IncrementQuantityDTO,
@@ -28,6 +27,7 @@ from gws_eln.materials.material_batch_dto import (
     RelabelBatchDTO,
     UpdateBatchDTO,
 )
+from gws_eln.suppliers.supplier_service import SupplierService
 from gws_eln.utils.units import UnitConverter
 from gws_eln.utils.validators import QuantityValidator
 
@@ -116,7 +116,10 @@ class MaterialBatchService:
         material = self._validate_material_exists(dto.material_id)
 
         # Validate/get location (default to "labo" if not provided)
-        location = self._get_or_default_location(dto.location_id)
+        location = LocationService().get_or_default_location(dto.location_id)
+
+        # Get supplier
+        supplier = SupplierService().get_supplier(dto.supplier_id) if dto.supplier_id else None
 
         # Convert quantity to base units (input is already in base unit for the type)
         # No conversion needed since we're using base units directly
@@ -133,6 +136,7 @@ class MaterialBatchService:
         batch.label = dto.label.strip() if dto.label else None
         batch.notes = dto.notes.strip() if dto.notes else None
         batch.parent_batch = None  # Original batch, not an aliquot
+        batch.supplier = supplier
 
         # Save (created_by/last_modified_by set automatically by ModelWithUser)
         batch.save()
@@ -179,8 +183,7 @@ class MaterialBatchService:
             )
 
         # Add quantity to existing (both in base units)
-        current_quantity = batch.quantity if batch.quantity else Decimal("0")
-        batch.quantity = current_quantity + validated_quantity
+        batch.quantity = batch.quantity + validated_quantity
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         batch.save()
@@ -227,8 +230,7 @@ class MaterialBatchService:
             )
 
         # Add quantity to existing (both in base units)
-        current_quantity = batch.quantity if batch.quantity else Decimal("0")
-        batch.quantity = current_quantity + validated_quantity
+        batch.quantity = batch.quantity + validated_quantity
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         batch.save()
@@ -282,16 +284,10 @@ class MaterialBatchService:
                 f"but received '{dto.unit_type.value}'"
             )
 
-        # Check sufficient quantity available
-        current_quantity = batch.quantity if batch.quantity else Decimal("0")
-        if current_quantity < validated_quantity:
-            raise BadRequestException(
-                f"Insufficient quantity. Available: {current_quantity}, "
-                f"Requested: {validated_quantity}"
-            )
+        batch.validate_sufficient_quantity(validated_quantity)
 
         # Subtract quantity
-        batch.quantity = current_quantity - validated_quantity
+        batch.quantity = batch.quantity - validated_quantity
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         batch.save()
@@ -327,11 +323,7 @@ class MaterialBatchService:
         batch = self.get_batch(batch_id)
 
         # Validate destination location exists
-        to_location = Location.get_by_id(dto.to_location_id)
-        if not to_location:
-            raise BadRequestException(
-                f"Destination location with ID '{dto.to_location_id}' does not exist"
-            )
+        to_location = Location.get_by_id_and_check(dto.to_location_id)
 
         # Store from_location before updating
         from_location = batch.location
@@ -371,13 +363,13 @@ class MaterialBatchService:
         # Get existing batch
         batch = self.get_batch(batch_id)
 
-        # Update label if provided (can be set to empty string to clear)
-        if dto.label is not None:
-            batch.label = dto.label.strip() if dto.label else None
-
         # Update notes if provided (can be set to empty string to clear)
-        if dto.notes is not None:
-            batch.notes = dto.notes.strip() if dto.notes else None
+        batch.notes = dto.notes.strip() if dto.notes else None
+
+        if dto.supplier_id is not None:
+            batch.supplier = SupplierService().get_supplier(dto.supplier_id)
+        else:
+            batch.supplier = None
 
         # Update expiry_date (can be None to clear)
         # Only update if the key is explicitly provided
@@ -471,9 +463,7 @@ class MaterialBatchService:
 
         # Check if already discarded
         if batch.is_discarded():
-            raise BadRequestException(
-                f"Batch '{batch.batch_number}' is already discarded"
-            )
+            raise BadRequestException(f"Batch '{batch.batch_number}' is already discarded")
 
         # Check for child batches (aliquots)
         child_count = (
@@ -543,28 +533,136 @@ class MaterialBatchService:
             raise BadRequestException(f"Material with ID '{material_id}' does not exist")
         return material
 
-    def _get_or_default_location(self, location_id: str | None) -> Location:
-        """
-        Get location by ID or return the default "labo" location.
+    ########################## ALIQUOTS ##############################
 
-        :param location_id: Location ID or None for default
-        :type location_id: Optional[str]
-        :return: The location
-        :rtype: Location
-        :raises BadRequestException: If location_id provided but doesn't exist
+    @ElnDbManager.transaction()
+    def create_aliquot(self, dto: CreateAliquotDTO) -> MaterialBatch:
         """
-        if location_id:
-            location = Location.get_by_id(location_id)
-            if not location:
-                raise BadRequestException(f"Location with ID '{location_id}' does not exist")
-            return location
+        Create an aliquot from a parent batch.
 
-        # Get default "labo" location
-        location = Location.select().where(Location.name == DEFAULT_LOCATION_NAME).first()
-        if location is None:
-            # Create default location if it doesn't exist
-            location = Location()
-            location.name = DEFAULT_LOCATION_NAME
-            location.description = "Default laboratory location"
-            location.save()
-        return location
+        Aliquots are derived samples that:
+        - Inherit material_id from the parent
+        - Inherit supplier_id from the parent's material
+        - Have a reference to the parent batch (parent_batch_id)
+        - Can have their own quantity, label, and location
+
+        The parent batch is decremented by source_quantity, while the aliquot
+        is created with aliquot_quantity. These can differ (e.g., dilution,
+        processing loss, etc.).
+
+        Example: Take 2L from parent to create a 500mL aliquot after dilution.
+
+        :param dto: DTO containing aliquot data
+        :type dto: CreateAliquotDTO
+        :return: The created aliquot batch
+        :rtype: MaterialBatch
+        :raises BadRequestException: If validation fails, parent doesn't exist,
+                                     or insufficient quantity in parent
+        """
+        # Validate both quantities are positive
+        validated_source_quantity = QuantityValidator.validate_quantity(dto.source_quantity)
+        validated_aliquot_quantity = QuantityValidator.validate_quantity(dto.aliquot_quantity)
+
+        # Validate parent batch exists
+        parent_batch = self.get_batch(dto.parent_batch_id)
+
+        # Validate parent is active (not discarded)
+        if parent_batch.is_discarded():
+            raise BadRequestException(
+                f"Cannot create aliquot from discarded batch '{parent_batch.batch_number}'"
+            )
+
+        # Validate parent material is consumable (aliquots only make sense for consumables)
+        if not parent_batch.is_consumable():
+            raise BadRequestException(
+                f"Cannot create aliquot from non-consumable material '{parent_batch.material.name}'. "
+                "Aliquots can only be created from consumable materials (chemicals, reagents, samples)."
+            )
+
+        # Validate source unit type matches parent's unit type
+        if dto.source_unit_type != parent_batch.unit_type:
+            raise BadRequestException(
+                f"Source unit type mismatch. Parent batch uses '{parent_batch.unit_type.value}' "
+                f"but source specifies '{dto.source_unit_type.value}'"
+            )
+
+        # Validate aliquot unit type matches parent's unit type
+        if dto.aliquot_unit_type != parent_batch.unit_type:
+            raise BadRequestException(
+                f"Aliquot unit type mismatch. Parent batch uses '{parent_batch.unit_type.value}' "
+                f"but aliquot specifies '{dto.aliquot_unit_type.value}'"
+            )
+
+        # Validate sufficient quantity in parent and decrement
+        parent_batch.validate_sufficient_quantity(validated_source_quantity)
+
+        # Decrement parent quantity by source_quantity
+        parent_batch.quantity = parent_batch.quantity - validated_source_quantity
+        parent_batch.save()
+
+        # Determine location (default to parent's location if not provided)
+        location = (
+            LocationService().get_or_default_location(dto.location_id)
+            if dto.location_id
+            else parent_batch.location
+        )
+
+        # Determine batch number: use provided or auto-generate
+        if dto.aliquot_batch_number:
+            self._validate_batch_number(dto.aliquot_batch_number)
+            aliquot_batch_number = dto.aliquot_batch_number.strip()
+        else:
+            # Auto-generate batch number based on parent
+            aliquot_count = (
+                MaterialBatch.select().where(MaterialBatch.parent_batch == parent_batch).count()
+            )
+            aliquot_batch_number = f"{parent_batch.batch_number}-A{aliquot_count + 1}"
+
+        # Create aliquot batch with aliquot_quantity
+        aliquot = MaterialBatch()
+        aliquot.material = parent_batch.material  # Inherit material from parent
+        aliquot.parent_batch = parent_batch  # Set parent reference
+        aliquot.batch_number = aliquot_batch_number
+        aliquot.label = dto.label.strip() if dto.label else None
+        aliquot.quantity = validated_aliquot_quantity  # Aliquot's own quantity
+        aliquot.unit_type = dto.aliquot_unit_type
+        aliquot.location = location
+        aliquot.notes = dto.notes.strip() if dto.notes else None
+        aliquot.expiry_date = parent_batch.expiry_date  # Inherit expiry from parent
+        aliquot.supplier = (
+            SupplierService().get_supplier(dto.supplier_id) if dto.supplier_id else None
+        )
+
+        # Save (created_by/last_modified_by set automatically by ModelWithUser)
+        aliquot.save()
+
+        # Create activity on PARENT batch (ALIQUOT type)
+        # Documents that quantity was taken from parent to create the aliquot
+        self._activity_service.log_activity(
+            CreateActivityDTO(
+                activity_type=ActivityType.ALIQUOT,
+                entity_id=parent_batch.id,
+                quantity=validated_source_quantity,  # Amount taken from parent
+                unit_type=dto.source_unit_type,
+                from_location_id=parent_batch.location.id,
+                to_location_id=location.id,
+                related_entity_id=aliquot.id,  # Reference to the child aliquot
+                notes=dto.notes.strip() if dto.notes else None,
+            )
+        )
+
+        # Create activity on CHILD aliquot (ALIQUOT_CREATED type)
+        # Documents the origin/creation of the aliquot for traceability
+        self._activity_service.log_activity(
+            CreateActivityDTO(
+                activity_type=ActivityType.ALIQUOT_CREATED,
+                entity_id=aliquot.id,
+                quantity=validated_aliquot_quantity,  # Aliquot's quantity
+                unit_type=dto.aliquot_unit_type,
+                to_location_id=location.id,
+                related_entity_id=parent_batch.id,  # Reference to the parent batch
+                notes=dto.notes.strip() if dto.notes else None,
+            )
+        )
+
+        return aliquot

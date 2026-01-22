@@ -4,3 +4,4 @@
   - Do we also discard them?
   - Do we set their parent batch to None?
   - Do we prevent discarding if there are sub materials?
+  - When discard can we increment, decrement... ? 

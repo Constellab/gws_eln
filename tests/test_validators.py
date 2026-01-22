@@ -6,7 +6,6 @@ Tests Story 2.3: Quantity & Unit Validators
 
 import unittest
 from decimal import Decimal
-from unittest.mock import Mock
 
 from gws_core import BadRequestException
 from gws_eln.core.unit_type import UnitType
@@ -144,92 +143,6 @@ class TestValidateUnit(unittest.TestCase):
         with self.assertRaises(BadRequestException) as context:
             QuantityValidator.validate_unit("mL", "volume")  # String instead of UnitType
         self.assertIn("Invalid unit_type", str(context.exception))
-
-
-class TestValidateBatchOperation(unittest.TestCase):
-    """Tests for QuantityValidator.validate_batch_operation()"""
-
-    def create_mock_batch(self, quantity: Decimal, is_consumable: bool = True):
-        """Helper to create a mock batch with material"""
-        material = Mock()
-        material.name = "Test Material"
-        material.is_consumable = is_consumable
-
-        batch = Mock()
-        batch.id = 1
-        batch.quantity = quantity
-        batch.material = material
-
-        return batch
-
-    def test_validate_batch_operation_sufficient_stock_decrement(self):
-        """Decrement operation with sufficient stock should pass"""
-        batch = self.create_mock_batch(Decimal("100"))
-        QuantityValidator.validate_batch_operation(batch, Decimal("50"), "decrement")
-
-    def test_validate_batch_operation_sufficient_stock_consume(self):
-        """Consume operation with sufficient stock should pass"""
-        batch = self.create_mock_batch(Decimal("100"))
-        QuantityValidator.validate_batch_operation(batch, Decimal("100"), "consume")
-
-    def test_validate_batch_operation_sufficient_stock_aliquot(self):
-        """Aliquot operation with sufficient stock should pass"""
-        batch = self.create_mock_batch(Decimal("100"))
-        QuantityValidator.validate_batch_operation(batch, Decimal("25"), "aliquot")
-
-    def test_validate_batch_operation_insufficient_stock_fails(self):
-        """Operation with insufficient stock should fail"""
-        batch = self.create_mock_batch(Decimal("10"))
-        with self.assertRaises(BadRequestException) as context:
-            QuantityValidator.validate_batch_operation(batch, Decimal("20"), "decrement")
-        self.assertIn("Insufficient quantity", str(context.exception))
-
-    def test_validate_batch_operation_exact_quantity(self):
-        """Operation with exact quantity should pass"""
-        batch = self.create_mock_batch(Decimal("50"))
-        QuantityValidator.validate_batch_operation(batch, Decimal("50"), "consume")
-
-    def test_validate_batch_operation_non_consumable_aliquot_passes(self):
-        """Can create aliquot from non-consumable material (doesn't check consumable)"""
-        batch = self.create_mock_batch(Decimal("100"), is_consumable=False)
-        # Aliquot only checks quantity, not consumable status
-        QuantityValidator.validate_batch_operation(batch, Decimal("10"), "aliquot")
-
-    def test_validate_batch_operation_move_no_checks(self):
-        """Move operation doesn't check quantity or consumable"""
-        batch = self.create_mock_batch(Decimal("10"), is_consumable=False)
-        # Move operation doesn't trigger any checks
-        QuantityValidator.validate_batch_operation(batch, Decimal("999"), "move")
-
-    def test_validate_batch_operation_batch_missing_quantity_fails(self):
-        """Batch without quantity attribute should fail"""
-        batch = Mock(spec=[])  # No attributes
-        with self.assertRaises(BadRequestException) as context:
-            QuantityValidator.validate_batch_operation(batch, Decimal("10"), "decrement")
-        self.assertIn("must have 'quantity' attribute", str(context.exception))
-
-    def test_validate_batch_operation_batch_missing_material_fails(self):
-        """Batch without material attribute should fail for consumable operations"""
-        batch = Mock(spec=["quantity"])  # Only has quantity, no material
-        batch.quantity = Decimal("100")
-        # No material attribute
-        with self.assertRaises(BadRequestException) as context:
-            QuantityValidator.validate_batch_operation(batch, Decimal("10"), "decrement")
-        self.assertIn("must have 'material' attribute", str(context.exception))
-
-    def test_validate_batch_operation_zero_quantity_fails(self):
-        """Cannot operate on batch with zero quantity"""
-        batch = self.create_mock_batch(Decimal("0"))
-        with self.assertRaises(BadRequestException) as context:
-            QuantityValidator.validate_batch_operation(batch, Decimal("1"), "consume")
-        self.assertIn("Insufficient quantity", str(context.exception))
-
-    def test_validate_batch_operation_edge_case_slightly_over(self):
-        """Operation slightly over available quantity should fail"""
-        batch = self.create_mock_batch(Decimal("10.0"))
-        with self.assertRaises(BadRequestException) as context:
-            QuantityValidator.validate_batch_operation(batch, Decimal("10.000001"), "decrement")
-        self.assertIn("Insufficient quantity", str(context.exception))
 
 
 class TestValidateNonNegativeResult(unittest.TestCase):

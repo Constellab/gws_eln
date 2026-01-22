@@ -157,7 +157,7 @@ class SupplierService:
         :type supplier: Supplier
         :raises BadRequestException: If supplier is referenced
         """
-        if Material.select().where(Material.supplier == supplier).exists():
+        if Material.select().where(Material.default_supplier == supplier).exists():
             raise BadRequestException(
                 f"Cannot delete supplier '{supplier.name}' because it is referenced by one or more materials. "
                 "Remove the supplier reference from all materials first."

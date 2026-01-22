@@ -315,7 +315,7 @@ class TestSupplierService(BaseTestCase):
         # Create material that references the supplier
         material = Material()
         material.name = "Test Material"
-        material.supplier = supplier
+        material.default_supplier = supplier
         material.is_consumable = True
         material.default_unit_type = UnitType.COUNT
         material.save()

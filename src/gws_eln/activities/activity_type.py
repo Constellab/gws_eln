@@ -10,7 +10,8 @@ class ActivityType(Enum):
     - CONSUME: Use consumable material (decrements quantity)
     - USE: Use non-consumable material (reference only, no decrement)
     - DISCARD: Remove batch with reason
-    - ALIQUOT: Create child batch from parent
+    - ALIQUOT: Quantity taken from parent batch to create an aliquot (logged on parent)
+    - ALIQUOT_CREATED: Aliquot created from a parent batch (logged on the new aliquot)
     - RELABEL: Change label of a batch
     """
 
@@ -20,4 +21,5 @@ class ActivityType(Enum):
     USE = "use"
     DISCARD = "discard"
     ALIQUOT = "aliquot"
+    ALIQUOT_CREATED = "aliquot_created"
     RELABEL = "relabel"

@@ -1,4 +1,4 @@
-from gws_core import EnumField
+from gws_core import BadRequestException, EnumField
 from peewee import CharField, DateField, DecimalField, ForeignKeyField, TextField
 
 from gws_eln.core.eln_db_manager import ElnDbManager
@@ -7,6 +7,7 @@ from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location import Location
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material import Material
+from gws_eln.suppliers.supplier import Supplier
 
 
 class MaterialBatch(ModelWithUser):
@@ -44,6 +45,11 @@ class MaterialBatch(ModelWithUser):
         "self", null=True, backref="child_batches", on_delete="CASCADE", index=True
     )
 
+    # Supplier relationship (optional FK to suppliers table)
+    supplier = ForeignKeyField(
+        Supplier, null=True, backref="materials", on_delete="SET NULL", index=True
+    )
+
     # Batch identification
     batch_number = CharField(max_length=100, null=False, index=True)
     label = CharField(max_length=255, null=True)
@@ -53,8 +59,8 @@ class MaterialBatch(ModelWithUser):
 
     # Quantity tracking - stored in base units (L, kg, m, units)
     # DECIMAL(20,12) for high precision
-    quantity = DecimalField(max_digits=20, decimal_places=12, null=True)
-    unit_type = EnumField(choices=UnitType, max_length=20, null=True)
+    quantity = DecimalField(max_digits=20, decimal_places=12)
+    unit_type = EnumField(choices=UnitType, max_length=20)
 
     # Additional information
     notes = TextField(null=True)
@@ -83,6 +89,13 @@ class MaterialBatch(ModelWithUser):
     def is_discarded(self) -> bool:
         """Check if this batch has been discarded."""
         return bool(self.status == BatchStatus.DISCARDED)
+
+    def validate_sufficient_quantity(self, required_quantity) -> None:
+        """Check if the batch has sufficient quantity for an operation."""
+        if self.quantity < required_quantity:
+            raise BadRequestException(
+                f"Insufficient quantity in batch {self.batch_number}. Available: {self.quantity}, Requested: {required_quantity}"
+            )
 
     class Meta:
         table_name = "gws_eln_material_batches"

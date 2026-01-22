@@ -50,6 +50,24 @@ class LocationService:
         CurrentUserService.get_and_check_current_user()
         return self._ensure_default_location()
 
+    def get_or_default_location(self, location_id: str | None) -> Location:
+        """
+        Get location by ID or return the default "labo" location.
+
+        :param location_id: Location ID or None for default
+        :type location_id: Optional[str]
+        :return: The location
+        :rtype: Location
+        :raises BadRequestException: If location_id provided but doesn't exist
+        """
+        if location_id:
+            location = Location.get_by_id(location_id)
+            if not location:
+                raise BadRequestException(f"Location with ID '{location_id}' does not exist")
+            return location
+
+        return self._ensure_default_location()
+
     def list_locations(self) -> list[Location]:
         """
         Get all locations ordered by name.
