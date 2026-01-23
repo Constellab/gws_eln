@@ -6,6 +6,7 @@ from gws_reflex_main import main_component, user_inline_component
 from ..batches.batches_list_component import batches_list_component
 from ..common.batch.batch_components import consumable_badge
 from ..common.detail_page_layout import detail_page_layout
+from ..common.eln_app_router import ElnAppRouter
 from ..common.page_layout import page_layout
 from ..common.supplier.inline_supplier_component import inline_supplier_component
 from .material_detail_state import MaterialDetailState
@@ -100,7 +101,7 @@ def _back_button() -> rx.Component:
             variant="ghost",
             size="2",
         ),
-        href="/",
+        href=ElnAppRouter.get_material_list_url(),
     )
 
 
@@ -152,7 +153,7 @@ def material_detail_page() -> rx.Component:
             ),
             header_content=rx.hstack(
                 _back_button(),
-                rx.heading("Material Details", size="6"),
+                rx.heading(MaterialDetailState.material.name, size="6"),
                 align="center",
                 spacing="2",
             ),

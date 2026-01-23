@@ -1,0 +1,1 @@
+"""Activities UI components package."""

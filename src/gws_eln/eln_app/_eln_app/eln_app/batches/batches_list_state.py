@@ -124,10 +124,11 @@ class BatchesListState(ReflexMainState):
                 return
 
             # Check if we already have batches for this material
-            if self._material_id == material_id and len(self._batches) > 0:
+            if self._material_id == material_id:
                 return
 
             self._material_id = material_id
+            self._batches = []
             self.is_loading = True
 
         try:

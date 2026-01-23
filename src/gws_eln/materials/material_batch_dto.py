@@ -12,6 +12,7 @@ from gws_core import BaseModelDTO, ModelDTO, UserDTO
 from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location_dto import LocationDTO
 from gws_eln.materials.batch_status import BatchStatus
+from gws_eln.materials.material_dto import MaterialDTO
 from gws_eln.suppliers.supplier_dto import SupplierDTO
 
 
@@ -110,8 +111,7 @@ class CreateAliquotDTO(BaseModelDTO):
 class MaterialBatchDTO(ModelDTO):
     """DTO for displaying material batch information in the frontend."""
 
-    material_id: str
-    material_name: str
+    material: MaterialDTO
     location: LocationDTO
     parent_batch_id: str | None
     supplier: SupplierDTO | None

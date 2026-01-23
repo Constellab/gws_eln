@@ -8,6 +8,7 @@ from gws_eln.core.model_with_user import ModelWithUser
 from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location import Location
 from gws_eln.materials.material_batch import MaterialBatch
+from gws_eln.utils.units_converter import UnitConverter
 
 
 class Activity(ModelWithUser):
@@ -89,11 +90,15 @@ class Activity(ModelWithUser):
         """
         return cls.select().where(cls.entity == batch_id).count()
 
-    class Meta:
-        table_name = "gws_eln_activities"
-        database = ElnDbManager.get_instance().db
-        is_table = True
-        db_manager = ElnDbManager.get_instance()
+    def get_pretty_quantity(self) -> str | None:
+        """Get a human-readable string for the quantity and unit type.
+
+        :return: Pretty quantity string (e.g. "5.0 L") or None if no quantity
+        :rtype: str | None
+        """
+        if self.quantity is not None and self.unit_type is not None:
+            return UnitConverter.format_value(self.quantity, self.unit_type)
+        return None
 
     def to_dto(self) -> ActivityDTO:
         """Convert the Activity model to an ActivityDTO.
@@ -110,6 +115,7 @@ class Activity(ModelWithUser):
             related_entity_id=self.related_entity_id,
             quantity=self.quantity,
             unit_type=self.unit_type,
+            pretty_quantity=self.get_pretty_quantity(),
             from_location=self.from_location.to_dto() if self.from_location else None,
             to_location=self.to_location.to_dto() if self.to_location else None,
             notes=self.notes,
@@ -119,3 +125,9 @@ class Activity(ModelWithUser):
             created_by=self.created_by.to_dto(),
             last_modified_by=self.last_modified_by.to_dto(),
         )
+
+    class Meta:
+        table_name = "gws_eln_activities"
+        database = ElnDbManager.get_instance().db
+        is_table = True
+        db_manager = ElnDbManager.get_instance()

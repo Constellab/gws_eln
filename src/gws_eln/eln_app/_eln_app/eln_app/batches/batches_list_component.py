@@ -132,7 +132,8 @@ def _row(batch: MaterialBatchDTO) -> rx.Component:
                 size="small",
             )
         ),
-        style={":hover": {"background_color": "var(--gray-3)"}},
+        on_click=rx.redirect(f"/batches/{batch.id}"),
+        style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
     )
 
 
@@ -233,7 +234,7 @@ def batches_list_component(material_id: rx.Var[str]) -> rx.Component:
     :rtype: rx.Component
     """
     return rx.box(
-        rx.stack(
+        rx.vstack(
             _batches_header(),
             _batches_table(),
             create_material_batch_dialog(),

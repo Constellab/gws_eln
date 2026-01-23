@@ -1,6 +1,8 @@
 import reflex as rx
 from gws_reflex_main import register_gws_reflex_app
 
+from .batches.batch_detail_page import batch_detail_page
+from .batches.batch_detail_state import BatchDetailState
 from .locations.locations_list_state import LocationsListState
 from .locations.locations_page import locations_page
 from .materials.material_detail_page import material_detail_page
@@ -35,3 +37,9 @@ def suppliers():
 def material_detail():
     """Material detail page."""
     return material_detail_page()
+
+
+@rx.page(route="/batches/[batch_id]", on_load=[BatchDetailState.on_load])
+def batch_detail():
+    """Batch detail page."""
+    return batch_detail_page()

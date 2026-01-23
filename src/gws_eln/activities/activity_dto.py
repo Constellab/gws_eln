@@ -37,6 +37,7 @@ class ActivityDTO(ModelDTO):
     related_entity_id: str | None
     quantity: Decimal | None
     unit_type: UnitType | None
+    pretty_quantity: str | None
     from_location: LocationDTO | None
     to_location: LocationDTO | None
     notes: str | None

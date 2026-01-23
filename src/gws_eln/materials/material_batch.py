@@ -99,11 +99,13 @@ class MaterialBatch(ModelWithUser):
                 f"Insufficient quantity in batch {self.batch_number}. Available: {self.quantity}, Requested: {required_quantity}"
             )
 
-    class Meta:
-        table_name = "gws_eln_material_batches"
-        database = ElnDbManager.get_instance().db
-        is_table = True
-        db_manager = ElnDbManager.get_instance()
+    def get_pretty_quantity(self) -> str:
+        """Get a human-readable string for the quantity and unit type.
+
+        :return: Pretty quantity string (e.g. "5.0 L")
+        :rtype: str
+        """
+        return UnitConverter.format_value(self.quantity, self.unit_type)
 
     def to_dto(self) -> MaterialBatchDTO:
         """Convert the MaterialBatch model to a MaterialBatchDTO.
@@ -114,8 +116,7 @@ class MaterialBatch(ModelWithUser):
 
         return MaterialBatchDTO(
             id=self.id,
-            material_id=self.material.id,
-            material_name=self.material.name,
+            material=self.material.to_dto(),
             location=self.location.to_dto(),
             parent_batch_id=self.parent_batch.id if self.parent_batch else None,
             supplier=self.supplier.to_dto() if self.supplier else None,
@@ -123,7 +124,7 @@ class MaterialBatch(ModelWithUser):
             label=self.label,
             expiry_date=self.expiry_date,
             quantity=self.quantity,
-            pretty_quantity=UnitConverter.format_value(self.quantity, self.unit_type),
+            pretty_quantity=self.get_pretty_quantity(),
             unit_type=self.unit_type,
             notes=self.notes,
             status=self.status,
@@ -132,3 +133,9 @@ class MaterialBatch(ModelWithUser):
             created_by=self.created_by.to_dto(),
             last_modified_by=self.last_modified_by.to_dto(),
         )
+
+    class Meta:
+        table_name = "gws_eln_material_batches"
+        database = ElnDbManager.get_instance().db
+        is_table = True
+        db_manager = ElnDbManager.get_instance()
