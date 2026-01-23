@@ -2,6 +2,7 @@ from peewee import CharField, TextField
 
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
+from gws_eln.suppliers.supplier_dto import SupplierDTO
 
 
 class Supplier(ModelWithUser):
@@ -28,13 +29,12 @@ class Supplier(ModelWithUser):
         is_table = True
         db_manager = ElnDbManager.get_instance()
 
-    def to_dto(self) -> "SupplierDTO":
+    def to_dto(self) -> SupplierDTO:
         """Convert the Supplier model to a SupplierDTO.
 
         :return: SupplierDTO with the supplier data
         :rtype: SupplierDTO
         """
-        from gws_eln.suppliers.supplier_dto import SupplierDTO
 
         return SupplierDTO(
             id=self.id,

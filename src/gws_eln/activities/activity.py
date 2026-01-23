@@ -1,6 +1,7 @@
 from gws_core import EnumField
 from peewee import CharField, DecimalField, ForeignKeyField, TextField
 
+from gws_eln.activities.activity_dto import ActivityDTO
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
@@ -93,3 +94,28 @@ class Activity(ModelWithUser):
         database = ElnDbManager.get_instance().db
         is_table = True
         db_manager = ElnDbManager.get_instance()
+
+    def to_dto(self) -> ActivityDTO:
+        """Convert the Activity model to an ActivityDTO.
+
+        :return: ActivityDTO with the activity data
+        :rtype: ActivityDTO
+        """
+        return ActivityDTO(
+            id=self.id,
+            activity_type=self.activity_type,
+            entity_id=self.entity.id,
+            entity_batch_number=self.entity.batch_number,
+            entity_material_name=self.entity.material.name,
+            related_entity_id=self.related_entity_id,
+            quantity=self.quantity,
+            unit_type=self.unit_type,
+            from_location=self.from_location.to_dto() if self.from_location else None,
+            to_location=self.to_location.to_dto() if self.to_location else None,
+            notes=self.notes,
+            note_id=self.note_id,
+            created_at=self.created_at,
+            last_modified_at=self.last_modified_at,
+            created_by=self.created_by.to_dto(),
+            last_modified_by=self.last_modified_by.to_dto(),
+        )

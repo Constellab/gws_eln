@@ -4,6 +4,7 @@ from peewee import BooleanField, CharField, ForeignKeyField, TextField
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
 from gws_eln.core.unit_type import UnitType
+from gws_eln.materials.material_dto import MaterialDTO
 from gws_eln.suppliers.supplier import Supplier
 
 
@@ -50,13 +51,12 @@ class Material(ModelWithUser):
         is_table = True
         db_manager = ElnDbManager.get_instance()
 
-    def to_dto(self) -> "MaterialDTO":
+    def to_dto(self) -> MaterialDTO:
         """Convert the Material model to a MaterialDTO.
 
         :return: MaterialDTO with the material data
         :rtype: MaterialDTO
         """
-        from gws_eln.materials.material_dto import MaterialDTO
 
         return MaterialDTO(
             id=self.id,

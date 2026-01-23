@@ -7,6 +7,7 @@ from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location import Location
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material import Material
+from gws_eln.materials.material_batch_dto import MaterialBatchDTO
 from gws_eln.suppliers.supplier import Supplier
 
 
@@ -103,13 +104,12 @@ class MaterialBatch(ModelWithUser):
         is_table = True
         db_manager = ElnDbManager.get_instance()
 
-    def to_dto(self) -> "MaterialBatchDTO":
+    def to_dto(self) -> MaterialBatchDTO:
         """Convert the MaterialBatch model to a MaterialBatchDTO.
 
         :return: MaterialBatchDTO with the batch data
         :rtype: MaterialBatchDTO
         """
-        from gws_eln.materials.material_batch_dto import MaterialBatchDTO
 
         return MaterialBatchDTO(
             id=self.id,

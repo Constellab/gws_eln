@@ -95,7 +95,7 @@ def _row(supplier: SupplierDTO) -> rx.Component:
                 rx.text("-", size="2", color="gray"),
             )
         ),
-        rx.table.cell(user_inline_component(supplier.created_by)),
+        rx.table.cell(user_inline_component(supplier.created_by, size="small")),
         rx.table.cell(rx.moment(supplier.created_at, format="MMM D, YYYY")),
         rx.table.cell(
             rx.box(

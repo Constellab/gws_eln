@@ -5,6 +5,7 @@ from gws_eln.materials.material_dto import MaterialDTO
 from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_reflex_main import main_component, user_inline_component
 
+from ..common.consumable_badge_component import consumable_badge
 from ..common.page_layout import page_layout
 from ..common.unit_type_select_state import UnitTypeSelectState
 from ..material_form_dialog.material_form_dialog_component import material_update_dialog
@@ -104,9 +105,7 @@ def _actions_menu(material: MaterialDTO) -> rx.Component:
     :rtype: rx.Component
     """
     return rx.menu.root(
-        rx.menu.trigger(
-            rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", size="2")
-        ),
+        rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", size="2")),
         rx.menu.content(
             rx.menu.item(
                 rx.icon("pencil", size=16),
@@ -121,21 +120,6 @@ def _actions_menu(material: MaterialDTO) -> rx.Component:
                 on_click=lambda: MaterialsListState.open_delete_dialog(material),
             ),
         ),
-    )
-
-
-def _consumable_badge(is_consumable: bool) -> rx.Component:
-    """Create a badge indicating if the material is consumable.
-
-    :param is_consumable: Whether the material is consumable
-    :type is_consumable: bool
-    :return: The badge component
-    :rtype: rx.Component
-    """
-    return rx.cond(
-        is_consumable,
-        rx.badge("Consumable", color_scheme="blue", size="1"),
-        rx.badge("Non-consumable", color_scheme="gray", size="1"),
     )
 
 
@@ -163,13 +147,19 @@ def _row(material: MaterialDTO) -> rx.Component:
                 rx.text("-", size="2", color="gray"),
             )
         ),
-        rx.table.cell(_consumable_badge(material.is_consumable)),
-        rx.table.cell(user_inline_component(material.created_by)),
+        rx.table.cell(rx.box(consumable_badge(material.is_consumable), width="fit-content")),
+        rx.table.cell(user_inline_component(material.created_by, size="small")),
         rx.table.cell(rx.moment(material.created_at, format="MMM D, YYYY")),
         rx.table.cell(
-            rx.box(_actions_menu(material), display="flex", justify_content="flex-end", align_items="center")
+            rx.box(
+                _actions_menu(material),
+                display="flex",
+                justify_content="flex-end",
+                align_items="center",
+            )
         ),
-        style={":hover": {"background_color": "var(--gray-3)"}},
+        style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
+        on_click=lambda: MaterialsListState.go_to_material(material.id),
     )
 
 
@@ -211,7 +201,9 @@ def materials_list_page() -> rx.Component:
                                     rx.table.column_header_cell("Type"),
                                     rx.table.column_header_cell("Created By"),
                                     rx.table.column_header_cell("Created At"),
-                                    rx.table.column_header_cell("Actions", width="100px", justify="end"),
+                                    rx.table.column_header_cell(
+                                        "Actions", width="100px", justify="end"
+                                    ),
                                 ),
                             ),
                             rx.table.body(rx.foreach(MaterialsListState.materials, _row)),
@@ -221,7 +213,9 @@ def materials_list_page() -> rx.Component:
                         rx.center(
                             rx.vstack(
                                 rx.icon("package", size=48, color="gray"),
-                                rx.text("No materials found", size="4", color="gray", margin_top="1rem"),
+                                rx.text(
+                                    "No materials found", size="4", color="gray", margin_top="1rem"
+                                ),
                                 spacing="2",
                                 align="center",
                             ),

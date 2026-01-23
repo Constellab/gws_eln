@@ -2,6 +2,7 @@ from peewee import CharField, TextField
 
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
+from gws_eln.locations.location_dto import LocationDTO
 
 
 class Location(ModelWithUser):
@@ -30,13 +31,12 @@ class Location(ModelWithUser):
         is_table = True
         db_manager = ElnDbManager.get_instance()
 
-    def to_dto(self) -> "LocationDTO":
+    def to_dto(self) -> LocationDTO:
         """Convert the Location model to a LocationDTO.
 
         :return: LocationDTO with the location data
         :rtype: LocationDTO
         """
-        from gws_eln.locations.location_dto import LocationDTO
 
         return LocationDTO(
             id=self.id,

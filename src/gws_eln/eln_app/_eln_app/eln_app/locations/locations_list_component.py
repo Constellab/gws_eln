@@ -60,9 +60,7 @@ def _actions_menu(location: LocationDTO) -> rx.Component:
     :rtype: rx.Component
     """
     return rx.menu.root(
-        rx.menu.trigger(
-            rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", size="2")
-        ),
+        rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", size="2")),
         rx.menu.content(
             rx.menu.item(
                 rx.icon("pencil", size=16),
@@ -97,10 +95,15 @@ def _row(location: LocationDTO) -> rx.Component:
                 rx.text("-", size="2", color="gray"),
             )
         ),
-        rx.table.cell(user_inline_component(location.created_by)),
+        rx.table.cell(user_inline_component(location.created_by, size="small")),
         rx.table.cell(rx.moment(location.created_at, format="MMM D, YYYY")),
         rx.table.cell(
-            rx.box(_actions_menu(location), display="flex", justify_content="flex-end", align_items="center")
+            rx.box(
+                _actions_menu(location),
+                display="flex",
+                justify_content="flex-end",
+                align_items="center",
+            )
         ),
         style={":hover": {"background_color": "var(--gray-3)"}},
     )
@@ -142,7 +145,9 @@ def locations_list_page() -> rx.Component:
                                     rx.table.column_header_cell("Description"),
                                     rx.table.column_header_cell("Created By"),
                                     rx.table.column_header_cell("Created At"),
-                                    rx.table.column_header_cell("Actions", width="100px", justify="end"),
+                                    rx.table.column_header_cell(
+                                        "Actions", width="100px", justify="end"
+                                    ),
                                 ),
                             ),
                             rx.table.body(rx.foreach(LocationsListState.locations, _row)),
@@ -152,7 +157,9 @@ def locations_list_page() -> rx.Component:
                         rx.center(
                             rx.vstack(
                                 rx.icon("map-pin", size=48, color="gray"),
-                                rx.text("No locations found", size="4", color="gray", margin_top="1rem"),
+                                rx.text(
+                                    "No locations found", size="4", color="gray", margin_top="1rem"
+                                ),
                                 spacing="2",
                                 align="center",
                             ),

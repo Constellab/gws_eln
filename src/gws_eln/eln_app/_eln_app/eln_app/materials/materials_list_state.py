@@ -190,3 +190,12 @@ class MaterialsListState(rx.State):
         yield rx.toast.success("Material deleted successfully")
 
         await self.load_materials()
+
+    @rx.event
+    def go_to_material(self, material_id: str):
+        """Navigate to the material detail page.
+
+        :param material_id: The ID of the material to view
+        :type material_id: str
+        """
+        return rx.redirect(f"/materials/{material_id}")
