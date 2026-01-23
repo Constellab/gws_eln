@@ -1,9 +1,6 @@
 """State for the batches list component."""
 
 import reflex as rx
-from gws_eln.eln_app._eln_app.eln_app.material_batch_form_dialog.material_batch_form_dialog_state import (
-    MaterialBatchFormDialogState,
-)
 from gws_eln.locations.location_dto import LocationDTO
 from gws_eln.locations.location_search_builder import LocationSearchBuilder
 from gws_eln.materials.batch_status import BatchStatus
@@ -12,6 +9,10 @@ from gws_eln.materials.material_batch_search_builder import MaterialBatchSearchB
 from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
 from gws_reflex_main import ReflexMainState
+
+from ..material_batch_form_dialog.material_batch_form_dialog_state import (
+    MaterialBatchFormDialogState,
+)
 
 # Constants for "all" filter options
 ALL_FILTER_VALUE = "__all__"

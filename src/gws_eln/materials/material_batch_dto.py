@@ -16,12 +16,17 @@ from gws_eln.suppliers.supplier_dto import SupplierDTO
 
 
 class CreateBatchDTO(BaseModelDTO):
-    """DTO for creating a new material batch."""
+    """DTO for creating a new material batch.
+
+    The unit field accepts any valid unit string (e.g., 'mL', 'g', 'kg').
+    The unit_type is automatically determined from the material's default_unit_type.
+    The quantity is converted from the given unit to the base unit for storage.
+    """
 
     material_id: str
     batch_number: str
     quantity: Decimal
-    unit_type: UnitType
+    unit: str  # Exact unit (e.g., 'mL', 'g', 'kg') - converted to base unit for storage
     location_id: str | None = None  # Default to "labo" if None
     supplier_id: str | None = None
     expiry_date: date | None = None
@@ -114,6 +119,7 @@ class MaterialBatchDTO(ModelDTO):
     label: str | None
     expiry_date: date | None
     quantity: Decimal
+    pretty_quantity: str  # Pre-formatted quantity string for display
     unit_type: UnitType
     notes: str | None
     status: BatchStatus

@@ -2,19 +2,15 @@
 
 import reflex as rx
 from gws_eln.materials.material_dto import MaterialDTO
-from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_reflex_main import main_component, user_inline_component
 
-from ..common.consumable_badge_component import consumable_badge
+from ..common.batch.batch_components import consumable_badge
 from ..common.page_layout import page_layout
-from ..common.unit_type_select_state import UnitTypeSelectState
+from ..common.supplier.inline_supplier_component import inline_supplier_component
+from ..common.supplier.supplier_select_component import supplier_select_component
+from ..common.unit.unit_type_select_component import unit_type_select_component
 from ..material_form_dialog.material_form_dialog_component import material_update_dialog
 from .materials_list_state import ALL_FILTER_VALUE, MaterialsListState
-
-
-def _supplier_filter_option(supplier: SupplierDTO) -> rx.Component:
-    """Create a select option for a supplier filter."""
-    return rx.select.item(supplier.name, value=supplier.id)
 
 
 def _filter_bar() -> rx.Component:
@@ -32,12 +28,10 @@ def _filter_bar() -> rx.Component:
             width="200px",
         ),
         # Supplier filter
-        rx.select.root(
-            rx.select.trigger(placeholder="Supplier", width="180px"),
-            rx.select.content(
-                rx.select.item("All suppliers", value=ALL_FILTER_VALUE),
-                rx.foreach(MaterialsListState.available_suppliers, _supplier_filter_option),
-            ),
+        supplier_select_component(
+            placeholder="Supplier",
+            width="180px",
+            additional_option=("All suppliers", ALL_FILTER_VALUE),
             value=MaterialsListState.filter_supplier_id,
             on_change=MaterialsListState.handle_supplier_filter_change,
         ),
@@ -53,15 +47,10 @@ def _filter_bar() -> rx.Component:
             on_change=MaterialsListState.handle_consumable_filter_change,
         ),
         # Unit type filter
-        rx.select.root(
-            rx.select.trigger(placeholder="Unit type", width="180px"),
-            rx.select.content(
-                rx.select.item("All unit types", value=ALL_FILTER_VALUE),
-                rx.foreach(
-                    UnitTypeSelectState.unit_types,
-                    lambda unit_type: rx.select.item(unit_type.label, value=unit_type.value),
-                ),
-            ),
+        unit_type_select_component(
+            placeholder="Unit type",
+            width="180px",
+            all_option=("All unit types", ALL_FILTER_VALUE),
             value=MaterialsListState.filter_unit_type,
             on_change=MaterialsListState.handle_unit_type_filter_change,
         ),
@@ -143,7 +132,7 @@ def _row(material: MaterialDTO) -> rx.Component:
         rx.table.cell(
             rx.cond(
                 material.default_supplier,
-                rx.text(material.default_supplier.name, size="2"),
+                inline_supplier_component(material.default_supplier),
                 rx.text("-", size="2", color="gray"),
             )
         ),

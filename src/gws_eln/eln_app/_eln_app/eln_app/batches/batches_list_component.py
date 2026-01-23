@@ -1,26 +1,20 @@
 """Batches list component."""
 
 import reflex as rx
-from gws_eln.eln_app._eln_app.eln_app.material_batch_form_dialog.material_batch_form_dialog_component import (
-    create_material_batch_dialog,
-)
-from gws_eln.locations.location_dto import LocationDTO
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material_batch_dto import MaterialBatchDTO
-from gws_eln.suppliers.supplier_dto import SupplierDTO
-from gws_reflex_main import user_inline_component
+from gws_reflex_main import user_with_date_component
 
+from ..common.batch.batch_components import batch_inline, expiry_date_badge
+from ..common.batch.batch_status_select_component import batch_status_select_component
+from ..common.location.inline_location_component import inline_location_component
+from ..common.location.location_select_component import location_select_component
+from ..common.supplier.inline_supplier_component import inline_supplier_component
+from ..common.supplier.supplier_select_component import supplier_select_component
+from ..material_batch_form_dialog.material_batch_form_dialog_component import (
+    create_material_batch_dialog,
+)
 from .batches_list_state import ALL_FILTER_VALUE, BatchesListState
-
-
-def _location_filter_option(location: LocationDTO) -> rx.Component:
-    """Create a select option for a location filter."""
-    return rx.select.item(location.name, value=location.id)
-
-
-def _supplier_filter_option(supplier: SupplierDTO) -> rx.Component:
-    """Create a select option for a supplier filter."""
-    return rx.select.item(supplier.name, value=supplier.id)
 
 
 def _filter_bar() -> rx.Component:
@@ -38,33 +32,26 @@ def _filter_bar() -> rx.Component:
             width="200px",
         ),
         # Location filter
-        rx.select.root(
-            rx.select.trigger(placeholder="Location", width="180px"),
-            rx.select.content(
-                rx.select.item("All locations", value=ALL_FILTER_VALUE),
-                rx.foreach(BatchesListState.available_locations, _location_filter_option),
-            ),
+        location_select_component(
+            placeholder="Location",
+            width="180px",
+            all_option=("All locations", ALL_FILTER_VALUE),
             value=BatchesListState.filter_location_id,
             on_change=BatchesListState.handle_location_filter_change,
         ),
         # Supplier filter
-        rx.select.root(
-            rx.select.trigger(placeholder="Supplier", width="180px"),
-            rx.select.content(
-                rx.select.item("All suppliers", value=ALL_FILTER_VALUE),
-                rx.foreach(BatchesListState.available_suppliers, _supplier_filter_option),
-            ),
+        supplier_select_component(
+            placeholder="Supplier",
+            width="180px",
+            additional_option=("All suppliers", ALL_FILTER_VALUE),
             value=BatchesListState.filter_supplier_id,
             on_change=BatchesListState.handle_supplier_filter_change,
         ),
         # Status filter
-        rx.select.root(
-            rx.select.trigger(placeholder="Status", width="140px"),
-            rx.select.content(
-                rx.select.item("All statuses", value=ALL_FILTER_VALUE),
-                rx.select.item("Active", value=BatchStatus.ACTIVE.value),
-                rx.select.item("Discarded", value=BatchStatus.DISCARDED.value),
-            ),
+        batch_status_select_component(
+            placeholder="Status",
+            width="140px",
+            all_option=("All statuses", ALL_FILTER_VALUE),
             value=BatchesListState.filter_status,
             on_change=BatchesListState.handle_status_filter_change,
         ),
@@ -121,42 +108,30 @@ def _row(batch: MaterialBatchDTO) -> rx.Component:
     """
     return rx.table.row(
         rx.table.cell(
-            rx.text(batch.batch_number, weight="medium"),
+            batch_inline(batch),
         ),
         rx.table.cell(
-            rx.cond(
-                batch.label,
-                rx.text(batch.label, size="2"),
-                rx.text("-", size="2", color="gray"),
-            )
-        ),
-        rx.table.cell(
-            rx.text(batch.location.name, size="2"),
+            inline_location_component(batch.location),
         ),
         rx.table.cell(
             rx.cond(
                 batch.supplier,
-                rx.text(batch.supplier.name, size="2"),
+                inline_supplier_component(batch.supplier),
                 rx.text("-", size="2", color="gray"),
             )
         ),
         rx.table.cell(
-            rx.hstack(
-                rx.text(batch.quantity, size="2"),
-                rx.text(batch.unit_type, size="2", color="gray"),
-                spacing="1",
-            )
+            rx.text(batch.pretty_quantity),
         ),
-        rx.table.cell(
-            rx.cond(
-                batch.expiry_date,
-                rx.moment(batch.expiry_date, format="MMM D, YYYY"),
-                rx.text("-", size="2", color="gray"),
-            )
-        ),
+        rx.table.cell(expiry_date_badge(batch.expiry_date)),
         rx.table.cell(rx.box(_status_badge(batch.status), width="fit-content")),
-        rx.table.cell(user_inline_component(batch.created_by, size="small")),
-        rx.table.cell(rx.moment(batch.created_at, format="MMM D, YYYY")),
+        rx.table.cell(
+            user_with_date_component(
+                batch.created_by,
+                batch.created_at,
+                size="small",
+            )
+        ),
         style={":hover": {"background_color": "var(--gray-3)"}},
     )
 
@@ -215,14 +190,12 @@ def _batches_table() -> rx.Component:
                 rx.table.header(
                     rx.table.row(
                         rx.table.column_header_cell("Batch Number"),
-                        rx.table.column_header_cell("Label"),
                         rx.table.column_header_cell("Location"),
                         rx.table.column_header_cell("Supplier"),
                         rx.table.column_header_cell("Quantity"),
                         rx.table.column_header_cell("Expiry Date"),
                         rx.table.column_header_cell("Status"),
-                        rx.table.column_header_cell("Created By"),
-                        rx.table.column_header_cell("Created At"),
+                        rx.table.column_header_cell("Creation"),
                     ),
                 ),
                 rx.table.body(rx.foreach(BatchesListState.batches, _row)),
@@ -260,7 +233,7 @@ def batches_list_component(material_id: rx.Var[str]) -> rx.Component:
     :rtype: rx.Component
     """
     return rx.box(
-        rx.vstack(
+        rx.stack(
             _batches_header(),
             _batches_table(),
             create_material_batch_dialog(),

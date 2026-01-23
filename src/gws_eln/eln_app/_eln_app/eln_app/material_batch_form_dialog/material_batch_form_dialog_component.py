@@ -1,19 +1,14 @@
 import reflex as rx
-from gws_eln.locations.location_dto import LocationDTO
-from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_reflex_main import form_dialog_component
 
+from ..common.location.location_select_component import (
+    location_select_component,
+)
+from ..common.supplier.supplier_select_component import (
+    supplier_select_component,
+)
+from ..common.unit.unit_components import quantity_unit_input
 from .material_batch_form_dialog_state import MaterialBatchFormDialogState
-
-
-def _location_option(location: LocationDTO) -> rx.Component:
-    """Create a select option for a location."""
-    return rx.select.item(location.name, value=location.id)
-
-
-def _supplier_option(supplier: SupplierDTO) -> rx.Component:
-    """Create a select option for a supplier."""
-    return rx.select.item(supplier.name, value=supplier.id)
 
 
 def _form_content() -> rx.Component:
@@ -43,54 +38,18 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Quantity and Unit Type fields (side by side)
-        rx.hstack(
-            rx.vstack(
-                rx.text("Quantity*", size="2", weight="bold"),
-                rx.input(
-                    placeholder="Enter quantity",
-                    name="quantity",
-                    type="number",
-                    min="0",
-                    step="any",
-                    required=True,
-                    width="100%",
-                    default_value=MaterialBatchFormDialogState.form_quantity,
-                ),
-                width="60%",
-                spacing="1",
-            ),
-            rx.vstack(
-                rx.text("Unit Type*", size="2", weight="bold"),
-                rx.select.root(
-                    rx.select.trigger(placeholder="Select unit type", width="100%"),
-                    rx.select.content(
-                        rx.foreach(
-                            MaterialBatchFormDialogState.unit_type_options,
-                            lambda opt: rx.select.item(opt["label"], value=opt["value"]),
-                        ),
-                    ),
-                    value=MaterialBatchFormDialogState.form_unit_type,
-                    on_change=MaterialBatchFormDialogState.set_unit_type,
-                    width="100%",
-                ),
-                width="40%",
-                spacing="1",
-            ),
-            width="100%",
-            spacing="3",
+        quantity_unit_input(
+            unit_type=MaterialBatchFormDialogState.form_unit_type,
+            unit_value=MaterialBatchFormDialogState.form_unit,
+            on_unit_change=MaterialBatchFormDialogState.set_unit,
         ),
         # Location field
         rx.vstack(
             rx.text("Location*", size="2", weight="bold"),
-            rx.select.root(
-                rx.select.trigger(placeholder="Select a location", width="100%"),
-                rx.select.content(
-                    rx.foreach(MaterialBatchFormDialogState.available_locations, _location_option),
-                ),
+            location_select_component(
+                placeholder="Select a location",
                 value=MaterialBatchFormDialogState.form_location_id,
                 on_change=MaterialBatchFormDialogState.set_location_id,
-                width="100%",
             ),
             width="100%",
             spacing="1",
@@ -98,15 +57,11 @@ def _form_content() -> rx.Component:
         # Supplier field
         rx.vstack(
             rx.text("Supplier", size="2", weight="bold"),
-            rx.select.root(
-                rx.select.trigger(placeholder="Select a supplier (optional)", width="100%"),
-                rx.select.content(
-                    rx.select.item("No supplier", value="__none__"),
-                    rx.foreach(MaterialBatchFormDialogState.available_suppliers, _supplier_option),
-                ),
+            supplier_select_component(
+                placeholder="Select a supplier (optional)",
+                additional_option=("No supplier", "__none__"),
                 value=MaterialBatchFormDialogState.form_supplier_id,
                 on_change=MaterialBatchFormDialogState.set_supplier_id,
-                width="100%",
             ),
             width="100%",
             spacing="1",

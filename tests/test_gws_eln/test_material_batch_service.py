@@ -89,8 +89,8 @@ class TestMaterialBatchService(BaseTestCase):
             CreateBatchDTO(
                 material_id=material.id,
                 batch_number="BATCH-001",
-                quantity=Decimal("1.5"),
-                unit_type=UnitType.VOLUME,
+                quantity=Decimal("1500"),
+                unit="mL",  # 1500 mL = 1.5 L (base unit)
                 location_id=location.id,
                 expiry_date=date(2027, 12, 31),
                 label="Ethanol Batch 1",
@@ -103,7 +103,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIsNotNone(batch.id)
         self.assertEqual(batch.material.id, material.id)
         self.assertEqual(batch.batch_number, "BATCH-001")
-        self.assertEqual(batch.quantity, Decimal("1.5"))
+        self.assertEqual(batch.quantity, Decimal("1.500000000000"))  # Stored in base unit (L)
         self.assertEqual(batch.unit_type, UnitType.VOLUME)
         self.assertEqual(batch.location.id, location.id)
         self.assertEqual(batch.expiry_date, date(2027, 12, 31))
@@ -137,7 +137,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="BATCH-DEFAULT",
                 quantity=Decimal("500"),
-                unit_type=UnitType.MASS,
+                unit="g",  # grams (base unit for MASS)
             )
         )
 
@@ -154,7 +154,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_create_batch_minimal_data(self):
         """Test creating a batch with only required fields"""
         service = MaterialBatchService()
-        material = self._create_test_material("Minimal Material")
+        material = self._create_test_material("Minimal Material", unit_type=UnitType.COUNT)
         self._ensure_default_location()
 
         # Act
@@ -163,7 +163,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="MIN-001",
                 quantity=Decimal("10"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -184,7 +184,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_create_batch_trims_whitespace(self):
         """Test that batch number, label, and notes are trimmed"""
         service = MaterialBatchService()
-        material = self._create_test_material("Trim Test Material")
+        material = self._create_test_material("Trim Test Material", unit_type=UnitType.COUNT)
         self._ensure_default_location()
 
         # Act
@@ -193,7 +193,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="  BATCH-TRIM  ",
                 quantity=Decimal("1"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 label="  Trimmed Label  ",
                 notes="  Trimmed Notes  ",
             )
@@ -212,7 +212,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_create_batch_creates_activity(self):
         """Test that creating a batch logs a 'receive' activity"""
         service = MaterialBatchService()
-        material = self._create_test_material("Activity Test Material")
+        material = self._create_test_material("Activity Test Material", unit_type=UnitType.COUNT)
         location = self._create_test_location("Activity Test Location")
 
         # Act
@@ -221,7 +221,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="ACT-001",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 location_id=location.id,
                 notes="Test activity creation",
             )
@@ -259,7 +259,7 @@ class TestMaterialBatchService(BaseTestCase):
                     material_id="non-existent-id",
                     batch_number="BATCH-FAIL",
                     quantity=Decimal("1"),
-                    unit_type=UnitType.COUNT,
+                    unit="units",
                 )
             )
 
@@ -268,7 +268,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_create_batch_invalid_location_fails(self):
         """Test creating a batch with non-existent location fails"""
         service = MaterialBatchService()
-        material = self._create_test_material("Location Fail Material")
+        material = self._create_test_material("Location Fail Material", unit_type=UnitType.COUNT)
 
         # Act & Assert
         with self.assertRaises(BadRequestException) as context:
@@ -277,7 +277,7 @@ class TestMaterialBatchService(BaseTestCase):
                     material_id=material.id,
                     batch_number="BATCH-FAIL",
                     quantity=Decimal("1"),
-                    unit_type=UnitType.COUNT,
+                    unit="units",
                     location_id="non-existent-location-id",
                 )
             )
@@ -290,7 +290,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_create_batch_empty_batch_number_fails(self):
         """Test creating a batch with empty batch number fails"""
         service = MaterialBatchService()
-        material = self._create_test_material("Empty Batch Number Material")
+        material = self._create_test_material("Empty Batch Number Material", unit_type=UnitType.COUNT)
         self._ensure_default_location()
 
         # Act & Assert
@@ -300,7 +300,7 @@ class TestMaterialBatchService(BaseTestCase):
                     material_id=material.id,
                     batch_number="",
                     quantity=Decimal("1"),
-                    unit_type=UnitType.COUNT,
+                    unit="units",
                 )
             )
 
@@ -312,7 +312,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_create_batch_whitespace_batch_number_fails(self):
         """Test creating a batch with whitespace-only batch number fails"""
         service = MaterialBatchService()
-        material = self._create_test_material("Whitespace Batch Number Material")
+        material = self._create_test_material("Whitespace Batch Number Material", unit_type=UnitType.COUNT)
         self._ensure_default_location()
 
         # Act & Assert
@@ -322,7 +322,7 @@ class TestMaterialBatchService(BaseTestCase):
                     material_id=material.id,
                     batch_number="   ",
                     quantity=Decimal("1"),
-                    unit_type=UnitType.COUNT,
+                    unit="units",
                 )
             )
 
@@ -334,7 +334,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_create_batch_negative_quantity_fails(self):
         """Test creating a batch with negative quantity fails"""
         service = MaterialBatchService()
-        material = self._create_test_material("Negative Quantity Material")
+        material = self._create_test_material("Negative Quantity Material", unit_type=UnitType.COUNT)
         self._ensure_default_location()
 
         # Act & Assert
@@ -344,7 +344,7 @@ class TestMaterialBatchService(BaseTestCase):
                     material_id=material.id,
                     batch_number="NEG-001",
                     quantity=Decimal("-10"),
-                    unit_type=UnitType.COUNT,
+                    unit="units",
                 )
             )
 
@@ -356,7 +356,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_create_batch_zero_quantity_fails(self):
         """Test creating a batch with zero quantity fails"""
         service = MaterialBatchService()
-        material = self._create_test_material("Zero Quantity Material")
+        material = self._create_test_material("Zero Quantity Material", unit_type=UnitType.COUNT)
         self._ensure_default_location()
 
         # Act & Assert
@@ -366,7 +366,7 @@ class TestMaterialBatchService(BaseTestCase):
                     material_id=material.id,
                     batch_number="ZERO-001",
                     quantity=Decimal("0"),
-                    unit_type=UnitType.COUNT,
+                    unit="units",
                 )
             )
 
@@ -383,18 +383,18 @@ class TestMaterialBatchService(BaseTestCase):
         material = self._create_test_material("Receive Test Material", True, UnitType.VOLUME)
         self._ensure_default_location()
 
-        # Create initial batch
+        # Create initial batch (100 L)
         batch = service.create_batch(
             CreateBatchDTO(
                 material_id=material.id,
                 batch_number="RCV-001",
                 quantity=Decimal("100"),
-                unit_type=UnitType.VOLUME,
+                unit="L",
             )
         )
         original_quantity = batch.quantity
 
-        # Act - receive additional stock
+        # Act - receive additional stock (50 L)
         updated_batch = service.receive_batch(
             batch_id=batch.id,
             dto=ReceiveBatchDTO(
@@ -420,13 +420,13 @@ class TestMaterialBatchService(BaseTestCase):
         material = self._create_test_material("Receive Activity Material", True, UnitType.MASS)
         location = self._create_test_location("Receive Activity Location")
 
-        # Create initial batch
+        # Create initial batch (200 g)
         batch = service.create_batch(
             CreateBatchDTO(
                 material_id=material.id,
                 batch_number="RCV-ACT",
                 quantity=Decimal("200"),
-                unit_type=UnitType.MASS,
+                unit="g",
                 location_id=location.id,
             )
         )
@@ -476,7 +476,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="MULTI-RCV",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -523,7 +523,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="UNIT-MIS",
                 quantity=Decimal("100"),
-                unit_type=UnitType.VOLUME,
+                unit="L",
             )
         )
 
@@ -556,7 +556,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="NEG-RCV",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -596,7 +596,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_list_batches(self):
         """Test listing all batches"""
         service = MaterialBatchService()
-        material = self._create_test_material("List Test Material")
+        material = self._create_test_material("List Test Material", unit_type=UnitType.COUNT)
         self._ensure_default_location()
 
         # Create multiple batches
@@ -605,7 +605,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="LIST-001",
                 quantity=Decimal("10"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         batch2 = service.create_batch(
@@ -613,7 +613,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="LIST-002",
                 quantity=Decimal("20"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -635,8 +635,8 @@ class TestMaterialBatchService(BaseTestCase):
     def test_list_batches_by_material(self):
         """Test listing batches filtered by material"""
         service = MaterialBatchService()
-        material1 = self._create_test_material("Filter Material 1")
-        material2 = self._create_test_material("Filter Material 2")
+        material1 = self._create_test_material("Filter Material 1", unit_type=UnitType.COUNT)
+        material2 = self._create_test_material("Filter Material 2", unit_type=UnitType.COUNT)
         self._ensure_default_location()
 
         # Create batches for different materials
@@ -645,7 +645,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material1.id,
                 batch_number="FILT-M1",
                 quantity=Decimal("10"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         batch2 = service.create_batch(
@@ -653,7 +653,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material2.id,
                 batch_number="FILT-M2",
                 quantity=Decimal("20"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -676,7 +676,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_list_batches_by_location(self):
         """Test listing batches filtered by location"""
         service = MaterialBatchService()
-        material = self._create_test_material("Location Filter Material")
+        material = self._create_test_material("Location Filter Material", unit_type=UnitType.COUNT)
         location1 = self._create_test_location("Filter Location 1")
         location2 = self._create_test_location("Filter Location 2")
 
@@ -686,7 +686,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="FILT-L1",
                 quantity=Decimal("10"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 location_id=location1.id,
             )
         )
@@ -695,7 +695,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="FILT-L2",
                 quantity=Decimal("20"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 location_id=location2.id,
             )
         )
@@ -722,7 +722,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_get_batch(self):
         """Test getting a batch by ID"""
         service = MaterialBatchService()
-        material = self._create_test_material("Get Test Material")
+        material = self._create_test_material("Get Test Material", unit_type=UnitType.COUNT)
         self._ensure_default_location()
 
         # Create batch
@@ -731,7 +731,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="GET-001",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -761,7 +761,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_audit_fields_on_create(self):
         """Test that audit fields are set on batch creation"""
         service = MaterialBatchService()
-        material = self._create_test_material("Audit Create Material")
+        material = self._create_test_material("Audit Create Material", unit_type=UnitType.COUNT)
         self._ensure_default_location()
 
         # Act
@@ -770,7 +770,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="AUDIT-001",
                 quantity=Decimal("10"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -788,7 +788,7 @@ class TestMaterialBatchService(BaseTestCase):
     def test_audit_fields_on_receive(self):
         """Test that audit fields are updated on receive"""
         service = MaterialBatchService()
-        material = self._create_test_material("Audit Receive Material")
+        material = self._create_test_material("Audit Receive Material", unit_type=UnitType.COUNT)
         self._ensure_default_location()
 
         # Create batch
@@ -797,7 +797,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="AUDIT-RCV",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         original_created_at = batch.created_at
@@ -825,6 +825,8 @@ class TestMaterialBatchService(BaseTestCase):
 
     def test_create_batch_all_unit_types(self):
         """Test creating batches with all unit types"""
+        from gws_eln.utils.units_converter import UnitConverter
+
         service = MaterialBatchService()
         self._ensure_default_location()
         batches = []
@@ -838,12 +840,15 @@ class TestMaterialBatchService(BaseTestCase):
             )
             materials.append(material)
 
+            # Get default unit for this unit type
+            unit = UnitConverter.get_default_unit(unit_type)
+
             batch = service.create_batch(
                 CreateBatchDTO(
                     material_id=material.id,
                     batch_number=f"UNIT-{unit_type.value.upper()}",
                     quantity=Decimal("10"),
-                    unit_type=unit_type,
+                    unit=unit,
                 )
             )
             batches.append(batch)
@@ -857,6 +862,58 @@ class TestMaterialBatchService(BaseTestCase):
         for material in materials:
             material.delete_instance()
 
+    def test_create_batch_converts_unit_to_base(self):
+        """Test that creating a batch converts the quantity from the given unit to base unit"""
+        service = MaterialBatchService()
+        self._ensure_default_location()
+
+        # Create material with VOLUME unit type (base unit = L)
+        material = self._create_test_material("Volume Conversion Material", True, UnitType.VOLUME)
+
+        # Act - create batch with 500 mL (should be stored as 0.5 L)
+        batch = service.create_batch(
+            CreateBatchDTO(
+                material_id=material.id,
+                batch_number="CONV-001",
+                quantity=Decimal("500"),
+                unit="mL",  # Input in milliliters
+            )
+        )
+
+        # Assert - quantity should be stored in base unit (L)
+        self.assertEqual(batch.quantity, Decimal("0.500000000000"))  # 500 mL = 0.5 L
+        self.assertEqual(batch.unit_type, UnitType.VOLUME)
+
+        # Cleanup
+        Activity.delete().where(Activity.entity == batch).execute()
+        batch.delete_instance()
+        material.delete_instance()
+
+    def test_create_batch_invalid_unit_for_material_fails(self):
+        """Test that creating a batch with an invalid unit for the material's unit type fails"""
+        service = MaterialBatchService()
+        self._ensure_default_location()
+
+        # Create material with VOLUME unit type
+        material = self._create_test_material("Volume Only Material", True, UnitType.VOLUME)
+
+        # Act & Assert - try to create batch with mass unit (g) for volume material
+        with self.assertRaises(BadRequestException) as context:
+            service.create_batch(
+                CreateBatchDTO(
+                    material_id=material.id,
+                    batch_number="INV-UNIT",
+                    quantity=Decimal("100"),
+                    unit="g",  # Invalid: mass unit for volume material
+                )
+            )
+
+        self.assertIn("Invalid unit 'g'", str(context.exception))
+        self.assertIn("volume", str(context.exception).lower())
+
+        # Cleanup
+        material.delete_instance()
+
     # ============== INCREMENT QUANTITY TESTS (Story 5.2) ==============
 
     def test_increment_quantity(self):
@@ -865,13 +922,13 @@ class TestMaterialBatchService(BaseTestCase):
         material = self._create_test_material("Increment Test Material", True, UnitType.VOLUME)
         self._ensure_default_location()
 
-        # Create initial batch
+        # Create initial batch (100 L)
         batch = service.create_batch(
             CreateBatchDTO(
                 material_id=material.id,
                 batch_number="INC-001",
                 quantity=Decimal("100"),
-                unit_type=UnitType.VOLUME,
+                unit="L",
             )
         )
 
@@ -906,7 +963,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="INC-ACT",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         initial_activity_count = Activity.count_by_batch_id(batch.id)
@@ -948,7 +1005,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="INC-MIS",
                 quantity=Decimal("100"),
-                unit_type=UnitType.VOLUME,
+                unit="L",
             )
         )
 
@@ -980,7 +1037,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="INC-NEG",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -1009,13 +1066,13 @@ class TestMaterialBatchService(BaseTestCase):
         material = self._create_test_material("Dec Consumable Material", True, UnitType.VOLUME)
         self._ensure_default_location()
 
-        # Create initial batch
+        # Create initial batch (100 L)
         batch = service.create_batch(
             CreateBatchDTO(
                 material_id=material.id,
                 batch_number="DEC-001",
                 quantity=Decimal("100"),
-                unit_type=UnitType.VOLUME,
+                unit="L",
             )
         )
 
@@ -1050,7 +1107,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="DEC-ACT",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         initial_activity_count = Activity.count_by_batch_id(batch.id)
@@ -1092,7 +1149,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="DEC-NONCON",
                 quantity=Decimal("10"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -1126,7 +1183,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="DEC-ZERO",
                 quantity=Decimal("50"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -1159,7 +1216,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="DEC-MIS",
                 quantity=Decimal("100"),
-                unit_type=UnitType.VOLUME,
+                unit="L",
             )
         )
 
@@ -1192,7 +1249,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="DEC-TOZERO",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -1225,7 +1282,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="DEC-MULTI",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -1278,7 +1335,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="MOVE-001",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 location_id=location1.id,
             )
         )
@@ -1318,7 +1375,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="MOVE-ACT",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 location_id=location1.id,
             )
         )
@@ -1368,7 +1425,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="MOVE-INV",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 location_id=location.id,
             )
         )
@@ -1405,7 +1462,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="MOVE-SAME",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 location_id=location.id,
             )
         )
@@ -1455,7 +1512,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="UPD-LBL",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 label="Original Label",
             )
         )
@@ -1477,7 +1534,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="UPD-NOTES",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 notes="Original notes",
             )
         )
@@ -1507,7 +1564,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="UPD-EXP",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 expiry_date=date(2027, 1, 1),
             )
         )
@@ -1537,7 +1594,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="MULTI-UPD",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 label="Old Label",
                 notes="Old Notes",
                 expiry_date=date(2027, 1, 1),
@@ -1576,7 +1633,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="HARD-DEL",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         batch_id = batch.id
@@ -1609,7 +1666,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="SOFT-DEL",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         batch_id = batch.id
@@ -1657,7 +1714,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="LIST-FILTER",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         batch_id = batch.id
@@ -1704,7 +1761,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="ALREADY-DISC",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         batch_id = batch.id
@@ -1741,7 +1798,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="PARENT-001",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 location_id=location.id,
             )
         )
@@ -1793,7 +1850,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="DISCARD-ACT",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         batch_id = batch.id
@@ -1839,7 +1896,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="OLD-NUM",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         self.assertEqual(batch.batch_number, "OLD-NUM")
@@ -1873,7 +1930,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="RELBL-001",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 label="Original Label",
             )
         )
@@ -1904,7 +1961,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="OLD-BOTH",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 label="Old Label",
             )
         )
@@ -1935,7 +1992,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="RELBL-ACT",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
         initial_activity_count = Activity.count_by_batch_id(batch.id)
@@ -1981,7 +2038,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="NO-FIELDS",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -2007,7 +2064,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="VALID-NUM",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             )
         )
 
@@ -2033,7 +2090,7 @@ class TestMaterialBatchService(BaseTestCase):
                 material_id=material.id,
                 batch_number="SAME-NUM",
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 label="Same Label",
             )
         )

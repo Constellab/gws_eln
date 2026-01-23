@@ -9,6 +9,7 @@ from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material import Material
 from gws_eln.materials.material_batch_dto import MaterialBatchDTO
 from gws_eln.suppliers.supplier import Supplier
+from gws_eln.utils.units_converter import UnitConverter
 
 
 class MaterialBatch(ModelWithUser):
@@ -122,6 +123,7 @@ class MaterialBatch(ModelWithUser):
             label=self.label,
             expiry_date=self.expiry_date,
             quantity=self.quantity,
+            pretty_quantity=UnitConverter.format_value(self.quantity, self.unit_type),
             unit_type=self.unit_type,
             notes=self.notes,
             status=self.status,

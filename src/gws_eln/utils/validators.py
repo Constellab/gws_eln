@@ -15,7 +15,7 @@ from decimal import Decimal, InvalidOperation
 from gws_core import BadRequestException
 
 from gws_eln.core.unit_type import UnitType
-from gws_eln.utils.units import UnitConverter
+from gws_eln.utils.units_converter import UnitConverter
 
 
 class QuantityValidator:

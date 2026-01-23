@@ -1,12 +1,13 @@
 """Material detail page component."""
 
 import reflex as rx
-from gws_eln.eln_app._eln_app.eln_app.common.consumable_badge_component import consumable_badge
 from gws_reflex_main import main_component, user_inline_component
 
 from ..batches.batches_list_component import batches_list_component
+from ..common.batch.batch_components import consumable_badge
 from ..common.detail_page_layout import detail_page_layout
 from ..common.page_layout import page_layout
+from ..common.supplier.inline_supplier_component import inline_supplier_component
 from .material_detail_state import MaterialDetailState
 
 
@@ -33,7 +34,7 @@ def _details_sidebar() -> rx.Component:
             rx.text("Default Supplier", size="2", color="gray", weight="medium"),
             rx.cond(
                 MaterialDetailState.material.default_supplier,
-                rx.text(MaterialDetailState.material.default_supplier.name, size="2"),
+                inline_supplier_component(MaterialDetailState.material.default_supplier),
                 rx.text("-", size="2", color="gray"),
             ),
             # Type

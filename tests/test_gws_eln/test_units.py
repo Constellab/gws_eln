@@ -14,9 +14,8 @@ Tests cover:
 from decimal import Decimal
 
 from gws_core import BadRequestException, BaseTestCaseLight
-
 from gws_eln.core.unit_type import UnitType
-from gws_eln.utils.units import UnitConverter
+from gws_eln.utils.units_converter import UnitConverter
 
 
 class TestToBaseUnit(BaseTestCaseLight):
@@ -62,43 +61,43 @@ class TestToBaseUnit(BaseTestCaseLight):
     # ==================== MASS CONVERSIONS ====================
 
     def test_kilograms_to_base(self):
-        """Test that kilograms pass through unchanged."""
+        """Test kilogram to gram conversion."""
         result = UnitConverter.to_base_unit(1, "kg", UnitType.MASS)
-        self.assertEqual(result, Decimal("1.000000000000"))
+        self.assertEqual(result, Decimal("1000.000000000000"))
 
     def test_grams_to_base(self):
-        """Test gram to kilogram conversion."""
+        """Test that grams pass through unchanged (base unit)."""
         result = UnitConverter.to_base_unit(1, "g", UnitType.MASS)
-        self.assertEqual(result, Decimal("0.001000000000"))
-
-    def test_grams_to_base_1000(self):
-        """Test 1000 g equals 1 kg."""
-        result = UnitConverter.to_base_unit(1000, "g", UnitType.MASS)
         self.assertEqual(result, Decimal("1.000000000000"))
 
-    def test_milligrams_to_base(self):
-        """Test milligram to kilogram conversion."""
-        result = UnitConverter.to_base_unit(1, "mg", UnitType.MASS)
-        self.assertEqual(result, Decimal("0.000001000000"))
+    def test_grams_to_base_1000(self):
+        """Test 1000 g stays as 1000 g."""
+        result = UnitConverter.to_base_unit(1000, "g", UnitType.MASS)
+        self.assertEqual(result, Decimal("1000.000000000000"))
 
-    def test_milligrams_to_base_1000000(self):
-        """Test 1,000,000 mg equals 1 kg."""
-        result = UnitConverter.to_base_unit(1000000, "mg", UnitType.MASS)
+    def test_milligrams_to_base(self):
+        """Test milligram to gram conversion."""
+        result = UnitConverter.to_base_unit(1, "mg", UnitType.MASS)
+        self.assertEqual(result, Decimal("0.001000000000"))
+
+    def test_milligrams_to_base_1000(self):
+        """Test 1000 mg equals 1 g."""
+        result = UnitConverter.to_base_unit(1000, "mg", UnitType.MASS)
         self.assertEqual(result, Decimal("1.000000000000"))
 
     def test_micrograms_to_base(self):
-        """Test microgram to kilogram conversion."""
+        """Test microgram to gram conversion."""
         result = UnitConverter.to_base_unit(1, "µg", UnitType.MASS)
-        self.assertEqual(result, Decimal("0.000000001000"))
+        self.assertEqual(result, Decimal("0.000001000000"))
 
     def test_micrograms_to_base_ug_notation(self):
         """Test alternative ug notation for micrograms."""
         result = UnitConverter.to_base_unit(1, "ug", UnitType.MASS)
-        self.assertEqual(result, Decimal("0.000000001000"))
+        self.assertEqual(result, Decimal("0.000001000000"))
 
-    def test_micrograms_to_base_1000000000(self):
-        """Test 1,000,000,000 µg equals 1 kg."""
-        result = UnitConverter.to_base_unit(1000000000, "µg", UnitType.MASS)
+    def test_micrograms_to_base_1000000(self):
+        """Test 1,000,000 µg equals 1 g."""
+        result = UnitConverter.to_base_unit(1000000, "µg", UnitType.MASS)
         self.assertEqual(result, Decimal("1.000000000000"))
 
     # ==================== LENGTH CONVERSIONS ====================
@@ -150,7 +149,7 @@ class TestToBaseUnit(BaseTestCaseLight):
     def test_float_input(self):
         """Test float input."""
         result = UnitConverter.to_base_unit(2.5, "g", UnitType.MASS)
-        self.assertEqual(result, Decimal("0.002500000000"))
+        self.assertEqual(result, Decimal("2.500000000000"))
 
     def test_decimal_input(self):
         """Test Decimal input."""
@@ -210,28 +209,28 @@ class TestFromBaseUnit(BaseTestCaseLight):
     # ==================== MASS CONVERSIONS ====================
 
     def test_base_to_kilograms(self):
-        """Test base to kilograms unchanged."""
-        result = UnitConverter.from_base_unit(Decimal("1"), "kg", UnitType.MASS)
+        """Test base (grams) to kilograms."""
+        result = UnitConverter.from_base_unit(Decimal("1000"), "kg", UnitType.MASS)
         self.assertEqual(result, Decimal("1.000000000000"))
 
     def test_base_to_grams(self):
-        """Test base to grams."""
-        result = UnitConverter.from_base_unit(Decimal("0.001"), "g", UnitType.MASS)
+        """Test base to grams unchanged."""
+        result = UnitConverter.from_base_unit(Decimal("1"), "g", UnitType.MASS)
         self.assertEqual(result, Decimal("1.000000000000"))
 
     def test_base_to_grams_large(self):
-        """Test 1 kg to g."""
-        result = UnitConverter.from_base_unit(Decimal("1"), "g", UnitType.MASS)
+        """Test 1000 g to g."""
+        result = UnitConverter.from_base_unit(Decimal("1000"), "g", UnitType.MASS)
         self.assertEqual(result, Decimal("1000.000000000000"))
 
     def test_base_to_milligrams(self):
         """Test base to milligrams."""
-        result = UnitConverter.from_base_unit(Decimal("0.000001"), "mg", UnitType.MASS)
+        result = UnitConverter.from_base_unit(Decimal("0.001"), "mg", UnitType.MASS)
         self.assertEqual(result, Decimal("1.000000000000"))
 
     def test_base_to_micrograms(self):
         """Test base to micrograms."""
-        result = UnitConverter.from_base_unit(Decimal("0.000000001"), "µg", UnitType.MASS)
+        result = UnitConverter.from_base_unit(Decimal("0.000001"), "µg", UnitType.MASS)
         self.assertEqual(result, Decimal("1.000000000000"))
 
     # ==================== LENGTH CONVERSIONS ====================
@@ -452,7 +451,7 @@ class TestHelperMethods(BaseTestCaseLight):
 
     def test_get_base_unit_mass(self):
         """Test get_base_unit for mass."""
-        self.assertEqual(UnitConverter.get_base_unit(UnitType.MASS), "kg")
+        self.assertEqual(UnitConverter.get_base_unit(UnitType.MASS), "g")
 
     def test_get_base_unit_length(self):
         """Test get_base_unit for length."""
@@ -521,3 +520,178 @@ class TestHelperMethods(BaseTestCaseLight):
     def test_is_valid_unit_invalid_type(self):
         """Test is_valid_unit with invalid type returns False."""
         self.assertFalse(UnitConverter.is_valid_unit("mL", "invalid"))  # type: ignore
+
+
+class TestFormatValue(BaseTestCaseLight):
+    """Tests for UnitConverter.format_value method."""
+
+    # ==================== AUTO UNIT SELECTION - VOLUME ====================
+
+    def test_format_value_volume_auto_liters(self):
+        """Test auto-selection of liters for large volume."""
+        result = UnitConverter.format_value(1.5, UnitType.VOLUME)
+        self.assertEqual(result, "1.5 L")
+
+    def test_format_value_volume_auto_milliliters(self):
+        """Test auto-selection of milliliters for medium volume."""
+        result = UnitConverter.format_value(0.5, UnitType.VOLUME)
+        self.assertEqual(result, "500 mL")
+
+    def test_format_value_volume_auto_microliters(self):
+        """Test auto-selection of microliters for small volume."""
+        result = UnitConverter.format_value(0.0005, UnitType.VOLUME)
+        self.assertEqual(result, "500 µL")
+
+    def test_format_value_volume_auto_very_small(self):
+        """Test auto-selection for very small volume stays in µL."""
+        result = UnitConverter.format_value(0.000001, UnitType.VOLUME)
+        self.assertEqual(result, "1 µL")
+
+    # ==================== AUTO UNIT SELECTION - MASS ====================
+
+    def test_format_value_mass_auto_kilograms(self):
+        """Test auto-selection of kilograms for large mass."""
+        result = UnitConverter.format_value(1500, UnitType.MASS)
+        self.assertEqual(result, "1.5 kg")
+
+    def test_format_value_mass_auto_grams(self):
+        """Test auto-selection of grams for medium mass."""
+        result = UnitConverter.format_value(500, UnitType.MASS)
+        self.assertEqual(result, "500 g")
+
+    def test_format_value_mass_auto_milligrams(self):
+        """Test auto-selection of milligrams for small mass."""
+        result = UnitConverter.format_value(0.5, UnitType.MASS)
+        self.assertEqual(result, "500 mg")
+
+    def test_format_value_mass_auto_micrograms(self):
+        """Test auto-selection of micrograms for very small mass."""
+        result = UnitConverter.format_value(0.0005, UnitType.MASS)
+        self.assertEqual(result, "500 µg")
+
+    # ==================== AUTO UNIT SELECTION - LENGTH ====================
+
+    def test_format_value_length_auto_meters(self):
+        """Test auto-selection of meters for large length."""
+        result = UnitConverter.format_value(1.5, UnitType.LENGTH)
+        self.assertEqual(result, "1.5 m")
+
+    def test_format_value_length_auto_centimeters(self):
+        """Test auto-selection of centimeters for medium length."""
+        result = UnitConverter.format_value(0.5, UnitType.LENGTH)
+        self.assertEqual(result, "50 cm")
+
+    def test_format_value_length_auto_millimeters(self):
+        """Test auto-selection of millimeters for small length."""
+        result = UnitConverter.format_value(0.005, UnitType.LENGTH)
+        self.assertEqual(result, "5 mm")
+
+    # ==================== AUTO UNIT SELECTION - COUNT ====================
+
+    def test_format_value_count_auto(self):
+        """Test count always uses units."""
+        result = UnitConverter.format_value(100, UnitType.COUNT)
+        self.assertEqual(result, "100 units")
+
+    # ==================== EXPLICIT UNIT SPECIFICATION ====================
+
+    def test_format_value_explicit_unit_grams(self):
+        """Test explicit unit specification with grams."""
+        result = UnitConverter.format_value(1500, UnitType.MASS, "g")
+        self.assertEqual(result, "1500 g")
+
+    def test_format_value_explicit_unit_milliliters(self):
+        """Test explicit unit specification with milliliters."""
+        result = UnitConverter.format_value(0.25, UnitType.VOLUME, "mL")
+        self.assertEqual(result, "250 mL")
+
+    def test_format_value_explicit_unit_centimeters(self):
+        """Test explicit unit specification with centimeters."""
+        result = UnitConverter.format_value(1, UnitType.LENGTH, "cm")
+        self.assertEqual(result, "100 cm")
+
+    def test_format_value_explicit_unit_kilograms(self):
+        """Test explicit unit specification with kilograms."""
+        result = UnitConverter.format_value(500, UnitType.MASS, "kg")
+        self.assertEqual(result, "0.5 kg")
+
+    # ==================== TRAILING ZERO REMOVAL ====================
+
+    def test_format_value_removes_trailing_zeros(self):
+        """Test that trailing zeros are removed."""
+        result = UnitConverter.format_value(1000, UnitType.MASS)
+        self.assertEqual(result, "1 kg")
+
+    def test_format_value_preserves_significant_decimals(self):
+        """Test that significant decimal places are preserved."""
+        result = UnitConverter.format_value(1.25, UnitType.VOLUME)
+        self.assertEqual(result, "1.25 L")
+
+    def test_format_value_integer_display(self):
+        """Test integer values display without decimal point."""
+        result = UnitConverter.format_value(500, UnitType.MASS)
+        self.assertEqual(result, "500 g")
+
+    # ==================== INPUT TYPE HANDLING ====================
+
+    def test_format_value_string_input(self):
+        """Test format_value with string input."""
+        result = UnitConverter.format_value("500", UnitType.MASS)
+        self.assertEqual(result, "500 g")
+
+    def test_format_value_float_input(self):
+        """Test format_value with float input."""
+        result = UnitConverter.format_value(1.5, UnitType.VOLUME)
+        self.assertEqual(result, "1.5 L")
+
+    def test_format_value_decimal_input(self):
+        """Test format_value with Decimal input."""
+        result = UnitConverter.format_value(Decimal("2.5"), UnitType.LENGTH)
+        self.assertEqual(result, "2.5 m")
+
+    # ==================== EDGE CASES ====================
+
+    def test_format_value_zero(self):
+        """Test format_value with zero."""
+        result = UnitConverter.format_value(0, UnitType.MASS)
+        self.assertEqual(result, "0 µg")
+
+    def test_format_value_negative(self):
+        """Test format_value with negative value."""
+        result = UnitConverter.format_value(-500, UnitType.MASS)
+        self.assertEqual(result, "-500 g")
+
+    def test_format_value_boundary_exactly_1(self):
+        """Test auto-selection at exactly 1 (should stay in larger unit)."""
+        result = UnitConverter.format_value(1, UnitType.VOLUME)
+        self.assertEqual(result, "1 L")
+
+    def test_format_value_boundary_just_under_1(self):
+        """Test auto-selection just under 1 (should go to smaller unit)."""
+        result = UnitConverter.format_value(0.999, UnitType.VOLUME)
+        self.assertEqual(result, "999 mL")
+
+    def test_format_value_boundary_exactly_1000(self):
+        """Test auto-selection at exactly 1000 (should go to larger unit)."""
+        result = UnitConverter.format_value(1000, UnitType.MASS)
+        self.assertEqual(result, "1 kg")
+
+    # ==================== ERROR HANDLING ====================
+
+    def test_format_value_invalid_unit_type(self):
+        """Test format_value with invalid unit type."""
+        with self.assertRaises(BadRequestException) as context:
+            UnitConverter.format_value(100, "invalid")  # type: ignore
+        self.assertIn("Invalid unit type", str(context.exception))
+
+    def test_format_value_invalid_unit_for_type(self):
+        """Test format_value with invalid unit for the type."""
+        with self.assertRaises(BadRequestException) as context:
+            UnitConverter.format_value(100, UnitType.VOLUME, "g")
+        self.assertIn("Invalid unit", str(context.exception))
+
+    def test_format_value_invalid_numeric_value(self):
+        """Test format_value with invalid numeric value."""
+        with self.assertRaises(BadRequestException) as context:
+            UnitConverter.format_value("abc", UnitType.MASS)
+        self.assertIn("Invalid numeric value", str(context.exception))

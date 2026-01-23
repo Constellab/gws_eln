@@ -28,7 +28,7 @@ from gws_eln.materials.material_batch_dto import (
     UpdateBatchDTO,
 )
 from gws_eln.suppliers.supplier_service import SupplierService
-from gws_eln.utils.units import UnitConverter
+from gws_eln.utils.units_converter import UnitConverter
 from gws_eln.utils.validators import QuantityValidator
 
 
@@ -108,12 +108,19 @@ class MaterialBatchService:
         # Validate quantity is positive
         validated_quantity = QuantityValidator.validate_quantity(dto.quantity)
 
-        # Validate unit is valid for the unit type
-        base_unit = UnitConverter.get_base_unit(dto.unit_type)
-        QuantityValidator.validate_unit(base_unit, dto.unit_type)
-
         # Validate material exists
         material = self._validate_material_exists(dto.material_id)
+
+        # Get unit_type from the material's default_unit_type
+        unit_type = material.default_unit_type
+
+        # Validate unit is valid for the material's unit type
+        if not UnitConverter.is_valid_unit(dto.unit, unit_type):
+            valid_units = ", ".join(UnitConverter.get_valid_units(unit_type))
+            raise BadRequestException(
+                f"Invalid unit '{dto.unit}' for material '{material.name}' "
+                f"(unit type: {unit_type.value}). Valid units: {valid_units}"
+            )
 
         # Validate/get location (default to "labo" if not provided)
         location = LocationService().get_or_default_location(dto.location_id)
@@ -121,16 +128,15 @@ class MaterialBatchService:
         # Get supplier
         supplier = SupplierService().get_supplier(dto.supplier_id) if dto.supplier_id else None
 
-        # Convert quantity to base units (input is already in base unit for the type)
-        # No conversion needed since we're using base units directly
-        base_quantity = validated_quantity
+        # Convert quantity from the given unit to base unit for storage
+        base_quantity = UnitConverter.to_base_unit(validated_quantity, dto.unit, unit_type)
 
         # Create batch
         batch = MaterialBatch()
         batch.material = material
         batch.batch_number = dto.batch_number.strip()
         batch.quantity = base_quantity
-        batch.unit_type = dto.unit_type
+        batch.unit_type = unit_type
         batch.location = location
         batch.expiry_date = dto.expiry_date
         batch.label = dto.label.strip() if dto.label else None
@@ -147,7 +153,7 @@ class MaterialBatchService:
                 activity_type=ActivityType.RECEIVE,
                 entity_id=batch.id,
                 quantity=base_quantity,
-                unit_type=dto.unit_type,
+                unit_type=unit_type,
                 to_location_id=location.id,
                 notes=dto.notes,
             )

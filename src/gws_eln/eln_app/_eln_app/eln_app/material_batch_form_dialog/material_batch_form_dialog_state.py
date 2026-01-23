@@ -5,15 +5,12 @@ from typing import Any
 
 import reflex as rx
 from gws_eln.core.unit_type import UnitType
-from gws_eln.locations.location_dto import LocationDTO
-from gws_eln.locations.location_search_builder import LocationSearchBuilder
 from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.materials.material_batch_dto import CreateBatchDTO, MaterialBatchDTO
 from gws_eln.materials.material_batch_service import MaterialBatchService
 from gws_eln.materials.material_dto import MaterialDTO
 from gws_eln.materials.material_service import MaterialService
-from gws_eln.suppliers.supplier_dto import SupplierDTO
-from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
+from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 FormDialogCloseCallback = Callable[[MaterialBatchDTO], Coroutine[Any, Any, None]]
@@ -34,29 +31,15 @@ class MaterialBatchFormDialogState(FormDialogState, rx.State):
 
     # Form field default values
     form_batch_number: str = ""
-    form_quantity: str = ""
     form_unit_type: str = UnitType.COUNT.value
+    form_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
     form_location_id: str = ""
     form_supplier_id: str = "__none__"
     form_expiry_date: str = ""
     form_label: str = ""
     form_notes: str = ""
 
-    # Available options for dropdowns
-    available_locations: list[LocationDTO] = []
-    available_suppliers: list[SupplierDTO] = []
-
     _callback_after_close: FormDialogCloseCallback | None = None
-
-    @rx.var
-    def unit_type_options(self) -> list[dict[str, str]]:
-        """Get unit type options for the select dropdown."""
-        return [
-            {"value": UnitType.COUNT.value, "label": "Count (units)"},
-            {"value": UnitType.MASS.value, "label": "Mass (g, kg, mg)"},
-            {"value": UnitType.VOLUME.value, "label": "Volume (L, mL, uL)"},
-            {"value": UnitType.LENGTH.value, "label": "Length (m, cm, mm)"},
-        ]
 
     @rx.var
     def material_name(self) -> str:
@@ -64,23 +47,6 @@ class MaterialBatchFormDialogState(FormDialogState, rx.State):
         if self._material:
             return self._material.name
         return ""
-
-    async def _load_dropdown_data(self):
-        """Load available locations and suppliers for dropdowns."""
-        main_state: ReflexMainState
-        async with self:
-            main_state = await self.get_state(ReflexMainState)
-
-        with await main_state.authenticate_user():
-            # Load locations
-            location_builder = LocationSearchBuilder()
-            locations = location_builder.search_all()
-            self.available_locations = [location.to_dto() for location in locations]
-
-            # Load suppliers
-            supplier_builder = SupplierSearchBuilder()
-            suppliers = supplier_builder.search_all()
-            self.available_suppliers = [supplier.to_dto() for supplier in suppliers]
 
     @rx.event
     async def open_create_dialog(self, material_id: str):
@@ -99,30 +65,22 @@ class MaterialBatchFormDialogState(FormDialogState, rx.State):
             material = material_service.get_material(material_id)
             self._material = material.to_dto()
 
-        # Load dropdown data
-        await self._load_dropdown_data()
-
         # Reset form fields to defaults
         self.form_batch_number = ""
-        self.form_quantity = ""
         self.form_label = ""
         self.form_notes = ""
         self.form_expiry_date = ""
+        self.form_location_id = ""
 
-        # Set unit type from material default
+        # Set unit type and default unit from material
         self.form_unit_type = self._material.default_unit_type.value
+        self.form_unit = UnitConverter.get_default_unit(self._material.default_unit_type)
 
         # Use material's default supplier if available
         if self._material.default_supplier:
             self.form_supplier_id = self._material.default_supplier.id
         else:
             self.form_supplier_id = self.NO_SUPPLIER_VALUE
-
-        # Set default location (first available)
-        if self.available_locations:
-            self.form_location_id = self.available_locations[0].id
-        else:
-            self.form_location_id = ""
 
         # Set to create mode
         self.is_update_mode = False
@@ -141,9 +99,9 @@ class MaterialBatchFormDialogState(FormDialogState, rx.State):
         self.form_supplier_id = value
 
     @rx.event
-    def set_unit_type(self, value: str):
-        """Handle unit type selection change."""
-        self.form_unit_type = value
+    def set_unit(self, value: str):
+        """Handle unit selection change."""
+        self.form_unit = value
 
     @rx.event
     def set_expiry_date(self, value: str):
@@ -152,14 +110,14 @@ class MaterialBatchFormDialogState(FormDialogState, rx.State):
 
     def _validate_form_data(
         self, form_data: dict
-    ) -> tuple[str, Decimal, UnitType, str, str | None, date | None, str | None, str | None]:
+    ) -> tuple[str, Decimal, str, str, str | None, date | None, str | None, str | None]:
         """Validate and parse form data.
 
         Args:
             form_data: Dictionary containing form fields
 
         Returns:
-            Tuple of (batch_number, quantity, unit_type, location_id,
+            Tuple of (batch_number, quantity, unit, location_id,
                      supplier_id, expiry_date, label, notes) if validation succeeds
 
         Raises:
@@ -178,7 +136,7 @@ class MaterialBatchFormDialogState(FormDialogState, rx.State):
             if self.form_supplier_id and self.form_supplier_id != self.NO_SUPPLIER_VALUE
             else None
         )
-        unit_type = UnitType(self.form_unit_type)
+        unit = self.form_unit
 
         # Parse expiry date
         expiry_date = None
@@ -205,7 +163,19 @@ class MaterialBatchFormDialogState(FormDialogState, rx.State):
         if not location_id:
             raise Exception("Location is required")
 
-        return batch_number, quantity, unit_type, location_id, supplier_id, expiry_date, label, notes
+        if not unit:
+            raise Exception("Unit is required")
+
+        return (
+            batch_number,
+            quantity,
+            unit,
+            location_id,
+            supplier_id,
+            expiry_date,
+            label,
+            notes,
+        )
 
     async def _create(self, form_data: dict):
         """Create a new material batch using the form data.
@@ -223,7 +193,7 @@ class MaterialBatchFormDialogState(FormDialogState, rx.State):
         (
             batch_number,
             quantity,
-            unit_type,
+            unit,
             location_id,
             supplier_id,
             expiry_date,
@@ -243,7 +213,7 @@ class MaterialBatchFormDialogState(FormDialogState, rx.State):
                 material_id=self._material.id,
                 batch_number=batch_number,
                 quantity=quantity,
-                unit_type=unit_type,
+                unit=unit,
                 location_id=location_id,
                 supplier_id=supplier_id,
                 expiry_date=expiry_date,
@@ -266,8 +236,8 @@ class MaterialBatchFormDialogState(FormDialogState, rx.State):
         """Clear all form state after successful operation."""
         self._material = None
         self.form_batch_number = ""
-        self.form_quantity = ""
         self.form_unit_type = UnitType.COUNT.value
+        self.form_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.form_location_id = ""
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_expiry_date = ""
