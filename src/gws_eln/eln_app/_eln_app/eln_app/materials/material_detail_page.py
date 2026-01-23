@@ -49,7 +49,7 @@ def _details_sidebar() -> rx.Component:
             ),
             # Default Unit Type
             rx.text("Default Unit Type", size="2", color="gray", weight="medium"),
-            rx.text(MaterialDetailState.material.default_unit_type, size="2"),
+            rx.text(MaterialDetailState.material.default_unit_type, size="2", style={"text_transform": "capitalize"}),
             # Divider before technical info
             rx.divider(margin_top="0.5rem", margin_bottom="0.5rem", grid_column="span 2"),
             # Created by

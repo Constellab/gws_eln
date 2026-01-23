@@ -2,7 +2,7 @@
 
 import reflex as rx
 from gws_eln.materials.material_dto import MaterialDTO
-from gws_reflex_main import main_component, user_inline_component
+from gws_reflex_main import main_component, user_with_date_component
 
 from ..common.batch.batch_components import consumable_badge
 from ..common.materials.material_actions_menu import material_actions_menu
@@ -109,8 +109,9 @@ def _row(material: MaterialDTO) -> rx.Component:
             )
         ),
         rx.table.cell(rx.box(consumable_badge(material.is_consumable), width="fit-content")),
-        rx.table.cell(user_inline_component(material.created_by, size="small")),
-        rx.table.cell(rx.moment(material.created_at, format="MMM D, YYYY")),
+        rx.table.cell(
+            user_with_date_component(material.created_by, material.created_at, size="small")
+        ),
         rx.table.cell(
             rx.box(
                 material_actions_menu(
@@ -164,8 +165,7 @@ def materials_list_page() -> rx.Component:
                                     rx.table.column_header_cell("Description"),
                                     rx.table.column_header_cell("Default Supplier"),
                                     rx.table.column_header_cell("Type"),
-                                    rx.table.column_header_cell("Created By"),
-                                    rx.table.column_header_cell("Created At"),
+                                    rx.table.column_header_cell("Creation"),
                                     rx.table.column_header_cell(
                                         "Actions", width="100px", justify="end"
                                     ),

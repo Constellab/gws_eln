@@ -4,6 +4,9 @@ import reflex as rx
 
 from .breadcrumb.breadcrumb_component import breadcrumb_component
 
+# Breakpoint for small screens (in pixels)
+SMALL_SCREEN_BREAKPOINT = "900px"
+
 
 class DetailPageState(rx.State):
     """State for managing the detail page layout."""
@@ -13,6 +16,94 @@ class DetailPageState(rx.State):
     def toggle_detail(self):
         """Toggle the visibility of the detail section."""
         self.show_detail = not self.show_detail
+
+
+def _sidebar_content_box(sidebar_content: rx.Component) -> rx.Component:
+    """Create the styled sidebar content box.
+
+    :param sidebar_content: The content to display in the sidebar
+    :type sidebar_content: rx.Component
+    :return: The styled sidebar box
+    :rtype: rx.Component
+    """
+    return rx.vstack(
+        sidebar_content,
+        padding="1.5rem",
+        background="var(--gray-2)",
+        border_radius="8px",
+        align_items="start",
+        width="100%",
+        height="100%",
+        overflow_y="auto",
+    )
+
+
+def _desktop_sidebar(sidebar_content: rx.Component) -> rx.Component:
+    """Create the desktop sidebar (inline, side-by-side with content).
+
+    :param sidebar_content: The content to display in the sidebar
+    :type sidebar_content: rx.Component
+    :return: The desktop sidebar component
+    :rtype: rx.Component
+    """
+    return rx.box(
+        _sidebar_content_box(sidebar_content),
+        width="450px",
+        min_width="450px",
+        display=rx.breakpoints(initial="none", lg="block"),
+    )
+
+
+def _mobile_sidebar_overlay(sidebar_content: rx.Component) -> rx.Component:
+    """Create the mobile sidebar overlay (slides over content on small screens).
+
+    :param sidebar_content: The content to display in the sidebar
+    :type sidebar_content: rx.Component
+    :return: The mobile sidebar overlay component
+    :rtype: rx.Component
+    """
+    return rx.box(
+        # Backdrop overlay
+        rx.box(
+            position="fixed",
+            top="0",
+            left="0",
+            right="0",
+            bottom="0",
+            background="rgba(0, 0, 0, 0.4)",
+            z_index="998",
+            on_click=DetailPageState.toggle_detail,
+        ),
+        # Sidebar panel
+        rx.box(
+            rx.hstack(
+                rx.icon_button(
+                    rx.icon("x", size=20),
+                    on_click=DetailPageState.toggle_detail,
+                    variant="ghost",
+                    size="2",
+                    cursor="pointer",
+                ),
+                justify="end",
+                width="100%",
+                padding_bottom="0.5rem",
+            ),
+            _sidebar_content_box(sidebar_content),
+            position="fixed",
+            top="0",
+            right="0",
+            bottom="0",
+            width="min(450px, 90vw)",
+            background="var(--color-background)",
+            box_shadow="-4px 0 20px rgba(0, 0, 0, 0.15)",
+            z_index="999",
+            padding="1rem",
+            display="flex",
+            flex_direction="column",
+            overflow_y="auto",
+        ),
+        display=rx.breakpoints(initial="block", lg="none"),
+    )
 
 
 def detail_page_layout(
@@ -25,6 +116,9 @@ def detail_page_layout(
     - Breadcrumb: Positioned at the top, constrained by center layout max width
     - Center section: Main content with max width of 1200px, centered on large screens
     - Right section: Sidebar with fixed width of 450px, styled with background and padding
+
+    On small screens (< 900px), the sidebar opens as an overlay panel that slides in
+    from the right side, with a backdrop that can be clicked to close it.
 
     :param main_content: The main content to display in the center section
     :type main_content: rx.Component
@@ -67,18 +161,10 @@ def detail_page_layout(
                 width="100%",
                 height="100%",
             ),
-            # Sidebar (right, fixed width with styling)
+            # Desktop sidebar (inline, visible on larger screens)
             rx.cond(
                 DetailPageState.show_detail,
-                rx.vstack(
-                    sidebar_content,
-                    width="450px",
-                    min_width="450px",
-                    padding="1.5rem",
-                    background="var(--gray-2)",
-                    border_radius="8px",
-                    align_items="start",
-                ),
+                _desktop_sidebar(sidebar_content),
             ),
             flex="1",
             min_height="0",
@@ -87,6 +173,12 @@ def detail_page_layout(
             align_items="start",
             justify="center",
         ),
+        # Mobile sidebar overlay (visible on small screens when open)
+        rx.cond(
+            DetailPageState.show_detail,
+            _mobile_sidebar_overlay(sidebar_content),
+        ),
         height="100%",
         width="100%",
+        position="relative",
     )

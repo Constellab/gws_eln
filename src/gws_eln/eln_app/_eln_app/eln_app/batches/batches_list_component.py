@@ -3,7 +3,6 @@
 import reflex as rx
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material_batch_dto import MaterialBatchDTO
-from gws_reflex_main import user_with_date_component
 
 from ..aliquot_form_dialog.aliquot_form_dialog_component import aliquot_form_dialog
 from ..batch_event_form_dialog.batch_event_form_dialog_component import (
@@ -127,25 +126,20 @@ def _row(batch: MaterialBatchDTO) -> rx.Component:
         ),
         rx.table.cell(
             inline_location_component(batch.location),
+            display=rx.breakpoints(initial="none", md="table-cell"),
         ),
         rx.table.cell(
             rx.cond(
                 batch.supplier,
                 inline_supplier_component(batch.supplier),
-            )
+            ),
+            display=rx.breakpoints(initial="none", md="table-cell"),
         ),
         rx.table.cell(
             rx.text(batch.pretty_quantity),
         ),
         rx.table.cell(expiry_date_badge(batch.expiry_date)),
         rx.table.cell(rx.box(_status_badge(batch.status), width="fit-content")),
-        rx.table.cell(
-            user_with_date_component(
-                batch.created_by,
-                batch.created_at,
-                size="small",
-            )
-        ),
         rx.table.cell(
             batch_actions_menu(
                 batch=batch,
@@ -218,12 +212,17 @@ def _batches_table() -> rx.Component:
                 rx.table.header(
                     rx.table.row(
                         rx.table.column_header_cell("Batch Number"),
-                        rx.table.column_header_cell("Location"),
-                        rx.table.column_header_cell("Supplier"),
+                        rx.table.column_header_cell(
+                            "Location",
+                            display=rx.breakpoints(initial="none", md="table-cell"),
+                        ),
+                        rx.table.column_header_cell(
+                            "Supplier",
+                            display=rx.breakpoints(initial="none", md="table-cell"),
+                        ),
                         rx.table.column_header_cell("Quantity"),
                         rx.table.column_header_cell("Expiry Date"),
                         rx.table.column_header_cell("Status"),
-                        rx.table.column_header_cell("Creation"),
                         rx.table.column_header_cell("Actions"),
                     ),
                 ),
