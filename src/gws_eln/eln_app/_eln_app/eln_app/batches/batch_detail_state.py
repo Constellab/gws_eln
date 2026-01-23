@@ -6,6 +6,15 @@ from gws_eln.materials.material_batch_dto import MaterialBatchDTO
 from gws_eln.materials.material_batch_service import MaterialBatchService
 from gws_reflex_main import ReflexMainState
 
+from ..activities.activities_list_state import ActivitiesListState
+from ..batch_event_form_dialog.batch_event_form_dialog_state import (
+    BatchEventFormDialogState,
+    BatchEventType,
+)
+from ..move_batch_form_dialog.move_batch_form_dialog_state import (
+    MoveBatchFormDialogState,
+)
+
 
 class BatchDetailState(rx.State):
     """State for managing the batch detail page.
@@ -57,3 +66,45 @@ class BatchDetailState(rx.State):
             await self.load_batch(batch_id)
         else:
             self.error_message = "No batch ID provided"
+
+    async def _on_batch_event_success(self, updated_batch: MaterialBatchDTO):
+        """Callback invoked when a batch event completes successfully.
+
+        Updates the batch data and refreshes the activities list.
+
+        :param updated_batch: The updated batch DTO
+        :type updated_batch: MaterialBatchDTO
+        """
+        # Update the batch with the new data
+        self.batch = updated_batch
+
+        # Refresh the activities list
+        activities_state = await self.get_state(ActivitiesListState)
+        await activities_state.refresh_activities()
+
+    @rx.event
+    async def open_receive_dialog(self):
+        """Open the receive stock dialog for the current batch."""
+        if not self.batch:
+            return
+        dialog_state = await self.get_state(BatchEventFormDialogState)
+        dialog_state.set_callback_after_close(self._on_batch_event_success)
+        dialog_state.open_dialog_for_event(self.batch, BatchEventType.RECEIVE)
+
+    @rx.event
+    async def open_consume_dialog(self):
+        """Open the consume stock dialog for the current batch."""
+        if not self.batch:
+            return
+        dialog_state = await self.get_state(BatchEventFormDialogState)
+        dialog_state.set_callback_after_close(self._on_batch_event_success)
+        dialog_state.open_dialog_for_event(self.batch, BatchEventType.CONSUME)
+
+    @rx.event
+    async def open_move_dialog(self):
+        """Open the move batch dialog for the current batch."""
+        if not self.batch:
+            return
+        dialog_state = await self.get_state(MoveBatchFormDialogState)
+        dialog_state.set_callback_after_close(self._on_batch_event_success)
+        await dialog_state.open_move_dialog(self.batch)

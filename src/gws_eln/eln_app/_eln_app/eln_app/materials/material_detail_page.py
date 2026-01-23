@@ -29,14 +29,12 @@ def _details_sidebar() -> rx.Component:
             rx.cond(
                 MaterialDetailState.material.description,
                 rx.text(MaterialDetailState.material.description, size="2"),
-                rx.text("-", size="2", color="gray"),
             ),
             # Default Supplier
             rx.text("Default Supplier", size="2", color="gray", weight="medium"),
             rx.cond(
                 MaterialDetailState.material.default_supplier,
                 inline_supplier_component(MaterialDetailState.material.default_supplier),
-                rx.text("-", size="2", color="gray"),
             ),
             # Type
             rx.text("Type", size="2", color="gray", weight="medium"),

@@ -117,7 +117,6 @@ def _row(batch: MaterialBatchDTO) -> rx.Component:
             rx.cond(
                 batch.supplier,
                 inline_supplier_component(batch.supplier),
-                rx.text("-", size="2", color="gray"),
             )
         ),
         rx.table.cell(

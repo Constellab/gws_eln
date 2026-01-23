@@ -126,14 +126,12 @@ def _row(material: MaterialDTO) -> rx.Component:
             rx.cond(
                 material.description,
                 rx.text(material.description, size="2", color="gray"),
-                rx.text("-", size="2", color="gray"),
             )
         ),
         rx.table.cell(
             rx.cond(
                 material.default_supplier,
                 inline_supplier_component(material.default_supplier),
-                rx.text("-", size="2", color="gray"),
             )
         ),
         rx.table.cell(rx.box(consumable_badge(material.is_consumable), width="fit-content")),

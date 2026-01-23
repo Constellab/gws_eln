@@ -9,39 +9,15 @@ from gws_reflex_main import user_with_date_component
 
 from ..common.location.inline_location_component import inline_location_component
 from .activities_list_state import ALL_FILTER_VALUE, ActivitiesListState
+from .activity_type_component import activity_type_badge
 
 
-def _activity_type_badge(activity_type: ActivityType) -> rx.Component:
-    """Create a badge indicating the activity type.
-
-    :param activity_type: The activity type
-    :type activity_type: ActivityType
-    :return: The badge component
-    :rtype: rx.Component
-    """
-    return rx.match(
-        activity_type,
-        (ActivityType.RECEIVE.value, rx.badge("Received", color_scheme="green", size="1")),
-        (ActivityType.MOVE.value, rx.badge("Moved", color_scheme="blue", size="1")),
-        (ActivityType.CONSUME.value, rx.badge("Consumed", color_scheme="orange", size="1")),
-        (ActivityType.USE.value, rx.badge("Used", color_scheme="purple", size="1")),
-        (ActivityType.DISCARD.value, rx.badge("Discarded", color_scheme="red", size="1")),
-        (ActivityType.ALIQUOT.value, rx.badge("Aliquot", color_scheme="cyan", size="1")),
-        (
-            ActivityType.ALIQUOT_CREATED.value,
-            rx.badge("Created", color_scheme="teal", size="1"),
-        ),
-        (ActivityType.RELABEL.value, rx.badge("Relabeled", color_scheme="gray", size="1")),
-        rx.badge(activity_type, color_scheme="gray", size="1"),
-    )
-
-
-def _activity_description(activity: ActivityDTO) -> rx.Component:
-    """Create a description component based on activity type.
+def _type_specific_description(activity: ActivityDTO) -> rx.Component:
+    """Create a type-specific description component.
 
     :param activity: The activity DTO
     :type activity: ActivityDTO
-    :return: The description component
+    :return: The type-specific description component
     :rtype: rx.Component
     """
     return cast(
@@ -51,11 +27,10 @@ def _activity_description(activity: ActivityDTO) -> rx.Component:
             (
                 ActivityType.RECEIVE.value,
                 rx.hstack(
-                    rx.text("at", size="2", color="gray"),
+                    rx.text("From: ", size="2", color="gray"),
                     rx.cond(
                         activity.to_location,
                         inline_location_component(activity.to_location),
-                        rx.text("-", size="2", color="gray"),
                     ),
                     spacing="1",
                     align="center",
@@ -64,43 +39,19 @@ def _activity_description(activity: ActivityDTO) -> rx.Component:
             (
                 ActivityType.MOVE.value,
                 rx.hstack(
+                    rx.icon("map-pin", size=18, color="gray"),
                     rx.cond(
                         activity.from_location,
                         inline_location_component(activity.from_location),
-                        rx.text("-", size="2", color="gray"),
                     ),
                     rx.icon("arrow-right", size=14, color="gray"),
                     rx.cond(
                         activity.to_location,
                         inline_location_component(activity.to_location),
-                        rx.text("-", size="2", color="gray"),
                     ),
                     spacing="1",
                     align="center",
-                ),
-            ),
-            (
-                ActivityType.CONSUME.value,
-                rx.cond(
-                    activity.notes,
-                    rx.text(activity.notes, size="2", color="gray"),
-                    rx.text("-", size="2", color="gray"),
-                ),
-            ),
-            (
-                ActivityType.USE.value,
-                rx.cond(
-                    activity.notes,
-                    rx.text(activity.notes, size="2", color="gray"),
-                    rx.text("-", size="2", color="gray"),
-                ),
-            ),
-            (
-                ActivityType.DISCARD.value,
-                rx.cond(
-                    activity.notes,
-                    rx.text(activity.notes, size="2", color="gray"),
-                    rx.text("-", size="2", color="gray"),
+                    align_items="center",
                 ),
             ),
             (
@@ -111,16 +62,31 @@ def _activity_description(activity: ActivityDTO) -> rx.Component:
                 ActivityType.ALIQUOT_CREATED.value,
                 rx.text("Created from parent batch", size="2", color="gray"),
             ),
-            (
-                ActivityType.RELABEL.value,
-                rx.cond(
-                    activity.notes,
-                    rx.text(activity.notes, size="2", color="gray"),
-                    rx.text("-", size="2", color="gray"),
-                ),
-            ),
-            rx.text("-", size="2", color="gray"),
+            rx.fragment(),
         ),
+    )
+
+
+def _activity_description(activity: ActivityDTO) -> rx.Component:
+    """Create a description component based on activity type.
+
+    Shows type-specific description (for RECEIVE, MOVE, ALIQUOT, ALIQUOT_CREATED)
+    and always shows notes if present.
+
+    :param activity: The activity DTO
+    :type activity: ActivityDTO
+    :return: The description component
+    :rtype: rx.Component
+    """
+    return rx.vstack(
+        _type_specific_description(activity),
+        rx.cond(
+            activity.notes,
+            rx.text(activity.notes, size="2", color="gray"),
+            rx.fragment(),
+        ),
+        spacing="1",
+        align="start",
     )
 
 
@@ -170,7 +136,7 @@ def _row(activity: ActivityDTO) -> rx.Component:
     """
     return rx.table.row(
         rx.table.cell(
-            rx.box(_activity_type_badge(activity.activity_type), width="fit-content"),
+            rx.box(activity_type_badge(activity.activity_type), width="fit-content"),
         ),
         rx.table.cell(_activity_description(activity)),
         rx.table.cell(activity.pretty_quantity),

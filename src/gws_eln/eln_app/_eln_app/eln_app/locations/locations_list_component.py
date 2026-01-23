@@ -92,7 +92,6 @@ def _row(location: LocationDTO) -> rx.Component:
             rx.cond(
                 location.description,
                 rx.text(location.description, size="2", color="gray"),
-                rx.text("-", size="2", color="gray"),
             )
         ),
         rx.table.cell(user_inline_component(location.created_by, size="small")),

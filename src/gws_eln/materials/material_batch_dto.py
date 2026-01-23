@@ -36,27 +36,39 @@ class CreateBatchDTO(BaseModelDTO):
 
 
 class ReceiveBatchDTO(BaseModelDTO):
-    """DTO for receiving additional stock to an existing batch."""
+    """DTO for receiving additional stock to an existing batch.
+
+    The unit field accepts any valid unit string (e.g., 'mL', 'g', 'kg').
+    The quantity is converted from the given unit to the base unit for storage.
+    """
 
     quantity: Decimal
-    unit_type: UnitType
+    unit: str  # Exact unit (e.g., 'mL', 'g', 'kg') - converted to base unit for storage
     notes: str | None = None
 
 
 class IncrementQuantityDTO(BaseModelDTO):
-    """DTO for incrementing batch quantity."""
+    """DTO for incrementing batch quantity.
+
+    The unit field accepts any valid unit string (e.g., 'mL', 'g', 'kg').
+    The quantity is converted from the given unit to the base unit for storage.
+    """
 
     quantity: Decimal
-    unit_type: UnitType
+    unit: str  # Exact unit (e.g., 'mL', 'g', 'kg') - converted to base unit for storage
     notes: str | None = None
 
 
 class DecrementQuantityDTO(BaseModelDTO):
-    """DTO for decrementing batch quantity (consumables only)."""
+    """DTO for decrementing batch quantity (consumables only).
+
+    The unit field accepts any valid unit string (e.g., 'mL', 'g', 'kg').
+    The quantity is converted from the given unit to the base unit for storage.
+    """
 
     quantity: Decimal
-    unit_type: UnitType
-    notes: str
+    unit: str  # Exact unit (e.g., 'mL', 'g', 'kg') - converted to base unit for storage
+    notes: str | None = None
 
 
 class MoveBatchDTO(BaseModelDTO):

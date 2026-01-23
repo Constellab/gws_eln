@@ -154,7 +154,6 @@ class MaterialBatchService:
                 entity_id=batch.id,
                 quantity=base_quantity,
                 unit_type=unit_type,
-                to_location_id=location.id,
                 notes=dto.notes,
             )
         )
@@ -181,15 +180,11 @@ class MaterialBatchService:
         # Validate quantity is positive
         validated_quantity = QuantityValidator.validate_quantity(dto.quantity)
 
-        # Validate unit type matches batch's unit type
-        if dto.unit_type != batch.unit_type:
-            raise BadRequestException(
-                f"Unit type mismatch. Batch uses '{batch.unit_type.value}' "
-                f"but received '{dto.unit_type.value}'"
-            )
+        # Validate unit and convert to base unit
+        base_quantity = self._validate_and_convert_quantity(batch, validated_quantity, dto.unit)
 
         # Add quantity to existing (both in base units)
-        batch.quantity = batch.quantity + validated_quantity
+        batch.quantity = batch.quantity + base_quantity
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         batch.save()
@@ -199,9 +194,8 @@ class MaterialBatchService:
             CreateActivityDTO(
                 activity_type=ActivityType.RECEIVE,
                 entity_id=batch.id,
-                quantity=validated_quantity,
-                unit_type=dto.unit_type,
-                to_location_id=batch.location.id,
+                quantity=base_quantity,
+                unit_type=batch.unit_type,
                 notes=dto.notes,
             )
         )
@@ -228,15 +222,11 @@ class MaterialBatchService:
         # Validate quantity is positive
         validated_quantity = QuantityValidator.validate_quantity(dto.quantity)
 
-        # Validate unit type matches batch's unit type
-        if dto.unit_type != batch.unit_type:
-            raise BadRequestException(
-                f"Unit type mismatch. Batch uses '{batch.unit_type.value}' "
-                f"but received '{dto.unit_type.value}'"
-            )
+        # Validate unit and convert to base unit
+        base_quantity = self._validate_and_convert_quantity(batch, validated_quantity, dto.unit)
 
         # Add quantity to existing (both in base units)
-        batch.quantity = batch.quantity + validated_quantity
+        batch.quantity = batch.quantity + base_quantity
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         batch.save()
@@ -246,8 +236,8 @@ class MaterialBatchService:
             CreateActivityDTO(
                 activity_type=ActivityType.RECEIVE,
                 entity_id=batch.id,
-                quantity=validated_quantity,
-                unit_type=dto.unit_type,
+                quantity=base_quantity,
+                unit_type=batch.unit_type,
                 to_location_id=batch.location.id,
                 notes=dto.notes,
             )
@@ -256,7 +246,7 @@ class MaterialBatchService:
         return batch
 
     @ElnDbManager.transaction()
-    def decrement_quantity(self, batch_id: str, dto: DecrementQuantityDTO) -> MaterialBatch:
+    def consume_quantity(self, batch_id: str, dto: DecrementQuantityDTO) -> MaterialBatch:
         """
         Decrement batch quantity (consumables only).
 
@@ -283,17 +273,13 @@ class MaterialBatchService:
         # Validate quantity is positive
         validated_quantity = QuantityValidator.validate_quantity(dto.quantity)
 
-        # Validate unit type matches batch's unit type
-        if dto.unit_type != batch.unit_type:
-            raise BadRequestException(
-                f"Unit type mismatch. Batch uses '{batch.unit_type.value}' "
-                f"but received '{dto.unit_type.value}'"
-            )
+        # Validate unit and convert to base unit
+        base_quantity = self._validate_and_convert_quantity(batch, validated_quantity, dto.unit)
 
-        batch.validate_sufficient_quantity(validated_quantity)
+        batch.validate_sufficient_quantity(base_quantity)
 
         # Subtract quantity
-        batch.quantity = batch.quantity - validated_quantity
+        batch.quantity = batch.quantity - base_quantity
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         batch.save()
@@ -303,8 +289,8 @@ class MaterialBatchService:
             CreateActivityDTO(
                 activity_type=ActivityType.CONSUME,
                 entity_id=batch.id,
-                quantity=validated_quantity,
-                unit_type=dto.unit_type,
+                quantity=base_quantity,
+                unit_type=batch.unit_type,
                 notes=dto.notes,
             )
         )
@@ -538,6 +524,29 @@ class MaterialBatchService:
         if not material:
             raise BadRequestException(f"Material with ID '{material_id}' does not exist")
         return material
+
+    def _validate_and_convert_quantity(self, batch: MaterialBatch, quantity, unit: str):
+        """
+        Validate that the unit is valid for the batch's unit type and convert to base unit.
+
+        :param batch: The batch to validate against
+        :type batch: MaterialBatch
+        :param quantity: The quantity to convert (already validated as positive)
+        :param unit: The unit string (e.g., 'mL', 'g', 'kg')
+        :type unit: str
+        :return: Quantity converted to base unit
+        :raises BadRequestException: If unit is not valid for the batch's unit type
+        """
+        unit_type = batch.unit_type
+
+        if not UnitConverter.is_valid_unit(unit, unit_type):
+            valid_units = ", ".join(UnitConverter.get_valid_units(unit_type))
+            raise BadRequestException(
+                f"Invalid unit '{unit}' for batch '{batch.batch_number}' "
+                f"(unit type: {unit_type.value}). Valid units: {valid_units}"
+            )
+
+        return UnitConverter.to_base_unit(quantity, unit, unit_type)
 
     ########################## ALIQUOTS ##############################
 

@@ -4,6 +4,9 @@ import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
 
 from ..activities.activities_list_component import activities_list_component
+from ..batch_event_form_dialog.batch_event_form_dialog_component import (
+    batch_event_form_dialog,
+)
 from ..common.batch.batch_components import expiry_date_badge
 from ..common.detail_page_layout import detail_page_layout
 from ..common.eln_app_router import ElnAppRouter
@@ -13,6 +16,9 @@ from ..common.materials.material_components import (
 )
 from ..common.page_layout import page_layout
 from ..common.supplier.inline_supplier_component import inline_supplier_component
+from ..move_batch_form_dialog.move_batch_form_dialog_component import (
+    move_batch_dialog,
+)
 from .batch_detail_state import BatchDetailState
 
 
@@ -48,7 +54,6 @@ def _details_sidebar() -> rx.Component:
             rx.cond(
                 BatchDetailState.batch.label,
                 rx.text(BatchDetailState.batch.label, size="2"),
-                rx.text("-", size="2", color="gray"),
             ),
             # Material Name
             rx.text("Material", size="2", color="gray", weight="medium"),
@@ -61,7 +66,6 @@ def _details_sidebar() -> rx.Component:
             rx.cond(
                 BatchDetailState.batch.supplier,
                 inline_supplier_component(BatchDetailState.batch.supplier),
-                rx.text("-", size="2", color="gray"),
             ),
             # Quantity
             rx.text("Quantity", size="2", color="gray", weight="medium"),
@@ -83,14 +87,12 @@ def _details_sidebar() -> rx.Component:
                     rx.text("View parent", size="2"),
                     href=ElnAppRouter.get_batch_detail_url(BatchDetailState.batch.parent_batch_id),
                 ),
-                rx.text("-", size="2", color="gray"),
             ),
             # Notes
             rx.text("Notes", size="2", color="gray", weight="medium"),
             rx.cond(
                 BatchDetailState.batch.notes,
                 rx.text(BatchDetailState.batch.notes, size="2"),
-                rx.text("-", size="2", color="gray"),
             ),
             # Divider before technical info
             rx.divider(margin_top="0.5rem", margin_bottom="0.5rem", grid_column="span 2"),
@@ -148,6 +150,41 @@ def _back_button() -> rx.Component:
     )
 
 
+def _actions_menu() -> rx.Component:
+    """Create the actions dropdown menu for batch operations.
+
+    :return: The actions menu component
+    :rtype: rx.Component
+    """
+    return rx.menu.root(
+        rx.menu.trigger(
+            rx.button(
+                rx.icon("ellipsis-vertical", size=18),
+                variant="ghost",
+                size="2",
+            ),
+        ),
+        rx.menu.content(
+            rx.menu.item(
+                rx.icon("package-plus", size=16),
+                "Receive Stock",
+                on_click=BatchDetailState.open_receive_dialog,
+            ),
+            rx.menu.item(
+                rx.icon("flame", size=16),
+                "Consume Stock",
+                on_click=BatchDetailState.open_consume_dialog,
+            ),
+            rx.menu.separator(),
+            rx.menu.item(
+                rx.icon("arrow-right-from-line", size=16),
+                "Move Batch",
+                on_click=BatchDetailState.open_move_dialog,
+            ),
+        ),
+    )
+
+
 def batch_detail_page() -> rx.Component:
     """Create the batch detail page component.
 
@@ -195,32 +232,43 @@ def batch_detail_page() -> rx.Component:
                 ),
             ),
             header_content=rx.hstack(
+                rx.hstack(
+                    rx.cond(
+                        BatchDetailState.batch,
+                        _back_button(),
+                        rx.link(
+                            rx.icon_button(
+                                rx.icon("arrow-left", size=18),
+                                variant="ghost",
+                                size="2",
+                            ),
+                            href=ElnAppRouter.get_material_list_url(),
+                        ),
+                    ),
+                    rx.vstack(
+                        rx.heading(BatchDetailState.batch.batch_number, size="6"),
+                        rx.cond(
+                            BatchDetailState.batch.label,
+                            rx.text(
+                                f"{BatchDetailState.batch.label}",
+                                size="2",
+                                color="gray",
+                            ),
+                        ),
+                        spacing="0",
+                    ),
+                    align="center",
+                    spacing="2",
+                ),
                 rx.cond(
                     BatchDetailState.batch,
-                    _back_button(),
-                    rx.link(
-                        rx.icon_button(
-                            rx.icon("arrow-left", size=18),
-                            variant="ghost",
-                            size="2",
-                        ),
-                        href=ElnAppRouter.get_material_list_url(),
-                    ),
+                    _actions_menu(),
                 ),
-                rx.vstack(
-                    rx.heading(BatchDetailState.batch.batch_number, size="6"),
-                    rx.cond(
-                        BatchDetailState.batch.label,
-                        rx.text(
-                            f"{BatchDetailState.batch.label}",
-                            size="2",
-                            color="gray",
-                        ),
-                    ),
-                    spacing="0",
-                ),
+                justify="between",
                 align="center",
-                spacing="2",
+                width="100%",
             ),
-        )
+        ),
+        batch_event_form_dialog(),
+        move_batch_dialog(),
     )

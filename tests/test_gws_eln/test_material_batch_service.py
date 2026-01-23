@@ -27,7 +27,6 @@ from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.materials.material_batch_dto import (
     CreateBatchDTO,
     DecrementQuantityDTO,
-    IncrementQuantityDTO,
     MoveBatchDTO,
     ReceiveBatchDTO,
     RelabelBatchDTO,
@@ -290,7 +289,9 @@ class TestMaterialBatchService(BaseTestCase):
     def test_create_batch_empty_batch_number_fails(self):
         """Test creating a batch with empty batch number fails"""
         service = MaterialBatchService()
-        material = self._create_test_material("Empty Batch Number Material", unit_type=UnitType.COUNT)
+        material = self._create_test_material(
+            "Empty Batch Number Material", unit_type=UnitType.COUNT
+        )
         self._ensure_default_location()
 
         # Act & Assert
@@ -312,7 +313,9 @@ class TestMaterialBatchService(BaseTestCase):
     def test_create_batch_whitespace_batch_number_fails(self):
         """Test creating a batch with whitespace-only batch number fails"""
         service = MaterialBatchService()
-        material = self._create_test_material("Whitespace Batch Number Material", unit_type=UnitType.COUNT)
+        material = self._create_test_material(
+            "Whitespace Batch Number Material", unit_type=UnitType.COUNT
+        )
         self._ensure_default_location()
 
         # Act & Assert
@@ -334,7 +337,9 @@ class TestMaterialBatchService(BaseTestCase):
     def test_create_batch_negative_quantity_fails(self):
         """Test creating a batch with negative quantity fails"""
         service = MaterialBatchService()
-        material = self._create_test_material("Negative Quantity Material", unit_type=UnitType.COUNT)
+        material = self._create_test_material(
+            "Negative Quantity Material", unit_type=UnitType.COUNT
+        )
         self._ensure_default_location()
 
         # Act & Assert
@@ -399,7 +404,7 @@ class TestMaterialBatchService(BaseTestCase):
             batch_id=batch.id,
             dto=ReceiveBatchDTO(
                 quantity=Decimal("50"),
-                unit_type=UnitType.VOLUME,
+                unit="L",
                 notes="Additional stock received",
             ),
         )
@@ -439,7 +444,7 @@ class TestMaterialBatchService(BaseTestCase):
             batch_id=batch.id,
             dto=ReceiveBatchDTO(
                 quantity=Decimal("100"),
-                unit_type=UnitType.MASS,
+                unit="g",
                 notes="Receive activity test",
             ),
         )
@@ -485,21 +490,21 @@ class TestMaterialBatchService(BaseTestCase):
             batch.id,
             ReceiveBatchDTO(
                 quantity=Decimal("25"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             ),
         )
         service.receive_batch(
             batch.id,
             ReceiveBatchDTO(
                 quantity=Decimal("50"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             ),
         )
         updated_batch = service.receive_batch(
             batch.id,
             ReceiveBatchDTO(
                 quantity=Decimal("75"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             ),
         )
 
@@ -511,8 +516,8 @@ class TestMaterialBatchService(BaseTestCase):
         batch.delete_instance()
         material.delete_instance()
 
-    def test_receive_batch_unit_type_mismatch_fails(self):
-        """Test receiving stock with mismatched unit type fails"""
+    def test_receive_batch_invalid_unit_fails(self):
+        """Test receiving stock with invalid unit for batch's unit type fails"""
         service = MaterialBatchService()
         material = self._create_test_material("Unit Mismatch Material", True, UnitType.VOLUME)
         self._ensure_default_location()
@@ -527,17 +532,17 @@ class TestMaterialBatchService(BaseTestCase):
             )
         )
 
-        # Act & Assert - try to receive with MASS unit type
+        # Act & Assert - try to receive with mass unit (invalid for volume batch)
         with self.assertRaises(BadRequestException) as context:
             service.receive_batch(
                 batch.id,
                 ReceiveBatchDTO(
                     quantity=Decimal("50"),
-                    unit_type=UnitType.MASS,  # Mismatched!
+                    unit="g",  # Invalid: mass unit for volume batch
                 ),
             )
 
-        self.assertIn("Unit type mismatch", str(context.exception))
+        self.assertIn("Invalid unit 'g'", str(context.exception))
 
         # Cleanup
         Activity.delete().where(Activity.entity == batch).execute()
@@ -566,7 +571,7 @@ class TestMaterialBatchService(BaseTestCase):
                 batch.id,
                 ReceiveBatchDTO(
                     quantity=Decimal("-50"),
-                    unit_type=UnitType.COUNT,
+                    unit="units",
                 ),
             )
 
@@ -587,7 +592,7 @@ class TestMaterialBatchService(BaseTestCase):
                 "non-existent-id",
                 ReceiveBatchDTO(
                     quantity=Decimal("100"),
-                    unit_type=UnitType.COUNT,
+                    unit="units",
                 ),
             )
 
@@ -807,7 +812,7 @@ class TestMaterialBatchService(BaseTestCase):
             batch.id,
             ReceiveBatchDTO(
                 quantity=Decimal("50"),
-                unit_type=UnitType.COUNT,
+                unit="units",
             ),
         )
 
@@ -914,150 +919,6 @@ class TestMaterialBatchService(BaseTestCase):
         # Cleanup
         material.delete_instance()
 
-    # ============== INCREMENT QUANTITY TESTS (Story 5.2) ==============
-
-    def test_increment_quantity(self):
-        """Test incrementing batch quantity"""
-        service = MaterialBatchService()
-        material = self._create_test_material("Increment Test Material", True, UnitType.VOLUME)
-        self._ensure_default_location()
-
-        # Create initial batch (100 L)
-        batch = service.create_batch(
-            CreateBatchDTO(
-                material_id=material.id,
-                batch_number="INC-001",
-                quantity=Decimal("100"),
-                unit="L",
-            )
-        )
-
-        # Act - increment quantity
-        updated_batch = service.increment_quantity(
-            batch_id=batch.id,
-            dto=IncrementQuantityDTO(
-                quantity=Decimal("50"),
-                unit_type=UnitType.VOLUME,
-                notes="Additional stock received",
-            ),
-        )
-
-        # Assert
-        self.assertEqual(updated_batch.id, batch.id)
-        self.assertEqual(updated_batch.quantity, Decimal("150"))  # 100 + 50
-
-        # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
-        batch.delete_instance()
-        material.delete_instance()
-
-    def test_increment_quantity_creates_activity(self):
-        """Test that incrementing quantity logs a 'receive' activity"""
-        service = MaterialBatchService()
-        material = self._create_test_material("Inc Activity Material", True, UnitType.COUNT)
-        self._ensure_default_location()
-
-        # Create initial batch
-        batch = service.create_batch(
-            CreateBatchDTO(
-                material_id=material.id,
-                batch_number="INC-ACT",
-                quantity=Decimal("100"),
-                unit="units",
-            )
-        )
-        initial_activity_count = Activity.count_by_batch_id(batch.id)
-
-        # Act - increment quantity
-        service.increment_quantity(
-            batch_id=batch.id,
-            dto=IncrementQuantityDTO(
-                quantity=Decimal("25"),
-                unit_type=UnitType.COUNT,
-                notes="Test increment notes",
-            ),
-        )
-
-        # Assert - new activity created
-        activities = Activity.find_by_batch_id(batch.id)
-        self.assertEqual(len(activities), initial_activity_count + 1)
-
-        # Find the increment activity by notes
-        inc_activities = [a for a in activities if a.notes == "Test increment notes"]
-        self.assertEqual(len(inc_activities), 1)
-        self.assertEqual(inc_activities[0].activity_type, ActivityType.RECEIVE)
-        self.assertEqual(inc_activities[0].quantity, Decimal("25"))
-
-        # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
-        batch.delete_instance()
-        material.delete_instance()
-
-    def test_increment_quantity_unit_type_mismatch_fails(self):
-        """Test incrementing with mismatched unit type fails"""
-        service = MaterialBatchService()
-        material = self._create_test_material("Inc Mismatch Material", True, UnitType.VOLUME)
-        self._ensure_default_location()
-
-        # Create batch with VOLUME
-        batch = service.create_batch(
-            CreateBatchDTO(
-                material_id=material.id,
-                batch_number="INC-MIS",
-                quantity=Decimal("100"),
-                unit="L",
-            )
-        )
-
-        # Act & Assert - try to increment with MASS
-        with self.assertRaises(BadRequestException) as context:
-            service.increment_quantity(
-                batch.id,
-                IncrementQuantityDTO(
-                    quantity=Decimal("50"),
-                    unit_type=UnitType.MASS,
-                ),
-            )
-
-        self.assertIn("Unit type mismatch", str(context.exception))
-
-        # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
-        batch.delete_instance()
-        material.delete_instance()
-
-    def test_increment_quantity_negative_fails(self):
-        """Test incrementing with negative quantity fails"""
-        service = MaterialBatchService()
-        material = self._create_test_material("Inc Negative Material", True, UnitType.COUNT)
-        self._ensure_default_location()
-
-        batch = service.create_batch(
-            CreateBatchDTO(
-                material_id=material.id,
-                batch_number="INC-NEG",
-                quantity=Decimal("100"),
-                unit="units",
-            )
-        )
-
-        # Act & Assert
-        with self.assertRaises(BadRequestException) as context:
-            service.increment_quantity(
-                batch.id,
-                IncrementQuantityDTO(
-                    quantity=Decimal("-50"),
-                    unit_type=UnitType.COUNT,
-                ),
-            )
-
-        self.assertIn("positive", str(context.exception).lower())
-
-        # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
-        batch.delete_instance()
-        material.delete_instance()
-
     # ============== DECREMENT QUANTITY TESTS (Story 5.2) ==============
 
     def test_decrement_quantity_consumable(self):
@@ -1077,11 +938,11 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Act - decrement quantity
-        updated_batch = service.decrement_quantity(
+        updated_batch = service.consume_quantity(
             batch_id=batch.id,
             dto=DecrementQuantityDTO(
                 quantity=Decimal("30"),
-                unit_type=UnitType.VOLUME,
+                unit="L",
                 notes="Used in experiment",
             ),
         )
@@ -1113,11 +974,11 @@ class TestMaterialBatchService(BaseTestCase):
         initial_activity_count = Activity.count_by_batch_id(batch.id)
 
         # Act - decrement quantity
-        service.decrement_quantity(
+        service.consume_quantity(
             batch_id=batch.id,
             dto=DecrementQuantityDTO(
                 quantity=Decimal("25"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 notes="Test decrement note",
             ),
         )
@@ -1155,11 +1016,11 @@ class TestMaterialBatchService(BaseTestCase):
 
         # Act & Assert - try to decrement non-consumable
         with self.assertRaises(BadRequestException) as context:
-            service.decrement_quantity(
+            service.consume_quantity(
                 batch.id,
                 DecrementQuantityDTO(
                     quantity=Decimal("5"),
-                    unit_type=UnitType.COUNT,
+                    unit="units",
                     notes="Should fail",
                 ),
             )
@@ -1189,11 +1050,11 @@ class TestMaterialBatchService(BaseTestCase):
 
         # Act & Assert - try to decrement more than available
         with self.assertRaises(BadRequestException) as context:
-            service.decrement_quantity(
+            service.consume_quantity(
                 batch.id,
                 DecrementQuantityDTO(
                     quantity=Decimal("100"),  # More than available (50)
-                    unit_type=UnitType.COUNT,
+                    unit="units",
                     notes="Should fail",
                 ),
             )
@@ -1205,8 +1066,8 @@ class TestMaterialBatchService(BaseTestCase):
         batch.delete_instance()
         material.delete_instance()
 
-    def test_decrement_quantity_unit_type_mismatch_fails(self):
-        """Test decrementing with mismatched unit type fails"""
+    def test_decrement_quantity_invalid_unit_fails(self):
+        """Test decrementing with invalid unit for batch's unit type fails"""
         service = MaterialBatchService()
         material = self._create_test_material("Dec Mismatch Material", True, UnitType.VOLUME)
         self._ensure_default_location()
@@ -1220,18 +1081,18 @@ class TestMaterialBatchService(BaseTestCase):
             )
         )
 
-        # Act & Assert - try to decrement with MASS
+        # Act & Assert - try to decrement with mass unit (invalid for volume batch)
         with self.assertRaises(BadRequestException) as context:
-            service.decrement_quantity(
+            service.consume_quantity(
                 batch.id,
                 DecrementQuantityDTO(
                     quantity=Decimal("50"),
-                    unit_type=UnitType.MASS,
+                    unit="g",  # Invalid: mass unit for volume batch
                     notes="Should fail",
                 ),
             )
 
-        self.assertIn("Unit type mismatch", str(context.exception))
+        self.assertIn("Invalid unit 'g'", str(context.exception))
 
         # Cleanup
         Activity.delete().where(Activity.entity == batch).execute()
@@ -1254,11 +1115,11 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Act - decrement to exactly zero
-        updated_batch = service.decrement_quantity(
+        updated_batch = service.consume_quantity(
             batch.id,
             DecrementQuantityDTO(
                 quantity=Decimal("100"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 notes="Used all stock",
             ),
         )
@@ -1287,33 +1148,66 @@ class TestMaterialBatchService(BaseTestCase):
         )
 
         # Act - decrement multiple times
-        service.decrement_quantity(
+        service.consume_quantity(
             batch.id,
             DecrementQuantityDTO(
                 quantity=Decimal("20"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 notes="First use",
             ),
         )
-        service.decrement_quantity(
+        service.consume_quantity(
             batch.id,
             DecrementQuantityDTO(
                 quantity=Decimal("30"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 notes="Second use",
             ),
         )
-        updated_batch = service.decrement_quantity(
+        updated_batch = service.consume_quantity(
             batch.id,
             DecrementQuantityDTO(
                 quantity=Decimal("10"),
-                unit_type=UnitType.COUNT,
+                unit="units",
                 notes="Third use",
             ),
         )
 
         # Assert: 100 - 20 - 30 - 10 = 40
         self.assertEqual(updated_batch.quantity, Decimal("40"))
+
+        # Cleanup
+        Activity.delete().where(Activity.entity == batch).execute()
+        batch.delete_instance()
+        material.delete_instance()
+
+    def test_decrement_quantity_without_notes(self):
+        """Test decrementing quantity without notes (notes is optional)"""
+        service = MaterialBatchService()
+        material = self._create_test_material("Dec No Notes Material", True, UnitType.COUNT)
+        self._ensure_default_location()
+
+        batch = service.create_batch(
+            CreateBatchDTO(
+                material_id=material.id,
+                batch_number="DEC-NONOTES",
+                quantity=Decimal("100"),
+                unit="units",
+            )
+        )
+
+        # Act - decrement without notes
+        updated_batch = service.consume_quantity(
+            batch.id,
+            DecrementQuantityDTO(
+                quantity=Decimal("25"),
+                unit="units",
+                # notes is optional, not provided
+            ),
+        )
+
+        # Assert
+        self.assertEqual(updated_batch.quantity, Decimal("75"))  # 100 - 25
 
         # Cleanup
         Activity.delete().where(Activity.entity == batch).execute()
@@ -1674,7 +1568,7 @@ class TestMaterialBatchService(BaseTestCase):
         # Add additional activity (receive more stock)
         service.receive_batch(
             batch_id,
-            ReceiveBatchDTO(quantity=Decimal("50"), unit_type=UnitType.COUNT),
+            ReceiveBatchDTO(quantity=Decimal("50"), unit="units"),
         )
 
         # Verify more than 1 activity
@@ -1722,7 +1616,7 @@ class TestMaterialBatchService(BaseTestCase):
         # Add activity to ensure soft delete
         service.receive_batch(
             batch_id,
-            ReceiveBatchDTO(quantity=Decimal("50"), unit_type=UnitType.COUNT),
+            ReceiveBatchDTO(quantity=Decimal("50"), unit="units"),
         )
 
         # Verify batch is in list
@@ -1769,7 +1663,7 @@ class TestMaterialBatchService(BaseTestCase):
         # Add activity to ensure soft delete
         service.receive_batch(
             batch_id,
-            ReceiveBatchDTO(quantity=Decimal("50"), unit_type=UnitType.COUNT),
+            ReceiveBatchDTO(quantity=Decimal("50"), unit="units"),
         )
 
         # Discard the batch
@@ -1858,7 +1752,7 @@ class TestMaterialBatchService(BaseTestCase):
         # Add activity to ensure soft delete
         service.receive_batch(
             batch_id,
-            ReceiveBatchDTO(quantity=Decimal("50"), unit_type=UnitType.COUNT),
+            ReceiveBatchDTO(quantity=Decimal("50"), unit="units"),
         )
 
         # Act - delete batch with notes

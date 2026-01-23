@@ -92,7 +92,6 @@ def _row(supplier: SupplierDTO) -> rx.Component:
             rx.cond(
                 supplier.description,
                 rx.text(supplier.description, size="2", color="gray"),
-                rx.text("-", size="2", color="gray"),
             )
         ),
         rx.table.cell(user_inline_component(supplier.created_by, size="small")),

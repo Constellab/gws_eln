@@ -66,7 +66,6 @@ def expiry_date_badge(expiry_date: date | None, warning_days: int = 30) -> rx.Co
                 rx.moment(expiry_date, format="MMM D, YYYY"),
             ),
         ),
-        rx.text("-", size="2", color="gray"),
     )
 
 

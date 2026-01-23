@@ -110,3 +110,9 @@ class ActivitiesListState(ReflexMainState):
         """Clear all filters and reload activities."""
         self.filter_activity_type = ALL_FILTER_VALUE
         await self._load_activities()
+
+    @rx.event
+    async def refresh_activities(self):
+        """Refresh the activities list."""
+        with await self.authenticate_user():
+            await self._load_activities()
