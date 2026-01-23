@@ -113,7 +113,6 @@ class MaterialService:
         material.name = dto.name.strip()
         material.description = dto.description.strip() if dto.description else None
         material.default_supplier = supplier
-        material.is_consumable = dto.is_consumable
         material.default_unit_type = dto.default_unit_type
 
         # Save (last_modified_by updated automatically by ModelWithUser)

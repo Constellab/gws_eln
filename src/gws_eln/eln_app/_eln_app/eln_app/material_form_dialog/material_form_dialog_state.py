@@ -90,7 +90,9 @@ class MaterialFormDialogState(FormDialogState, rx.State):
         # Initialize form fields with material data
         self.form_name = material.name
         self.form_description = material.description or ""
-        self.form_supplier_id = material.default_supplier.id if material.default_supplier else self.NO_SUPPLIER_VALUE
+        self.form_supplier_id = (
+            material.default_supplier.id if material.default_supplier else self.NO_SUPPLIER_VALUE
+        )
         self.form_is_consumable = material.is_consumable
         self.form_unit_type = material.default_unit_type.value
 
@@ -115,7 +117,9 @@ class MaterialFormDialogState(FormDialogState, rx.State):
         """Handle unit type selection change."""
         self.form_unit_type = value
 
-    def _validate_form_data(self, form_data: dict) -> tuple[str, str | None, str | None, bool, UnitType]:
+    def _validate_form_data(
+        self, form_data: dict
+    ) -> tuple[str, str | None, str | None, bool, UnitType]:
         """Validate and parse form data.
 
         Args:
@@ -133,7 +137,11 @@ class MaterialFormDialogState(FormDialogState, rx.State):
 
         # Get values from state (for select/checkbox components)
         # Convert __none__ back to None for the service
-        supplier_id = self.form_supplier_id if self.form_supplier_id and self.form_supplier_id != self.NO_SUPPLIER_VALUE else None
+        supplier_id = (
+            self.form_supplier_id
+            if self.form_supplier_id and self.form_supplier_id != self.NO_SUPPLIER_VALUE
+            else None
+        )
         is_consumable = self.form_is_consumable
         unit_type = UnitType(self.form_unit_type)
 
@@ -153,7 +161,9 @@ class MaterialFormDialogState(FormDialogState, rx.State):
             Reflex events (rx.toast)
         """
         # Validate and parse form data
-        name, description, supplier_id, is_consumable, unit_type = self._validate_form_data(form_data)
+        name, description, supplier_id, is_consumable, unit_type = self._validate_form_data(
+            form_data
+        )
 
         main_state: ReflexMainState
         async with self:
@@ -188,7 +198,9 @@ class MaterialFormDialogState(FormDialogState, rx.State):
             Reflex events (rx.toast)
         """
         # Validate and parse form data
-        name, description, supplier_id, is_consumable, unit_type = self._validate_form_data(form_data)
+        name, description, supplier_id, is_consumable, unit_type = self._validate_form_data(
+            form_data
+        )
 
         main_state: ReflexMainState
         async with self:
@@ -202,7 +214,6 @@ class MaterialFormDialogState(FormDialogState, rx.State):
                 name=name,
                 description=description,
                 supplier_id=supplier_id,
-                is_consumable=is_consumable,
                 default_unit_type=unit_type,
             )
             material = material_service.update_material(self._editing_material.id, dto)

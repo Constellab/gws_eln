@@ -7,7 +7,11 @@ from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location import Location
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material import Material
-from gws_eln.materials.material_batch_dto import MaterialBatchDTO, MaterialBatchSimpleDTO
+from gws_eln.materials.material_batch_dto import (
+    HierarchyObjectDTO,
+    MaterialBatchDTO,
+    MaterialBatchSimpleDTO,
+)
 from gws_eln.suppliers.supplier import Supplier
 from gws_eln.utils.units_converter import UnitConverter
 
@@ -118,12 +122,58 @@ class MaterialBatch(ModelWithUser):
             id=self.id,
             batch_number=self.batch_number,
             label=self.label,
-            quantity=self.quantity,
-            unit_type=self.unit_type,
-            pretty_quantity=self.get_pretty_quantity(),
-            created_at=self.created_at,
-            last_modified_at=self.last_modified_at,
         )
+
+    def get_parent_hierarchy(
+        self,
+        include_self: bool = False,
+        include_material: bool = False,
+    ) -> list[HierarchyObjectDTO]:
+        """Get the full hierarchy of parent batches.
+
+        Returns a list of all parent batches from the immediate parent
+        up to the root (original batch), ordered from closest to furthest ancestor.
+
+        :param include_self: If True, include the current batch at the beginning of the list.
+        :type include_self: bool
+        :param include_material: If True, include the material at the end of the hierarchy.
+        :type include_material: bool
+        :return: List of parent batches as HierarchyObjectDTO, ordered from
+                 current batch (if include_self) -> immediate parent -> root -> material (if include_material).
+        :rtype: list[HierarchyObjectDTO]
+        """
+        hierarchy: list[HierarchyObjectDTO] = []
+
+        if include_self:
+            hierarchy.append(
+                HierarchyObjectDTO(
+                    id=self.id,
+                    name=self.batch_number,
+                    sub_name=self.label,
+                )
+            )
+
+        current = self.parent_batch
+        while current is not None:
+            hierarchy.append(
+                HierarchyObjectDTO(
+                    id=current.id,
+                    name=current.batch_number,
+                    sub_name=current.label,
+                )
+            )
+            current = current.parent_batch
+
+        if include_material:
+            hierarchy.append(
+                HierarchyObjectDTO(
+                    id=self.material.id,
+                    name=self.material.name,
+                    sub_name=None,
+                )
+            )
+
+        return hierarchy
 
     def to_dto(self) -> MaterialBatchDTO:
         """Convert the MaterialBatch model to a MaterialBatchDTO.

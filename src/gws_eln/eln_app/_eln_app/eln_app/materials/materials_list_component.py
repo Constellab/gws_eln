@@ -5,6 +5,7 @@ from gws_eln.materials.material_dto import MaterialDTO
 from gws_reflex_main import main_component, user_inline_component
 
 from ..common.batch.batch_components import consumable_badge
+from ..common.materials.material_actions_menu import material_actions_menu
 from ..common.page_layout import page_layout
 from ..common.supplier.inline_supplier_component import inline_supplier_component
 from ..common.supplier.supplier_select_component import supplier_select_component
@@ -85,33 +86,6 @@ def _create_material_button() -> rx.Component:
     )
 
 
-def _actions_menu(material: MaterialDTO) -> rx.Component:
-    """Create the actions menu for a material.
-
-    :param material: The material DTO
-    :type material: MaterialDTO
-    :return: The actions menu component
-    :rtype: rx.Component
-    """
-    return rx.menu.root(
-        rx.menu.trigger(rx.button(rx.icon("ellipsis-vertical", size=18), variant="soft", size="2")),
-        rx.menu.content(
-            rx.menu.item(
-                rx.icon("pencil", size=16),
-                "Update",
-                on_click=lambda: MaterialsListState.open_update_dialog(material),
-            ),
-            rx.menu.separator(),
-            rx.menu.item(
-                rx.icon("trash-2", size=16),
-                "Delete",
-                color="red",
-                on_click=lambda: MaterialsListState.open_delete_dialog(material),
-            ),
-        ),
-    )
-
-
 def _row(material: MaterialDTO) -> rx.Component:
     """Create a table row for a material.
 
@@ -139,7 +113,11 @@ def _row(material: MaterialDTO) -> rx.Component:
         rx.table.cell(rx.moment(material.created_at, format="MMM D, YYYY")),
         rx.table.cell(
             rx.box(
-                _actions_menu(material),
+                material_actions_menu(
+                    on_update=lambda: MaterialsListState.open_update_dialog(material),
+                    on_delete=lambda: MaterialsListState.open_delete_dialog(material),
+                    stop_propagation=True,
+                ),
                 display="flex",
                 justify_content="flex-end",
                 align_items="center",

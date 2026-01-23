@@ -4,11 +4,11 @@ Material Batch DTOs for create, receive, and other operations.
 Defines data transfer objects for MaterialBatchService operations.
 """
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 
-from gws_core import BaseModelDTO, ModelDTO, UserDTO
+from gws_core import BaseModelDTO, UserDTO
 
 from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location_dto import LocationDTO
@@ -129,19 +129,20 @@ class CreateAliquotDTO(BaseModelDTO):
     supplier_id: str | None = None  # Default to None
 
 
-class MaterialBatchSimpleDTO(ModelDTO):
+class MaterialBatchSimpleDTO(BaseModelDTO):
     """Simple DTO for material batch with minimal fields."""
 
+    id: str
     batch_number: str
     label: str | None
-    quantity: Decimal
-    unit_type: UnitType
-    pretty_quantity: str  # Pre-formatted quantity string for display
 
 
 class MaterialBatchDTO(MaterialBatchSimpleDTO):
     """DTO for displaying material batch information in the frontend."""
 
+    quantity: Decimal
+    unit_type: UnitType
+    pretty_quantity: str  # Pre-formatted quantity string for display
     material: MaterialDTO
     location: LocationDTO
     parent_batch: MaterialBatchSimpleDTO | None
@@ -149,5 +150,15 @@ class MaterialBatchDTO(MaterialBatchSimpleDTO):
     expiry_date: date | None
     notes: str | None
     status: BatchStatus
+    created_at: datetime
+    last_modified_at: datetime
     created_by: UserDTO
     last_modified_by: UserDTO
+
+
+class HierarchyObjectDTO(BaseModelDTO):
+    """DTO for representing a batch in a hierarchy view."""
+
+    id: str
+    name: str
+    sub_name: str | None

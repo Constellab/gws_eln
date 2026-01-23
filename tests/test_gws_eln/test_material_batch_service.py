@@ -25,6 +25,7 @@ from gws_eln.locations.location_service import DEFAULT_LOCATION_NAME, LocationSe
 from gws_eln.materials.material import Material
 from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.materials.material_batch_dto import (
+    CreateAliquotDTO,
     CreateBatchDTO,
     DecrementQuantityDTO,
     DeleteBatchResultDTO,
@@ -2014,3 +2015,92 @@ class TestMaterialBatchService(BaseTestCase):
                 "non-existent-batch-id",
                 RelabelBatchDTO(batch_number="NEW-NUM"),
             )
+
+    # ============== GET PARENT HIERARCHY TESTS ==============
+
+    def test_get_parent_hierarchy(self):
+        """Test getting the parent hierarchy of a batch with aliquots"""
+        service = MaterialBatchService()
+        material = self._create_test_material("Hierarchy Material", True, UnitType.VOLUME)
+        self._ensure_default_location()
+
+        # Create parent batch
+        parent_batch = service.create_batch(
+            CreateBatchDTO(
+                material_id=material.id,
+                batch_number="PARENT-HIER",
+                quantity=Decimal("100"),
+                unit="L",
+            )
+        )
+
+        # Create first aliquot from parent
+        aliquot1 = service.create_aliquot(
+            CreateAliquotDTO(
+                parent_batch_id=parent_batch.id,
+                source_quantity=Decimal("20"),
+                source_unit="L",
+                aliquot_quantity=Decimal("20"),
+                aliquot_unit="L",
+                aliquot_batch_number="ALIQUOT-1",
+            )
+        )
+
+        # Create second aliquot from first aliquot (grandchild)
+        aliquot2 = service.create_aliquot(
+            CreateAliquotDTO(
+                parent_batch_id=aliquot1.id,
+                source_quantity=Decimal("5"),
+                source_unit="L",
+                aliquot_quantity=Decimal("5"),
+                aliquot_unit="L",
+                aliquot_batch_number="ALIQUOT-2",
+            )
+        )
+
+        # Test hierarchy without include_self and include_material
+        hierarchy = service.get_parent_hierarchy(aliquot2.id)
+        self.assertEqual(len(hierarchy), 2)
+        self.assertEqual(hierarchy[0].id, aliquot1.id)
+        self.assertEqual(hierarchy[0].name, "ALIQUOT-1")
+        self.assertEqual(hierarchy[1].id, parent_batch.id)
+        self.assertEqual(hierarchy[1].name, "PARENT-HIER")
+
+        # Test hierarchy with include_self=True
+        hierarchy_with_self = service.get_parent_hierarchy(aliquot2.id, include_self=True)
+        self.assertEqual(len(hierarchy_with_self), 3)
+        self.assertEqual(hierarchy_with_self[0].id, aliquot2.id)
+        self.assertEqual(hierarchy_with_self[0].name, "ALIQUOT-2")
+        self.assertEqual(hierarchy_with_self[1].id, aliquot1.id)
+        self.assertEqual(hierarchy_with_self[2].id, parent_batch.id)
+
+        # Test hierarchy with include_material=True
+        hierarchy_with_material = service.get_parent_hierarchy(aliquot2.id, include_material=True)
+        self.assertEqual(len(hierarchy_with_material), 3)
+        self.assertEqual(hierarchy_with_material[0].id, aliquot1.id)
+        self.assertEqual(hierarchy_with_material[1].id, parent_batch.id)
+        self.assertEqual(hierarchy_with_material[2].id, material.id)
+        self.assertEqual(hierarchy_with_material[2].name, "Hierarchy Material")
+
+        # Test hierarchy with both flags
+        hierarchy_full = service.get_parent_hierarchy(
+            aliquot2.id, include_self=True, include_material=True
+        )
+        self.assertEqual(len(hierarchy_full), 4)
+        self.assertEqual(hierarchy_full[0].id, aliquot2.id)
+        self.assertEqual(hierarchy_full[1].id, aliquot1.id)
+        self.assertEqual(hierarchy_full[2].id, parent_batch.id)
+        self.assertEqual(hierarchy_full[3].id, material.id)
+
+        # Test parent batch has empty hierarchy (no parent)
+        parent_hierarchy = service.get_parent_hierarchy(parent_batch.id)
+        self.assertEqual(len(parent_hierarchy), 0)
+
+        # Cleanup
+        Activity.delete().where(Activity.batch == aliquot2).execute()
+        Activity.delete().where(Activity.batch == aliquot1).execute()
+        Activity.delete().where(Activity.batch == parent_batch).execute()
+        aliquot2.delete_instance()
+        aliquot1.delete_instance()
+        parent_batch.delete_instance()
+        material.delete_instance()

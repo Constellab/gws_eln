@@ -5,14 +5,29 @@ from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material_batch_dto import MaterialBatchDTO
 from gws_reflex_main import user_with_date_component
 
+from ..aliquot_form_dialog.aliquot_form_dialog_component import aliquot_form_dialog
+from ..batch_event_form_dialog.batch_event_form_dialog_component import (
+    batch_event_form_dialog,
+)
+from ..common.batch.batch_actions_menu import batch_actions_menu
 from ..common.batch.batch_components import batch_inline, expiry_date_badge
 from ..common.batch.batch_status_select_component import batch_status_select_component
 from ..common.location.inline_location_component import inline_location_component
 from ..common.location.location_select_component import location_select_component
 from ..common.supplier.inline_supplier_component import inline_supplier_component
 from ..common.supplier.supplier_select_component import supplier_select_component
+from ..delete_batch_form_dialog.delete_batch_form_dialog_component import (
+    delete_batch_dialog,
+)
 from ..material_batch_form_dialog.material_batch_form_dialog_component import (
     create_material_batch_dialog,
+)
+from ..move_batch_form_dialog.move_batch_form_dialog_component import move_batch_dialog
+from ..relabel_batch_form_dialog.relabel_batch_form_dialog_component import (
+    relabel_batch_dialog,
+)
+from ..update_batch_form_dialog.update_batch_form_dialog_component import (
+    update_batch_dialog,
 )
 from .batches_list_state import ALL_FILTER_VALUE, BatchesListState
 
@@ -131,6 +146,19 @@ def _row(batch: MaterialBatchDTO) -> rx.Component:
                 size="small",
             )
         ),
+        rx.table.cell(
+            batch_actions_menu(
+                batch=batch,
+                on_receive=lambda: BatchesListState.open_receive_dialog(batch),
+                on_consume=lambda: BatchesListState.open_consume_dialog(batch),
+                on_aliquot=lambda: BatchesListState.open_aliquot_dialog(batch),
+                on_move=lambda: BatchesListState.open_move_dialog(batch),
+                on_update=lambda: BatchesListState.open_update_dialog(batch),
+                on_relabel=lambda: BatchesListState.open_relabel_dialog(batch),
+                on_delete=lambda: BatchesListState.open_delete_dialog(batch),
+                stop_propagation=True,
+            ),
+        ),
         on_click=rx.redirect(f"/batches/{batch.id}"),
         style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
     )
@@ -196,6 +224,7 @@ def _batches_table() -> rx.Component:
                         rx.table.column_header_cell("Expiry Date"),
                         rx.table.column_header_cell("Status"),
                         rx.table.column_header_cell("Creation"),
+                        rx.table.column_header_cell("Actions"),
                     ),
                 ),
                 rx.table.body(rx.foreach(BatchesListState.batches, _row)),
@@ -237,6 +266,12 @@ def batches_list_component(material_id: rx.Var[str]) -> rx.Component:
             _batches_header(),
             _batches_table(),
             create_material_batch_dialog(),
+            batch_event_form_dialog(),
+            move_batch_dialog(),
+            update_batch_dialog(),
+            relabel_batch_dialog(),
+            delete_batch_dialog(),
+            aliquot_form_dialog(),
             width="100%",
             spacing="4",
             on_mount=BatchesListState.fetch_batches_on_mount(material_id),

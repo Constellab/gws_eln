@@ -405,7 +405,6 @@ class TestMaterialService(BaseTestCase):
             dto=UpdateMaterialDTO(
                 name="Updated Name",
                 description="Updated description",
-                is_consumable=False,
                 default_unit_type=UnitType.VOLUME,
             ),
         )
@@ -414,7 +413,6 @@ class TestMaterialService(BaseTestCase):
         self.assertEqual(updated.id, original_id)
         self.assertEqual(updated.name, "Updated Name")
         self.assertEqual(updated.description, "Updated description")
-        self.assertFalse(updated.is_consumable)
         self.assertEqual(updated.default_unit_type, UnitType.VOLUME)
 
         # Verify in database

@@ -1,20 +1,41 @@
 """State for the batches list component."""
 
+from typing import cast
+
 import reflex as rx
+from gws_core import Logger
 from gws_eln.materials.batch_status import BatchStatus
-from gws_eln.materials.material_batch_dto import MaterialBatchDTO
+from gws_eln.materials.material_batch import MaterialBatch
+from gws_eln.materials.material_batch_dto import DeleteBatchResultDTO, MaterialBatchDTO
 from gws_eln.materials.material_batch_search_builder import MaterialBatchSearchBuilder
 from gws_reflex_main import ReflexMainState
 
+from ..aliquot_form_dialog.aliquot_form_dialog_state import AliquotFormDialogState
+from ..batch_event_form_dialog.batch_event_form_dialog_state import (
+    BatchEventFormDialogState,
+    BatchEventType,
+)
+from ..delete_batch_form_dialog.delete_batch_form_dialog_state import (
+    DeleteBatchFormDialogState,
+)
 from ..material_batch_form_dialog.material_batch_form_dialog_state import (
     MaterialBatchFormDialogState,
+)
+from ..move_batch_form_dialog.move_batch_form_dialog_state import (
+    MoveBatchFormDialogState,
+)
+from ..relabel_batch_form_dialog.relabel_batch_form_dialog_state import (
+    RelabelBatchFormDialogState,
+)
+from ..update_batch_form_dialog.update_batch_form_dialog_state import (
+    UpdateBatchFormDialogState,
 )
 
 # Constants for "all" filter options
 ALL_FILTER_VALUE = "__all__"
 
 
-class BatchesListState(ReflexMainState):
+class BatchesListState(rx.State):
     """State for managing the batches list component.
 
     This state handles fetching and displaying the list of batches
@@ -84,7 +105,7 @@ class BatchesListState(ReflexMainState):
                 status = BatchStatus(self.filter_status)
                 search_builder.add_status_filter(status)
 
-            batches = search_builder.search_all()
+            batches = cast(list[MaterialBatch], search_builder.search_all())
 
             self._batches = [batch.to_dto() for batch in batches]
 
@@ -109,12 +130,15 @@ class BatchesListState(ReflexMainState):
             self._material_id = material_id
             self._batches = []
             self.is_loading = True
+            main_state = await self.get_state(ReflexMainState)
 
         try:
-            with await self.authenticate_user():
+            with await main_state.authenticate_user():
                 async with self:
                     await self._load_batches()
-        except Exception:
+        except Exception as e:
+            Logger.error(f"Error loading batches: {str(e)}")
+            Logger.log_exception_stack_trace(e)
             async with self:
                 self._batches = []
                 self.is_loading = False
@@ -193,3 +217,89 @@ class BatchesListState(ReflexMainState):
     async def _reload_batches(self, _):
         """Reload the batches list (can be called after batch creation/update)."""
         await self._load_batches()
+
+    async def _on_delete_success(self, result: DeleteBatchResultDTO):
+        """Callback after batch delete (discarded or deleted).
+
+        :param result: The result of the delete operation
+        :type result: DeleteBatchResultDTO
+        """
+        await self._load_batches()
+        yield
+
+    @rx.event
+    async def open_receive_dialog(self, batch: MaterialBatchDTO):
+        """Open the receive stock dialog for a batch.
+
+        :param batch: The batch to receive stock for
+        :type batch: MaterialBatchDTO
+        """
+        dialog_state = await self.get_state(BatchEventFormDialogState)
+        dialog_state.set_callback_after_close(self._reload_batches)
+        dialog_state.open_dialog_for_event(batch, BatchEventType.RECEIVE)
+
+    @rx.event
+    async def open_consume_dialog(self, batch: MaterialBatchDTO):
+        """Open the consume stock dialog for a batch.
+
+        :param batch: The batch to consume stock from
+        :type batch: MaterialBatchDTO
+        """
+        dialog_state = await self.get_state(BatchEventFormDialogState)
+        dialog_state.set_callback_after_close(self._reload_batches)
+        dialog_state.open_dialog_for_event(batch, BatchEventType.CONSUME)
+
+    @rx.event
+    async def open_aliquot_dialog(self, batch: MaterialBatchDTO):
+        """Open the aliquot creation dialog for a batch.
+
+        :param batch: The batch to create aliquot from
+        :type batch: MaterialBatchDTO
+        """
+        dialog_state = await self.get_state(AliquotFormDialogState)
+        dialog_state.set_callback_after_close(self._reload_batches)
+        dialog_state.open_dialog(batch)
+
+    @rx.event
+    async def open_move_dialog(self, batch: MaterialBatchDTO):
+        """Open the move batch dialog for a batch.
+
+        :param batch: The batch to move
+        :type batch: MaterialBatchDTO
+        """
+        dialog_state = await self.get_state(MoveBatchFormDialogState)
+        dialog_state.set_callback_after_close(self._reload_batches)
+        await dialog_state.open_move_dialog(batch)
+
+    @rx.event
+    async def open_update_dialog(self, batch: MaterialBatchDTO):
+        """Open the update batch dialog for a batch.
+
+        :param batch: The batch to update
+        :type batch: MaterialBatchDTO
+        """
+        dialog_state = await self.get_state(UpdateBatchFormDialogState)
+        dialog_state.set_callback_after_close(self._reload_batches)
+        await dialog_state.open_update_dialog(batch)
+
+    @rx.event
+    async def open_relabel_dialog(self, batch: MaterialBatchDTO):
+        """Open the relabel batch dialog for a batch.
+
+        :param batch: The batch to relabel
+        :type batch: MaterialBatchDTO
+        """
+        dialog_state = await self.get_state(RelabelBatchFormDialogState)
+        dialog_state.set_callback_after_close(self._reload_batches)
+        await dialog_state.open_relabel_dialog(batch)
+
+    @rx.event
+    async def open_delete_dialog(self, batch: MaterialBatchDTO):
+        """Open the delete batch dialog for a batch.
+
+        :param batch: The batch to delete
+        :type batch: MaterialBatchDTO
+        """
+        dialog_state = await self.get_state(DeleteBatchFormDialogState)
+        dialog_state.set_callback_after_close(self._on_delete_success)
+        await dialog_state.open_delete_dialog(batch)

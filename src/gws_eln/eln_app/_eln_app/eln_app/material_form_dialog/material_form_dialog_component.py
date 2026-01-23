@@ -73,19 +73,22 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Consumable checkbox
-        rx.hstack(
-            rx.checkbox(
-                checked=MaterialFormDialogState.form_is_consumable,
-                on_change=MaterialFormDialogState.set_is_consumable,
+        # Consumable checkbox (only shown in create mode)
+        rx.cond(
+            ~MaterialFormDialogState.is_update_mode,
+            rx.hstack(
+                rx.checkbox(
+                    checked=MaterialFormDialogState.form_is_consumable,
+                    on_change=MaterialFormDialogState.set_is_consumable,
+                ),
+                rx.text("Consumable material", size="2"),
+                rx.tooltip(
+                    rx.icon("info", size=14, color="gray"),
+                    content="Consumable materials (chemicals, reagents) have quantity that decreases with use. Non-consumables (instruments, equipment) are tracked by reference only.",
+                ),
+                spacing="2",
+                align="center",
             ),
-            rx.text("Consumable material", size="2"),
-            rx.tooltip(
-                rx.icon("info", size=14, color="gray"),
-                content="Consumable materials (chemicals, reagents) have quantity that decreases with use. Non-consumables (instruments, equipment) are tracked by reference only.",
-            ),
-            spacing="2",
-            align="center",
         ),
         width="100%",
         spacing="3",

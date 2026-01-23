@@ -22,6 +22,7 @@ from gws_eln.materials.material_batch_dto import (
     CreateBatchDTO,
     DecrementQuantityDTO,
     DeleteBatchResultDTO,
+    HierarchyObjectDTO,
     MoveBatchDTO,
     ReceiveBatchDTO,
     RelabelBatchDTO,
@@ -56,6 +57,34 @@ class MaterialBatchService:
         """
         CurrentUserService.get_and_check_current_user()
         return MaterialBatch.get_by_id_and_check(batch_id)
+
+    def get_parent_hierarchy(
+        self,
+        batch_id: str,
+        include_self: bool = False,
+        include_material: bool = False,
+    ) -> list[HierarchyObjectDTO]:
+        """
+        Get the full hierarchy of parent batches for a given batch.
+
+        Returns a list of all parent batches from the immediate parent
+        up to the root (original batch), ordered from closest to furthest ancestor.
+
+        :param batch_id: The ID of the batch to get parent hierarchy for
+        :type batch_id: str
+        :param include_self: If True, include the current batch at the beginning.
+        :type include_self: bool
+        :param include_material: If True, include the material at the end.
+        :type include_material: bool
+        :return: List as HierarchyObjectDTO, ordered from current batch (if include_self)
+                 -> immediate parent -> root -> material (if include_material).
+        :rtype: list[HierarchyObjectDTO]
+        :raises NotFoundException: If batch not found
+        """
+        return self.get_batch(batch_id).get_parent_hierarchy(
+            include_self=include_self,
+            include_material=include_material,
+        )
 
     def list_batches(
         self,

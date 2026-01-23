@@ -4,7 +4,7 @@ from gws_eln.materials.material_dto import MaterialDTO
 from ..eln_app_router import ElnAppRouter
 
 
-def inline_material_component(material: MaterialDTO) -> rx.Component:
+def inline_material_link(material: MaterialDTO) -> rx.Component:
     """Create an inline component for a material link.
 
     :param material: The material DTO

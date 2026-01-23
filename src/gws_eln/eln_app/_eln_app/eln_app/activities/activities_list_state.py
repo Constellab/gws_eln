@@ -10,7 +10,7 @@ from gws_reflex_main import ReflexMainState
 ALL_FILTER_VALUE = "__all__"
 
 
-class ActivitiesListState(ReflexMainState):
+class ActivitiesListState(rx.State):
     """State for managing the activities list component.
 
     This state handles fetching and displaying the list of activities
@@ -86,9 +86,10 @@ class ActivitiesListState(ReflexMainState):
             self._batch_id = batch_id
             self._activities = []
             self.is_loading = True
+            main_state = await self.get_state(ReflexMainState)
 
         try:
-            with await self.authenticate_user():
+            with await main_state.authenticate_user():
                 async with self:
                     await self._load_activities()
         except Exception as e:
@@ -118,5 +119,6 @@ class ActivitiesListState(ReflexMainState):
     @rx.event
     async def refresh_activities(self):
         """Refresh the activities list."""
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             await self._load_activities()

@@ -50,6 +50,7 @@ def _form_content() -> rx.Component:
                 placeholder="Select a location",
                 value=MaterialBatchFormDialogState.form_location_id,
                 on_change=MaterialBatchFormDialogState.set_location_id,
+                required=True,
             ),
             width="100%",
             spacing="1",

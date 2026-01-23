@@ -10,12 +10,13 @@ from ..aliquot_form_dialog.aliquot_form_dialog_component import (
 from ..batch_event_form_dialog.batch_event_form_dialog_component import (
     batch_event_form_dialog,
 )
+from ..common.batch.batch_actions_menu import batch_actions_menu
 from ..common.batch.batch_components import batch_inline_link, expiry_date_badge
 from ..common.detail_page_layout import detail_page_layout
 from ..common.eln_app_router import ElnAppRouter
 from ..common.location.inline_location_component import inline_location_component
 from ..common.materials.material_components import (
-    inline_material_component,
+    inline_material_link,
 )
 from ..common.page_layout import page_layout
 from ..common.supplier.inline_supplier_component import inline_supplier_component
@@ -71,7 +72,7 @@ def _details_sidebar() -> rx.Component:
             ),
             # Material Name
             rx.text("Material", size="2", color="gray", weight="medium"),
-            inline_material_component(BatchDetailState.batch.material),
+            inline_material_link(BatchDetailState.batch.material),
             # Location
             rx.text("Location", size="2", color="gray", weight="medium"),
             inline_location_component(BatchDetailState.batch.location),
@@ -175,58 +176,15 @@ def _actions_menu() -> rx.Component:
     :return: The actions menu component
     :rtype: rx.Component
     """
-    return rx.menu.root(
-        rx.menu.trigger(
-            rx.button(
-                rx.icon("ellipsis-vertical", size=18),
-                variant="ghost",
-                size="2",
-            ),
-        ),
-        rx.menu.content(
-            rx.menu.item(
-                rx.icon("package-plus", size=16),
-                "Receive Stock",
-                on_click=BatchDetailState.open_receive_dialog,
-            ),
-            rx.menu.item(
-                rx.icon("flame", size=16),
-                "Consume Stock",
-                on_click=BatchDetailState.open_consume_dialog,
-            ),
-            # Create Aliquot - only shown for consumable materials
-            rx.cond(
-                BatchDetailState.batch.material.is_consumable,
-                rx.menu.item(
-                    rx.icon("split", size=16),
-                    "Create Aliquot",
-                    on_click=BatchDetailState.open_aliquot_dialog,
-                ),
-            ),
-            rx.menu.separator(),
-            rx.menu.item(
-                rx.icon("arrow-right-from-line", size=16),
-                "Move Batch",
-                on_click=BatchDetailState.open_move_dialog,
-            ),
-            rx.menu.item(
-                rx.icon("pencil", size=16),
-                "Update Batch",
-                on_click=BatchDetailState.open_update_dialog,
-            ),
-            rx.menu.item(
-                rx.icon("tag", size=16),
-                "Relabel Batch",
-                on_click=BatchDetailState.open_relabel_dialog,
-            ),
-            rx.menu.separator(),
-            rx.menu.item(
-                rx.icon("trash-2", size=16),
-                "Delete Batch",
-                color="red",
-                on_click=BatchDetailState.open_delete_dialog,
-            ),
-        ),
+    return batch_actions_menu(
+        batch=BatchDetailState.batch,
+        on_receive=BatchDetailState.open_receive_dialog,
+        on_consume=BatchDetailState.open_consume_dialog,
+        on_aliquot=BatchDetailState.open_aliquot_dialog,
+        on_move=BatchDetailState.open_move_dialog,
+        on_update=BatchDetailState.open_update_dialog,
+        on_relabel=BatchDetailState.open_relabel_dialog,
+        on_delete=BatchDetailState.open_delete_dialog,
     )
 
 

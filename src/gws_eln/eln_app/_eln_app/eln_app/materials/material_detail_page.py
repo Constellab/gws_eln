@@ -7,8 +7,10 @@ from ..batches.batches_list_component import batches_list_component
 from ..common.batch.batch_components import consumable_badge
 from ..common.detail_page_layout import detail_page_layout
 from ..common.eln_app_router import ElnAppRouter
+from ..common.materials.material_actions_menu import material_actions_menu
 from ..common.page_layout import page_layout
 from ..common.supplier.inline_supplier_component import inline_supplier_component
+from ..material_form_dialog.material_form_dialog_component import material_update_dialog
 from .material_detail_state import MaterialDetailState
 
 
@@ -25,16 +27,20 @@ def _details_sidebar() -> rx.Component:
             rx.text("Name", size="2", color="gray", weight="medium"),
             rx.text(MaterialDetailState.material.name, size="2"),
             # Description
-            rx.text("Description", size="2", color="gray", weight="medium"),
             rx.cond(
                 MaterialDetailState.material.description,
-                rx.text(MaterialDetailState.material.description, size="2"),
+                rx.fragment(
+                    rx.text("Description", size="2", color="gray", weight="medium"),
+                    rx.text(MaterialDetailState.material.description, size="2"),
+                ),
             ),
             # Default Supplier
-            rx.text("Default Supplier", size="2", color="gray", weight="medium"),
             rx.cond(
                 MaterialDetailState.material.default_supplier,
-                inline_supplier_component(MaterialDetailState.material.default_supplier),
+                rx.fragment(
+                    rx.text("Default Supplier", size="2", color="gray", weight="medium"),
+                    inline_supplier_component(MaterialDetailState.material.default_supplier),
+                ),
             ),
             # Type
             rx.text("Type", size="2", color="gray", weight="medium"),
@@ -151,10 +157,22 @@ def material_detail_page() -> rx.Component:
                     ),
                 ),
                 header_content=rx.hstack(
-                    _back_button(),
-                    rx.heading(MaterialDetailState.material.name, size="6"),
+                    rx.hstack(
+                        _back_button(),
+                        rx.heading(MaterialDetailState.material.name, size="6"),
+                        align="center",
+                        spacing="2",
+                    ),
+                    rx.fragment(
+                        material_actions_menu(
+                            on_update=MaterialDetailState.open_update_dialog,
+                            on_delete=MaterialDetailState.open_delete_dialog,
+                        ),
+                        material_update_dialog(),
+                    ),
+                    justify="between",
                     align="center",
-                    spacing="2",
+                    width="100%",
                 ),
             )
         ),

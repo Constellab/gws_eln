@@ -7,6 +7,9 @@ from gws_eln.materials.material_batch_service import MaterialBatchService
 from gws_reflex_main import ReflexMainState
 
 from ..activities.activities_list_state import ActivitiesListState
+from ..aliquot_form_dialog.aliquot_form_dialog_state import (
+    AliquotFormDialogState,
+)
 from ..batch_event_form_dialog.batch_event_form_dialog_state import (
     BatchEventFormDialogState,
     BatchEventType,
@@ -23,9 +26,6 @@ from ..relabel_batch_form_dialog.relabel_batch_form_dialog_state import (
 )
 from ..update_batch_form_dialog.update_batch_form_dialog_state import (
     UpdateBatchFormDialogState,
-)
-from ..aliquot_form_dialog.aliquot_form_dialog_state import (
-    AliquotFormDialogState,
 )
 
 
