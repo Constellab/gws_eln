@@ -6,7 +6,6 @@ from gws_reflex_main import main_component, user_inline_component
 from ..batches.batches_list_component import batches_list_component
 from ..common.batch.batch_components import consumable_badge
 from ..common.detail_page_layout import detail_page_layout
-from ..common.eln_app_router import ElnAppRouter
 from ..common.materials.material_actions_menu import material_actions_menu
 from ..common.page_layout import page_layout
 from ..common.supplier.inline_supplier_component import inline_supplier_component
@@ -93,22 +92,6 @@ def _main_content() -> rx.Component:
     return batches_list_component(MaterialDetailState.material.id)
 
 
-def _back_button() -> rx.Component:
-    """Create the back button to return to materials list.
-
-    :return: The back button component
-    :rtype: rx.Component
-    """
-    return rx.link(
-        rx.icon_button(
-            rx.icon("arrow-left", size=18),
-            variant="ghost",
-            size="2",
-        ),
-        href=ElnAppRouter.get_material_list_url(),
-    )
-
-
 def material_detail_page() -> rx.Component:
     """Create the material detail page component.
 
@@ -157,12 +140,7 @@ def material_detail_page() -> rx.Component:
                     ),
                 ),
                 header_content=rx.hstack(
-                    rx.hstack(
-                        _back_button(),
-                        rx.heading(MaterialDetailState.material.name, size="6"),
-                        align="center",
-                        spacing="2",
-                    ),
+                    rx.heading(MaterialDetailState.material.name, size="6"),
                     rx.fragment(
                         material_actions_menu(
                             on_update=MaterialDetailState.open_update_dialog,

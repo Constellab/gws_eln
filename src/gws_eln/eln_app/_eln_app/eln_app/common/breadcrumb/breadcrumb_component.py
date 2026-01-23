@@ -1,0 +1,49 @@
+"""Breadcrumb navigation component."""
+
+import reflex as rx
+
+from .breadcrumb_state import BreadcrumbItem, BreadcrumbState
+
+
+def breadcrumb_component() -> rx.Component:
+    """Create the breadcrumb navigation component.
+
+    This component displays a clickable breadcrumb trail showing the hierarchy
+    of the current page: Materials > [MATERIAL_NAME] > [BATCH_NUMBER] > [ALIQUOT_NUMBER]
+
+    :return: The breadcrumb component
+    :rtype: rx.Component
+    """
+    return rx.hstack(
+        rx.foreach(BreadcrumbState.breadcrumbs, _render_item_with_separator),
+        spacing="0",
+        align="center",
+    )
+
+
+def _render_item_with_separator(item: BreadcrumbItem, idx: int) -> rx.Component:
+    """Render a breadcrumb item with a separator if not first.
+
+    :param item: The breadcrumb item
+    :param idx: The index of the item
+    :return: The rendered component
+    :rtype: rx.Component
+    """
+    # Add separator before all items except the first
+    return rx.fragment(
+        rx.cond(
+            idx > 0,
+            rx.icon("chevron-right", size=16, color="gray", margin_x="0.5rem"),
+            rx.fragment(),
+        ),
+        rx.link(
+            rx.text(
+                item.label,
+                size="3",
+                weight="medium",
+                _hover={"text_decoration": "underline"},
+            ),
+            href=item.url,
+            style={"text_decoration": "none"},
+        ),
+    )

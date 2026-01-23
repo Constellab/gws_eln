@@ -13,7 +13,6 @@ from ..batch_event_form_dialog.batch_event_form_dialog_component import (
 from ..common.batch.batch_actions_menu import batch_actions_menu
 from ..common.batch.batch_components import batch_inline_link, expiry_date_badge
 from ..common.detail_page_layout import detail_page_layout
-from ..common.eln_app_router import ElnAppRouter
 from ..common.location.inline_location_component import inline_location_component
 from ..common.materials.material_components import (
     inline_material_link,
@@ -154,22 +153,6 @@ def _main_content() -> rx.Component:
     return activities_list_component(BatchDetailState.batch.id)
 
 
-def _back_button() -> rx.Component:
-    """Create the back button to return to material detail page.
-
-    :return: The back button component
-    :rtype: rx.Component
-    """
-    return rx.link(
-        rx.icon_button(
-            rx.icon("arrow-left", size=18),
-            variant="ghost",
-            size="2",
-        ),
-        href=ElnAppRouter.get_material_detail_url(BatchDetailState.batch.material.id),
-    )
-
-
 def _actions_menu() -> rx.Component:
     """Create the actions dropdown menu for batch operations.
 
@@ -235,33 +218,17 @@ def batch_detail_page() -> rx.Component:
                 ),
             ),
             header_content=rx.hstack(
-                rx.hstack(
+                rx.vstack(
+                    rx.heading(BatchDetailState.batch.batch_number, size="6"),
                     rx.cond(
-                        BatchDetailState.batch,
-                        _back_button(),
-                        rx.link(
-                            rx.icon_button(
-                                rx.icon("arrow-left", size=18),
-                                variant="ghost",
-                                size="2",
-                            ),
-                            href=ElnAppRouter.get_material_list_url(),
+                        BatchDetailState.batch.label,
+                        rx.text(
+                            f"{BatchDetailState.batch.label}",
+                            size="2",
+                            color="gray",
                         ),
                     ),
-                    rx.vstack(
-                        rx.heading(BatchDetailState.batch.batch_number, size="6"),
-                        rx.cond(
-                            BatchDetailState.batch.label,
-                            rx.text(
-                                f"{BatchDetailState.batch.label}",
-                                size="2",
-                                color="gray",
-                            ),
-                        ),
-                        spacing="0",
-                    ),
-                    align="center",
-                    spacing="2",
+                    spacing="0",
                 ),
                 rx.cond(
                     BatchDetailState.batch,
