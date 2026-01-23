@@ -1,6 +1,7 @@
 """State for the activities list component."""
 
 import reflex as rx
+from gws_core import Logger
 from gws_eln.activities.activity_dto import ActivityDTO
 from gws_eln.activities.activity_search_builder import ActivitySearchBuilder
 from gws_eln.activities.activity_type import ActivityType
@@ -90,7 +91,9 @@ class ActivitiesListState(ReflexMainState):
             with await self.authenticate_user():
                 async with self:
                     await self._load_activities()
-        except Exception:
+        except Exception as e:
+            Logger.error(f"Error loading activities for batch {batch_id}: {e}")
+            Logger.log_exception_stack_trace(e)
             async with self:
                 self._activities = []
                 self.is_loading = False

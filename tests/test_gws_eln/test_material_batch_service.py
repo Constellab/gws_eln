@@ -120,7 +120,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(db_batch.batch_number, "BATCH-001")
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
         location.delete_instance()
@@ -147,7 +147,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(batch.location.id, default_location.id)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -177,7 +177,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(batch.location.name, DEFAULT_LOCATION_NAME)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -205,7 +205,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(batch.notes, "Trimmed Notes")
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -233,13 +233,13 @@ class TestMaterialBatchService(BaseTestCase):
 
         activity = activities[0]
         self.assertEqual(activity.activity_type, ActivityType.RECEIVE)
-        self.assertEqual(activity.entity.id, batch.id)
+        self.assertEqual(activity.batch.id, batch.id)
         self.assertEqual(activity.quantity, Decimal("100"))
         self.assertEqual(activity.unit_type, UnitType.COUNT)
         self.assertEqual(activity.notes, "Test activity creation")
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
         location.delete_instance()
@@ -415,7 +415,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.quantity, original_quantity + Decimal("50"))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -463,7 +463,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(receive_activity.unit_type, UnitType.MASS)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
         location.delete_instance()
@@ -511,7 +511,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.quantity, Decimal("250"))  # 100 + 25 + 50 + 75
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -544,7 +544,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn("Invalid unit 'g'", str(context.exception))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -577,7 +577,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn("positive", str(context.exception).lower())
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -630,8 +630,8 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn("LIST-002", batch_numbers)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch1).execute()
-        Activity.delete().where(Activity.entity == batch2).execute()
+        Activity.delete().where(Activity.batch == batch1).execute()
+        Activity.delete().where(Activity.batch == batch2).execute()
         batch1.delete_instance()
         batch2.delete_instance()
         material.delete_instance()
@@ -670,8 +670,8 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertNotIn("FILT-M2", batch_numbers)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch1).execute()
-        Activity.delete().where(Activity.entity == batch2).execute()
+        Activity.delete().where(Activity.batch == batch1).execute()
+        Activity.delete().where(Activity.batch == batch2).execute()
         batch1.delete_instance()
         batch2.delete_instance()
         material1.delete_instance()
@@ -713,8 +713,8 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertNotIn("FILT-L2", batch_numbers)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch1).execute()
-        Activity.delete().where(Activity.entity == batch2).execute()
+        Activity.delete().where(Activity.batch == batch1).execute()
+        Activity.delete().where(Activity.batch == batch2).execute()
         batch1.delete_instance()
         batch2.delete_instance()
         material.delete_instance()
@@ -748,7 +748,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(retrieved.quantity, Decimal("100"))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -785,7 +785,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIsNotNone(batch.last_modified_by)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -821,7 +821,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIsNotNone(updated.last_modified_by)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -861,7 +861,7 @@ class TestMaterialBatchService(BaseTestCase):
 
         # Cleanup
         for batch in batches:
-            Activity.delete().where(Activity.entity == batch).execute()
+            Activity.delete().where(Activity.batch == batch).execute()
             batch.delete_instance()
         for material in materials:
             material.delete_instance()
@@ -889,7 +889,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(batch.unit_type, UnitType.VOLUME)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -951,7 +951,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.quantity, Decimal("70"))  # 100 - 30
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -993,7 +993,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(consume_activities[0].quantity, Decimal("25"))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1027,7 +1027,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn("non-consumable", str(context.exception).lower())
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1061,7 +1061,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn("Insufficient quantity", str(context.exception))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1094,7 +1094,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn("Invalid unit 'g'", str(context.exception))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1127,7 +1127,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.quantity, Decimal("0"))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1176,7 +1176,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.quantity, Decimal("40"))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1209,7 +1209,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.quantity, Decimal("75"))  # 100 - 25
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1249,7 +1249,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(db_batch.location.id, location2.id)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
         location1.delete_instance()
@@ -1292,7 +1292,7 @@ class TestMaterialBatchService(BaseTestCase):
                 Activity.from_location,
                 Activity.to_location,
             )
-            .where(Activity.entity == batch)
+            .where(Activity.batch == batch)
             .where(Activity.activity_type == ActivityType.MOVE)
             .first()
         )
@@ -1301,7 +1301,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(move_activity.to_location.id, location2.id)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
         location1.delete_instance()
@@ -1339,7 +1339,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(db_batch.location.id, location.id)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
         location.delete_instance()
@@ -1370,7 +1370,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.location.id, location.id)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
         location.delete_instance()
@@ -1412,7 +1412,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(batch.label, "Original Label")
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1442,7 +1442,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.notes, "Updated notes")
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1472,7 +1472,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.expiry_date, date(2028, 12, 31))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1509,7 +1509,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.expiry_date, date(2030, 6, 15))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1589,7 +1589,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertGreater(len(activities), activity_count)  # Discard activity added
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         db_batch.delete_instance()
         material.delete_instance()
 
@@ -1637,7 +1637,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn(batch_id, batch_ids_with_discarded)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         MaterialBatch.get_by_id(batch_id).delete_instance()
         material.delete_instance()
 
@@ -1673,7 +1673,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn("already discarded", str(context.exception).lower())
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         MaterialBatch.get_by_id(batch_id).delete_instance()
         material.delete_instance()
 
@@ -1717,7 +1717,7 @@ class TestMaterialBatchService(BaseTestCase):
 
         # Cleanup - delete child first, then parent
         child_batch.delete_instance()
-        Activity.delete().where(Activity.entity == parent_batch).execute()
+        Activity.delete().where(Activity.batch == parent_batch).execute()
         parent_batch.delete_instance()
         material.delete_instance()
         location.delete_instance()
@@ -1762,7 +1762,7 @@ class TestMaterialBatchService(BaseTestCase):
                 Activity.activity_type,
                 Activity.quantity,
             )
-            .where(Activity.entity == batch)
+            .where(Activity.batch == batch)
             .where(Activity.activity_type == ActivityType.DISCARD)
             .first()
         )
@@ -1770,7 +1770,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(discard_activity.quantity, Decimal("150"))  # 100 + 50
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         MaterialBatch.get_by_id(batch_id).delete_instance()
         material.delete_instance()
 
@@ -1806,7 +1806,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(db_batch.batch_number, "NEW-NUM")
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1837,7 +1837,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.batch_number, "RELBL-001")  # Unchanged
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1868,7 +1868,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.label, "New Label")
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1905,7 +1905,7 @@ class TestMaterialBatchService(BaseTestCase):
                 Activity.activity_type,
                 Activity.notes,
             )
-            .where(Activity.entity == batch)
+            .where(Activity.batch == batch)
             .where(Activity.activity_type == ActivityType.RELABEL)
             .first()
         )
@@ -1914,7 +1914,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn("NEW-ACT", relabel_activity.notes)
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1940,7 +1940,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn("At least one", str(context.exception))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -1966,7 +1966,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertIn("Batch number is required", str(context.exception))
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 
@@ -2000,7 +2000,7 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(updated_batch.label, "Same Label")
 
         # Cleanup
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
         material.delete_instance()
 

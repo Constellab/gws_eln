@@ -29,8 +29,8 @@ class Activity(ModelWithUser):
     Attributes:
         activity_type: Type of activity (required)
         entity_type: Type of entity being acted upon (always 'material_batch' in MVP)
-        entity: The batch being acted upon (required)
-        related_entity_id: For lineage - child aliquot ID, related batch ID
+        batch: The batch being acted upon (required)
+        related_batch: For lineage - child aliquot ID, related batch ID
         quantity: For quantity-based actions (stored in base units)
         unit_type: Unit type for quantity
         from_location: Source location for move actions
@@ -43,12 +43,16 @@ class Activity(ModelWithUser):
     activity_type = EnumField(choices=ActivityType, max_length=20, null=False, index=True)
 
     # Entity being acted upon
-    entity = ForeignKeyField(
+    batch = ForeignKeyField(
         MaterialBatch, null=False, backref="activities", on_delete="CASCADE", index=True
     )
 
-    # Related entity (for aliquot creation - points to child batch)
-    related_entity_id = CharField(max_length=36, null=True, index=True)
+    # Related entity for aliquot
+    # For ALIQUOT > child batch ID
+    # For ALIQUOT_CREATED > parent batch ID
+    related_batch = ForeignKeyField(
+        MaterialBatch, null=True, backref="+", on_delete="CASCADE", index=True
+    )
 
     # Quantity information (for consume, aliquot actions)
     # Stored in base units (L, kg, m, units)
@@ -76,7 +80,7 @@ class Activity(ModelWithUser):
         :return: List of activities for the batch
         :rtype: list[Activity]
         """
-        return list(cls.select().where(cls.entity == batch_id).order_by(cls.created_at.desc()))
+        return list(cls.select().where(cls.batch == batch_id).order_by(cls.created_at.desc()))
 
     @classmethod
     def count_by_batch_id(cls, batch_id: str) -> int:
@@ -88,7 +92,7 @@ class Activity(ModelWithUser):
         :return: Count of activities for the batch
         :rtype: int
         """
-        return cls.select().where(cls.entity == batch_id).count()
+        return cls.select().where(cls.batch == batch_id).count()
 
     def get_pretty_quantity(self) -> str | None:
         """Get a human-readable string for the quantity and unit type.
@@ -109,10 +113,8 @@ class Activity(ModelWithUser):
         return ActivityDTO(
             id=self.id,
             activity_type=self.activity_type,
-            entity_id=self.entity.id,
-            entity_batch_number=self.entity.batch_number,
-            entity_material_name=self.entity.material.name,
-            related_entity_id=self.related_entity_id,
+            batch=self.batch.to_dto(),
+            related_batch=self.related_batch.to_dto() if self.related_batch else None,
             quantity=self.quantity,
             unit_type=self.unit_type,
             pretty_quantity=self.get_pretty_quantity(),

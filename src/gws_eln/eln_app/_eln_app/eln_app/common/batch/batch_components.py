@@ -4,7 +4,9 @@ from datetime import date, timedelta
 from typing import cast
 
 import reflex as rx
-from gws_eln.materials.material_batch_dto import MaterialBatchDTO
+from gws_eln.materials.material_batch_dto import MaterialBatchSimpleDTO
+
+from ..eln_app_router import ElnAppRouter
 
 
 def expiry_date_badge(expiry_date: date | None, warning_days: int = 30) -> rx.Component:
@@ -84,11 +86,11 @@ def consumable_badge(is_consumable: bool) -> rx.Component:
     )
 
 
-def batch_inline(batch: MaterialBatchDTO) -> rx.Component:
+def batch_inline(batch: MaterialBatchSimpleDTO) -> rx.Component:
     """Create an inline component displaying batch number and label.
 
     :param batch: The batch DTO to display
-    :type batch: MaterialBatchDTO
+    :type batch: MaterialBatchSimpleDTO
     :return: The inline batch component
     :rtype: rx.Component
     """
@@ -97,3 +99,14 @@ def batch_inline(batch: MaterialBatchDTO) -> rx.Component:
         rx.cond(batch.label, rx.text(f"{batch.label}", size="1", color="gray")),
         spacing="0",
     )
+
+
+def batch_inline_link(batch: MaterialBatchSimpleDTO) -> rx.Component:
+    """Create an inline component displaying batch number and label.
+
+    :param batch: The batch DTO to display
+    :type batch: MaterialBatchSimpleDTO
+    :return: The inline batch component
+    :rtype: rx.Component
+    """
+    return rx.link(batch_inline(batch), href=ElnAppRouter.get_batch_detail_url(batch.id))

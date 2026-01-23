@@ -151,7 +151,7 @@ class MaterialBatchService:
         self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.RECEIVE,
-                entity_id=batch.id,
+                batch_id=batch.id,
                 quantity=base_quantity,
                 unit_type=unit_type,
                 notes=dto.notes,
@@ -193,7 +193,7 @@ class MaterialBatchService:
         self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.RECEIVE,
-                entity_id=batch.id,
+                batch_id=batch.id,
                 quantity=base_quantity,
                 unit_type=batch.unit_type,
                 notes=dto.notes,
@@ -245,7 +245,7 @@ class MaterialBatchService:
         self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.CONSUME,
-                entity_id=batch.id,
+                batch_id=batch.id,
                 quantity=base_quantity,
                 unit_type=batch.unit_type,
                 notes=dto.notes,
@@ -287,7 +287,7 @@ class MaterialBatchService:
         self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.MOVE,
-                entity_id=batch.id,
+                batch_id=batch.id,
                 from_location_id=from_location.id,
                 to_location_id=to_location.id,
             )
@@ -383,7 +383,7 @@ class MaterialBatchService:
         self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.RELABEL,
-                entity_id=batch.id,
+                batch_id=batch.id,
                 notes="; ".join(changes),
             )
         )
@@ -433,7 +433,7 @@ class MaterialBatchService:
         # If only 1 activity (the creation 'receive'), hard delete
         if activity_count <= 1:
             # Delete associated activities first
-            Activity.delete().where(Activity.entity == batch).execute()
+            Activity.delete().where(Activity.batch == batch).execute()
             # Hard delete the batch
             batch.delete_instance()
             return DeleteBatchResultDTO.DELETED
@@ -443,7 +443,7 @@ class MaterialBatchService:
         self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.DISCARD,
-                entity_id=batch.id,
+                batch_id=batch.id,
                 quantity=batch.quantity,
                 unit_type=batch.unit_type,
                 notes=notes if notes else "Batch discarded",
@@ -551,25 +551,30 @@ class MaterialBatchService:
                 "Aliquots can only be created from consumable materials (chemicals, reagents, samples)."
             )
 
-        # Validate source unit type matches parent's unit type
-        if dto.source_unit_type != parent_batch.unit_type:
+        # Get unit_type from parent batch
+        unit_type = parent_batch.unit_type
+
+        # Validate source unit and convert to base unit
+        base_source_quantity = self._validate_and_convert_quantity(
+            parent_batch, validated_source_quantity, dto.source_unit
+        )
+
+        # Validate aliquot unit and convert to base unit
+        if not UnitConverter.is_valid_unit(dto.aliquot_unit, unit_type):
+            valid_units = ", ".join(UnitConverter.get_valid_units(unit_type))
             raise BadRequestException(
-                f"Source unit type mismatch. Parent batch uses '{parent_batch.unit_type.value}' "
-                f"but source specifies '{dto.source_unit_type.value}'"
+                f"Invalid aliquot unit '{dto.aliquot_unit}' for batch '{parent_batch.batch_number}' "
+                f"(unit type: {unit_type.value}). Valid units: {valid_units}"
             )
+        base_aliquot_quantity = UnitConverter.to_base_unit(
+            validated_aliquot_quantity, dto.aliquot_unit, unit_type
+        )
 
-        # Validate aliquot unit type matches parent's unit type
-        if dto.aliquot_unit_type != parent_batch.unit_type:
-            raise BadRequestException(
-                f"Aliquot unit type mismatch. Parent batch uses '{parent_batch.unit_type.value}' "
-                f"but aliquot specifies '{dto.aliquot_unit_type.value}'"
-            )
+        # Validate sufficient quantity in parent (using base units)
+        parent_batch.validate_sufficient_quantity(base_source_quantity)
 
-        # Validate sufficient quantity in parent and decrement
-        parent_batch.validate_sufficient_quantity(validated_source_quantity)
-
-        # Decrement parent quantity by source_quantity
-        parent_batch.quantity = parent_batch.quantity - validated_source_quantity
+        # Decrement parent quantity by source_quantity (in base units)
+        parent_batch.quantity = parent_batch.quantity - base_source_quantity
         parent_batch.save()
 
         # Determine location (default to parent's location if not provided)
@@ -590,14 +595,14 @@ class MaterialBatchService:
             )
             aliquot_batch_number = f"{parent_batch.batch_number}-A{aliquot_count + 1}"
 
-        # Create aliquot batch with aliquot_quantity
+        # Create aliquot batch with aliquot_quantity (in base units)
         aliquot = MaterialBatch()
         aliquot.material = parent_batch.material  # Inherit material from parent
         aliquot.parent_batch = parent_batch  # Set parent reference
         aliquot.batch_number = aliquot_batch_number
         aliquot.label = dto.label.strip() if dto.label else None
-        aliquot.quantity = validated_aliquot_quantity  # Aliquot's own quantity
-        aliquot.unit_type = dto.aliquot_unit_type
+        aliquot.quantity = base_aliquot_quantity  # Aliquot's own quantity in base units
+        aliquot.unit_type = unit_type  # Inherit unit_type from parent
         aliquot.location = location
         aliquot.notes = dto.notes.strip() if dto.notes else None
         aliquot.expiry_date = parent_batch.expiry_date  # Inherit expiry from parent
@@ -613,12 +618,12 @@ class MaterialBatchService:
         self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.ALIQUOT,
-                entity_id=parent_batch.id,
-                quantity=validated_source_quantity,  # Amount taken from parent
-                unit_type=dto.source_unit_type,
+                batch_id=parent_batch.id,
+                quantity=base_source_quantity,  # Amount taken from parent (base units)
+                unit_type=unit_type,
                 from_location_id=parent_batch.location.id,
                 to_location_id=location.id,
-                related_entity_id=aliquot.id,  # Reference to the child aliquot
+                related_batch_id=aliquot.id,  # Reference to the child aliquot
                 notes=dto.notes.strip() if dto.notes else None,
             )
         )
@@ -628,11 +633,11 @@ class MaterialBatchService:
         self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.ALIQUOT_CREATED,
-                entity_id=aliquot.id,
-                quantity=validated_aliquot_quantity,  # Aliquot's quantity
-                unit_type=dto.aliquot_unit_type,
+                batch_id=aliquot.id,
+                quantity=base_aliquot_quantity,  # Aliquot's quantity (base units)
+                unit_type=unit_type,
                 to_location_id=location.id,
-                related_entity_id=parent_batch.id,  # Reference to the parent batch
+                related_batch_id=parent_batch.id,  # Reference to the parent batch
                 notes=dto.notes.strip() if dto.notes else None,
             )
         )

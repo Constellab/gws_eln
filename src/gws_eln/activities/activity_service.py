@@ -44,7 +44,7 @@ class ActivityService:
         CurrentUserService.get_and_check_current_user()
 
         # Validate entity exists
-        entity = self._validate_entity_exists(dto.entity_id)
+        entity = self._validate_entity_exists(dto.batch_id)
 
         # Validate locations if provided
         from_location = None
@@ -60,14 +60,14 @@ class ActivityService:
         # Create activity
         activity = Activity()
         activity.activity_type = dto.activity_type
-        activity.entity = entity
+        activity.batch = entity
         activity.quantity = dto.quantity
         activity.unit_type = dto.unit_type
         activity.from_location = from_location
         activity.to_location = to_location
         activity.notes = dto.notes.strip() if dto.notes else None
         activity.note_id = dto.note_id
-        activity.related_entity_id = dto.related_entity_id
+        activity.related_batch = dto.related_batch_id
 
         activity.save()
         return activity
@@ -183,7 +183,7 @@ class ActivityService:
             raise BadRequestException("Move activity requires a destination location")
 
         # ALIQUOT requires related_entity_id (the child batch)
-        if dto.activity_type == ActivityType.ALIQUOT and not dto.related_entity_id:
+        if dto.activity_type == ActivityType.ALIQUOT and not dto.related_batch_id:
             raise BadRequestException(
                 "Aliquot activity requires related_entity_id (child batch ID)"
             )

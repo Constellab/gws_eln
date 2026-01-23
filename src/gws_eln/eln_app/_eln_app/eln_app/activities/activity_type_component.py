@@ -51,7 +51,12 @@ def activity_type_badge(activity_type: ActivityType) -> rx.Component:
             ),
             (
                 ActivityType.ALIQUOT_CREATED.value,
-                rx.badge(rx.icon("circle-plus", size=12), "Created", color_scheme="teal", size="1"),
+                rx.badge(
+                    rx.icon("arrow-down-to-dot", size=12),
+                    "Aliquot creation",
+                    color_scheme="teal",
+                    size="1",
+                ),
             ),
             (
                 ActivityType.RELABEL.value,

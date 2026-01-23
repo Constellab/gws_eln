@@ -107,19 +107,20 @@ class CreateAliquotDTO(BaseModelDTO):
     from the parent batch. The parent's quantity will be decremented
     by source_quantity.
 
-    Example: Take 2L from parent (source_quantity=2, source_unit_type=VOLUME)
-    to create a 500mL aliquot (aliquot_quantity=0.5, aliquot_unit_type=VOLUME).
+    Example: Take 2L from parent (source_quantity=2, source_unit='L')
+    to create a 500mL aliquot (aliquot_quantity=500, aliquot_unit='mL').
 
-    Note: Both quantities must use the same unit_type (matching the parent's unit_type).
+    Note: Both units must be compatible with the parent batch's unit_type.
+    The quantities are converted from the given units to base units for storage.
     """
 
     parent_batch_id: str
     # Amount to take from parent batch (decrements parent)
     source_quantity: Decimal
-    source_unit_type: UnitType
+    source_unit: str  # Exact unit (e.g., 'mL', 'L', 'g') - converted to base unit for storage
     # Amount for the new aliquot (can differ from source due to dilution, processing, etc.)
     aliquot_quantity: Decimal
-    aliquot_unit_type: UnitType
+    aliquot_unit: str  # Exact unit (e.g., 'mL', 'L', 'g') - converted to base unit for storage
     # Optional custom batch number for the aliquot (auto-generated if not provided)
     aliquot_batch_number: str | None = None
     label: str | None = None
@@ -128,19 +129,24 @@ class CreateAliquotDTO(BaseModelDTO):
     supplier_id: str | None = None  # Default to None
 
 
-class MaterialBatchDTO(ModelDTO):
+class MaterialBatchSimpleDTO(ModelDTO):
+    """Simple DTO for material batch with minimal fields."""
+
+    batch_number: str
+    label: str | None
+    quantity: Decimal
+    unit_type: UnitType
+    pretty_quantity: str  # Pre-formatted quantity string for display
+
+
+class MaterialBatchDTO(MaterialBatchSimpleDTO):
     """DTO for displaying material batch information in the frontend."""
 
     material: MaterialDTO
     location: LocationDTO
-    parent_batch_id: str | None
+    parent_batch: MaterialBatchSimpleDTO | None
     supplier: SupplierDTO | None
-    batch_number: str
-    label: str | None
     expiry_date: date | None
-    quantity: Decimal
-    pretty_quantity: str  # Pre-formatted quantity string for display
-    unit_type: UnitType
     notes: str | None
     status: BatchStatus
     created_by: UserDTO

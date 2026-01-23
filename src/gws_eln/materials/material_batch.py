@@ -7,7 +7,7 @@ from gws_eln.core.unit_type import UnitType
 from gws_eln.locations.location import Location
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material import Material
-from gws_eln.materials.material_batch_dto import MaterialBatchDTO
+from gws_eln.materials.material_batch_dto import MaterialBatchDTO, MaterialBatchSimpleDTO
 from gws_eln.suppliers.supplier import Supplier
 from gws_eln.utils.units_converter import UnitConverter
 
@@ -107,6 +107,24 @@ class MaterialBatch(ModelWithUser):
         """
         return UnitConverter.format_value(self.quantity, self.unit_type)
 
+    def to_simple_dto(self) -> MaterialBatchSimpleDTO:
+        """Convert the MaterialBatch model to a MaterialBatchSimpleDTO.
+
+        :return: MaterialBatchSimpleDTO with the batch data
+        :rtype: MaterialBatchSimpleDTO
+        """
+
+        return MaterialBatchSimpleDTO(
+            id=self.id,
+            batch_number=self.batch_number,
+            label=self.label,
+            quantity=self.quantity,
+            unit_type=self.unit_type,
+            pretty_quantity=self.get_pretty_quantity(),
+            created_at=self.created_at,
+            last_modified_at=self.last_modified_at,
+        )
+
     def to_dto(self) -> MaterialBatchDTO:
         """Convert the MaterialBatch model to a MaterialBatchDTO.
 
@@ -118,7 +136,7 @@ class MaterialBatch(ModelWithUser):
             id=self.id,
             material=self.material.to_dto(),
             location=self.location.to_dto(),
-            parent_batch_id=self.parent_batch.id if self.parent_batch else None,
+            parent_batch=self.parent_batch.to_simple_dto() if self.parent_batch else None,
             supplier=self.supplier.to_dto() if self.supplier else None,
             batch_number=self.batch_number,
             label=self.label,

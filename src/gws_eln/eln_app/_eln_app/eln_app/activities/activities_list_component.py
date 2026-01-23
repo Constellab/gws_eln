@@ -7,6 +7,7 @@ from gws_eln.activities.activity_dto import ActivityDTO
 from gws_eln.activities.activity_type import ActivityType
 from gws_reflex_main import user_with_date_component
 
+from ..common.batch.batch_components import batch_inline_link
 from ..common.location.inline_location_component import inline_location_component
 from .activities_list_state import ALL_FILTER_VALUE, ActivitiesListState
 from .activity_type_component import activity_type_badge
@@ -42,14 +43,8 @@ def _type_specific_description(activity: ActivityDTO) -> rx.Component:
                     align_items="center",
                 ),
             ),
-            (
-                ActivityType.ALIQUOT.value,
-                rx.text("Aliquot created from this batch", size="2", color="gray"),
-            ),
-            (
-                ActivityType.ALIQUOT_CREATED.value,
-                rx.text("Created from parent batch", size="2", color="gray"),
-            ),
+            (ActivityType.ALIQUOT.value, batch_inline_link(activity.related_batch)),
+            (ActivityType.ALIQUOT_CREATED.value, batch_inline_link(activity.related_batch)),
             rx.fragment(),
         ),
     )

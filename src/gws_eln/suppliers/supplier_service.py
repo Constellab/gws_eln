@@ -8,6 +8,7 @@ Implements Story 3.1 from Epic 3: Service Layer - Suppliers & Locations.
 from gws_core import BadRequestException, CurrentUserService
 
 from gws_eln.materials.material import Material
+from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.suppliers.supplier import Supplier
 from gws_eln.suppliers.supplier_dto import CreateSupplierDTO, UpdateSupplierDTO
 
@@ -161,4 +162,10 @@ class SupplierService:
             raise BadRequestException(
                 f"Cannot delete supplier '{supplier.name}' because it is referenced by one or more materials. "
                 "Remove the supplier reference from all materials first."
+            )
+
+        if MaterialBatch.select().where(MaterialBatch.supplier == supplier).exists():
+            raise BadRequestException(
+                f"Cannot delete supplier '{supplier.name}' because it is referenced by one or more material batches. "
+                "Remove the supplier reference from all material batches first."
             )

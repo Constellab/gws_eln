@@ -4,10 +4,13 @@ import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
 
 from ..activities.activities_list_component import activities_list_component
+from ..aliquot_form_dialog.aliquot_form_dialog_component import (
+    aliquot_form_dialog,
+)
 from ..batch_event_form_dialog.batch_event_form_dialog_component import (
     batch_event_form_dialog,
 )
-from ..common.batch.batch_components import expiry_date_badge
+from ..common.batch.batch_components import batch_inline_link, expiry_date_badge
 from ..common.detail_page_layout import detail_page_layout
 from ..common.eln_app_router import ElnAppRouter
 from ..common.location.inline_location_component import inline_location_component
@@ -85,7 +88,9 @@ def _details_sidebar() -> rx.Component:
             rx.text(BatchDetailState.batch.pretty_quantity, size="2"),
             # Expiry Date
             rx.text("Expiry Date", size="2", color="gray", weight="medium"),
-            expiry_date_badge(BatchDetailState.batch.expiry_date),
+            rx.box(
+                expiry_date_badge(BatchDetailState.batch.expiry_date),
+            ),
             # Status
             rx.text("Status", size="2", color="gray", weight="medium"),
             rx.box(
@@ -94,15 +99,10 @@ def _details_sidebar() -> rx.Component:
             ),
             # Parent Batch
             rx.cond(
-                BatchDetailState.batch.parent_batch_id,
+                BatchDetailState.batch.parent_batch,
                 rx.fragment(
                     rx.text("Parent Batch", size="2", color="gray", weight="medium"),
-                    rx.link(
-                        rx.text("View parent", size="2"),
-                        href=ElnAppRouter.get_batch_detail_url(
-                            BatchDetailState.batch.parent_batch_id
-                        ),
-                    ),
+                    batch_inline_link(BatchDetailState.batch.parent_batch),
                 ),
             ),
             # Notes
@@ -193,6 +193,15 @@ def _actions_menu() -> rx.Component:
                 rx.icon("flame", size=16),
                 "Consume Stock",
                 on_click=BatchDetailState.open_consume_dialog,
+            ),
+            # Create Aliquot - only shown for consumable materials
+            rx.cond(
+                BatchDetailState.batch.material.is_consumable,
+                rx.menu.item(
+                    rx.icon("split", size=16),
+                    "Create Aliquot",
+                    on_click=BatchDetailState.open_aliquot_dialog,
+                ),
             ),
             rx.menu.separator(),
             rx.menu.item(
@@ -310,4 +319,5 @@ def batch_detail_page() -> rx.Component:
         update_batch_dialog(),
         relabel_batch_dialog(),
         delete_batch_dialog(),
+        aliquot_form_dialog(),
     )

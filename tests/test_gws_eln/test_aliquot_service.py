@@ -75,7 +75,7 @@ class TestAliquotService(BaseTestCase):
         material: Material,
         batch_number: str = "BATCH-001",
         quantity: Decimal = Decimal("100"),
-        unit_type: UnitType = UnitType.VOLUME,
+        unit: str = "L",
         location: Location | None = None,
     ) -> MaterialBatch:
         """Helper to create a test batch."""
@@ -85,14 +85,14 @@ class TestAliquotService(BaseTestCase):
                 material_id=material.id,
                 batch_number=batch_number,
                 quantity=quantity,
-                unit_type=unit_type,
+                unit=unit,
                 location_id=location.id if location else None,
             )
         )
 
     def _cleanup_batch(self, batch: MaterialBatch):
         """Helper to cleanup a batch and its activities."""
-        Activity.delete().where(Activity.entity == batch).execute()
+        Activity.delete().where(Activity.batch == batch).execute()
         batch.delete_instance()
 
     # ============== CREATE ALIQUOT TESTS ==============
@@ -108,7 +108,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="PARENT-001",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
             location=location,
         )
 
@@ -117,9 +117,9 @@ class TestAliquotService(BaseTestCase):
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("20"),
-                source_unit_type=UnitType.VOLUME,
+                source_unit="L",
                 aliquot_quantity=Decimal("15"),
-                aliquot_unit_type=UnitType.VOLUME,
+                aliquot_unit="L",
                 label="Diluted sample",
             )
         )
@@ -159,7 +159,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="PARENT-002",
             quantity=Decimal("500"),
-            unit_type=UnitType.MASS,
+            unit="g",
         )
 
         # Act - create aliquot with custom batch number
@@ -167,9 +167,9 @@ class TestAliquotService(BaseTestCase):
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("100"),
-                source_unit_type=UnitType.MASS,
+                source_unit="g",
                 aliquot_quantity=Decimal("100"),
-                aliquot_unit_type=UnitType.MASS,
+                aliquot_unit="g",
                 aliquot_batch_number="CUSTOM-ALQ-001",
             )
         )
@@ -193,7 +193,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="LOC-PARENT",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
             location=location1,
         )
 
@@ -202,9 +202,9 @@ class TestAliquotService(BaseTestCase):
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("25"),
-                source_unit_type=UnitType.VOLUME,
+                source_unit="L",
                 aliquot_quantity=Decimal("25"),
-                aliquot_unit_type=UnitType.VOLUME,
+                aliquot_unit="L",
                 location_id=location2.id,
             )
         )
@@ -230,7 +230,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="INHERIT-PARENT",
             quantity=Decimal("50"),
-            unit_type=UnitType.COUNT,
+            unit="units",
         )
 
         # Act
@@ -238,9 +238,9 @@ class TestAliquotService(BaseTestCase):
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("10"),
-                source_unit_type=UnitType.COUNT,
+                source_unit="units",
                 aliquot_quantity=Decimal("10"),
-                aliquot_unit_type=UnitType.COUNT,
+                aliquot_unit="units",
             )
         )
 
@@ -266,7 +266,7 @@ class TestAliquotService(BaseTestCase):
                 material_id=material.id,
                 batch_number="EXPIRY-PARENT",
                 quantity=Decimal("100"),
-                unit_type=UnitType.VOLUME,
+                unit="L",
                 expiry_date=date(2027, 12, 31),
             )
         )
@@ -276,9 +276,9 @@ class TestAliquotService(BaseTestCase):
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("20"),
-                source_unit_type=UnitType.VOLUME,
+                source_unit="L",
                 aliquot_quantity=Decimal("20"),
-                aliquot_unit_type=UnitType.VOLUME,
+                aliquot_unit="L",
             )
         )
 
@@ -300,7 +300,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="ACT-PARENT",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
             location=location,
         )
 
@@ -313,16 +313,16 @@ class TestAliquotService(BaseTestCase):
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("30"),
-                source_unit_type=UnitType.VOLUME,
+                source_unit="L",
                 aliquot_quantity=Decimal("25"),
-                aliquot_unit_type=UnitType.VOLUME,
+                aliquot_unit="L",
             )
         )
 
         # Assert - parent has ALIQUOT activity
         parent_activities = list(
             Activity.select()
-            .where(Activity.entity == parent)
+            .where(Activity.batch == parent)
             .where(Activity.activity_type == ActivityType.ALIQUOT)
         )
         self.assertEqual(len(parent_activities), 1)
@@ -333,7 +333,7 @@ class TestAliquotService(BaseTestCase):
         # Assert - aliquot has ALIQUOT_CREATED activity
         aliquot_activities = list(
             Activity.select()
-            .where(Activity.entity == aliquot)
+            .where(Activity.batch == aliquot)
             .where(Activity.activity_type == ActivityType.ALIQUOT_CREATED)
         )
         self.assertEqual(len(aliquot_activities), 1)
@@ -360,7 +360,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="MULTI-PARENT",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
         # Create first-level aliquot
@@ -368,9 +368,9 @@ class TestAliquotService(BaseTestCase):
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("40"),
-                source_unit_type=UnitType.VOLUME,
+                source_unit="L",
                 aliquot_quantity=Decimal("40"),
-                aliquot_unit_type=UnitType.VOLUME,
+                aliquot_unit="L",
             )
         )
 
@@ -379,9 +379,9 @@ class TestAliquotService(BaseTestCase):
             CreateAliquotDTO(
                 parent_batch_id=aliquot1.id,
                 source_quantity=Decimal("15"),
-                source_unit_type=UnitType.VOLUME,
+                source_unit="L",
                 aliquot_quantity=Decimal("15"),
-                aliquot_unit_type=UnitType.VOLUME,
+                aliquot_unit="L",
             )
         )
 
@@ -414,7 +414,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="MULTI-ALQ-PARENT",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
         # Act - create multiple aliquots
@@ -422,27 +422,27 @@ class TestAliquotService(BaseTestCase):
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("20"),
-                source_unit_type=UnitType.VOLUME,
+                source_unit="L",
                 aliquot_quantity=Decimal("20"),
-                aliquot_unit_type=UnitType.VOLUME,
+                aliquot_unit="L",
             )
         )
         aliquot2 = service.create_aliquot(
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("30"),
-                source_unit_type=UnitType.VOLUME,
+                source_unit="L",
                 aliquot_quantity=Decimal("30"),
-                aliquot_unit_type=UnitType.VOLUME,
+                aliquot_unit="L",
             )
         )
         aliquot3 = service.create_aliquot(
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("10"),
-                source_unit_type=UnitType.VOLUME,
+                source_unit="L",
                 aliquot_quantity=Decimal("10"),
-                aliquot_unit_type=UnitType.VOLUME,
+                aliquot_unit="L",
             )
         )
 
@@ -474,7 +474,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="INSTRUMENT-001",
             quantity=Decimal("5"),
-            unit_type=UnitType.COUNT,
+            unit="units",
         )
 
         # Act & Assert
@@ -483,9 +483,9 @@ class TestAliquotService(BaseTestCase):
                 CreateAliquotDTO(
                     parent_batch_id=parent.id,
                     source_quantity=Decimal("1"),
-                    source_unit_type=UnitType.COUNT,
+                    source_unit="units",
                     aliquot_quantity=Decimal("1"),
-                    aliquot_unit_type=UnitType.COUNT,
+                    aliquot_unit="units",
                 )
             )
 
@@ -505,7 +505,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="LIMITED-001",
             quantity=Decimal("50"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
         # Act & Assert - try to take more than available
@@ -514,9 +514,9 @@ class TestAliquotService(BaseTestCase):
                 CreateAliquotDTO(
                     parent_batch_id=parent.id,
                     source_quantity=Decimal("100"),  # More than 50 available
-                    source_unit_type=UnitType.VOLUME,
+                    source_unit="L",
                     aliquot_quantity=Decimal("100"),
-                    aliquot_unit_type=UnitType.VOLUME,
+                    aliquot_unit="L",
                 )
             )
 
@@ -530,8 +530,8 @@ class TestAliquotService(BaseTestCase):
         self._cleanup_batch(parent)
         material.delete_instance()
 
-    def test_create_aliquot_source_unit_type_mismatch_fails(self):
-        """Test creating aliquot with mismatched source unit type fails"""
+    def test_create_aliquot_source_unit_mismatch_fails(self):
+        """Test creating aliquot with mismatched source unit fails"""
         service = MaterialBatchService()
         material = self._create_test_material("Volume Material", True, UnitType.VOLUME)
         self._ensure_default_location()
@@ -540,29 +540,29 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="UNIT-MIS-001",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
-        # Act & Assert - source unit type mismatch
+        # Act & Assert - source unit mismatch (mass unit for volume batch)
         with self.assertRaises(BadRequestException) as context:
             service.create_aliquot(
                 CreateAliquotDTO(
                     parent_batch_id=parent.id,
                     source_quantity=Decimal("20"),
-                    source_unit_type=UnitType.MASS,  # Mismatch!
+                    source_unit="g",  # Mismatch! (mass unit for volume batch)
                     aliquot_quantity=Decimal("20"),
-                    aliquot_unit_type=UnitType.VOLUME,
+                    aliquot_unit="L",
                 )
             )
 
-        self.assertIn("Source unit type mismatch", str(context.exception))
+        self.assertIn("Invalid unit", str(context.exception))
 
         # Cleanup
         self._cleanup_batch(parent)
         material.delete_instance()
 
-    def test_create_aliquot_aliquot_unit_type_mismatch_fails(self):
-        """Test creating aliquot with mismatched aliquot unit type fails"""
+    def test_create_aliquot_aliquot_unit_mismatch_fails(self):
+        """Test creating aliquot with mismatched aliquot unit fails"""
         service = MaterialBatchService()
         material = self._create_test_material("Volume Material 2", True, UnitType.VOLUME)
         self._ensure_default_location()
@@ -571,22 +571,22 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="UNIT-MIS-002",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
-        # Act & Assert - aliquot unit type mismatch
+        # Act & Assert - aliquot unit mismatch (mass unit for volume batch)
         with self.assertRaises(BadRequestException) as context:
             service.create_aliquot(
                 CreateAliquotDTO(
                     parent_batch_id=parent.id,
                     source_quantity=Decimal("20"),
-                    source_unit_type=UnitType.VOLUME,
+                    source_unit="L",
                     aliquot_quantity=Decimal("20"),
-                    aliquot_unit_type=UnitType.MASS,  # Mismatch!
+                    aliquot_unit="g",  # Mismatch! (mass unit for volume batch)
                 )
             )
 
-        self.assertIn("Aliquot unit type mismatch", str(context.exception))
+        self.assertIn("Invalid aliquot unit", str(context.exception))
 
         # Cleanup
         self._cleanup_batch(parent)
@@ -602,7 +602,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="NEG-SRC-001",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
         # Act & Assert
@@ -611,9 +611,9 @@ class TestAliquotService(BaseTestCase):
                 CreateAliquotDTO(
                     parent_batch_id=parent.id,
                     source_quantity=Decimal("-10"),
-                    source_unit_type=UnitType.VOLUME,
+                    source_unit="L",
                     aliquot_quantity=Decimal("10"),
-                    aliquot_unit_type=UnitType.VOLUME,
+                    aliquot_unit="L",
                 )
             )
 
@@ -633,7 +633,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="NEG-ALQ-001",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
         # Act & Assert
@@ -642,9 +642,9 @@ class TestAliquotService(BaseTestCase):
                 CreateAliquotDTO(
                     parent_batch_id=parent.id,
                     source_quantity=Decimal("10"),
-                    source_unit_type=UnitType.VOLUME,
+                    source_unit="L",
                     aliquot_quantity=Decimal("-5"),
-                    aliquot_unit_type=UnitType.VOLUME,
+                    aliquot_unit="L",
                 )
             )
 
@@ -664,7 +664,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="ZERO-SRC-001",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
         # Act & Assert
@@ -673,9 +673,9 @@ class TestAliquotService(BaseTestCase):
                 CreateAliquotDTO(
                     parent_batch_id=parent.id,
                     source_quantity=Decimal("0"),
-                    source_unit_type=UnitType.VOLUME,
+                    source_unit="L",
                     aliquot_quantity=Decimal("10"),
-                    aliquot_unit_type=UnitType.VOLUME,
+                    aliquot_unit="L",
                 )
             )
 
@@ -695,13 +695,13 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="DISCARD-001",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
         # Add activity to force soft delete, then delete
         service.receive_batch(
             parent.id,
-            ReceiveBatchDTO(quantity=Decimal("10"), unit_type=UnitType.VOLUME),
+            ReceiveBatchDTO(quantity=Decimal("10"), unit="L"),
         )
         service.delete_batch(parent.id, notes="Testing discarded")
 
@@ -711,16 +711,16 @@ class TestAliquotService(BaseTestCase):
                 CreateAliquotDTO(
                     parent_batch_id=parent.id,
                     source_quantity=Decimal("10"),
-                    source_unit_type=UnitType.VOLUME,
+                    source_unit="L",
                     aliquot_quantity=Decimal("10"),
-                    aliquot_unit_type=UnitType.VOLUME,
+                    aliquot_unit="L",
                 )
             )
 
         self.assertIn("discarded", str(context.exception).lower())
 
         # Cleanup
-        Activity.delete().where(Activity.entity == parent).execute()
+        Activity.delete().where(Activity.batch == parent).execute()
         MaterialBatch.get_by_id(parent.id).delete_instance()
         material.delete_instance()
 
@@ -734,9 +734,9 @@ class TestAliquotService(BaseTestCase):
                 CreateAliquotDTO(
                     parent_batch_id="non-existent-id",
                     source_quantity=Decimal("10"),
-                    source_unit_type=UnitType.VOLUME,
+                    source_unit="L",
                     aliquot_quantity=Decimal("10"),
-                    aliquot_unit_type=UnitType.VOLUME,
+                    aliquot_unit="L",
                 )
             )
 
@@ -750,7 +750,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="EMPTY-BN-001",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
         # Act & Assert
@@ -759,9 +759,9 @@ class TestAliquotService(BaseTestCase):
                 CreateAliquotDTO(
                     parent_batch_id=parent.id,
                     source_quantity=Decimal("10"),
-                    source_unit_type=UnitType.VOLUME,
+                    source_unit="L",
                     aliquot_quantity=Decimal("10"),
-                    aliquot_unit_type=UnitType.VOLUME,
+                    aliquot_unit="L",
                     aliquot_batch_number="   ",  # Whitespace only
                 )
             )
@@ -782,7 +782,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="INV-LOC-001",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
         # Act & Assert
@@ -791,9 +791,9 @@ class TestAliquotService(BaseTestCase):
                 CreateAliquotDTO(
                     parent_batch_id=parent.id,
                     source_quantity=Decimal("10"),
-                    source_unit_type=UnitType.VOLUME,
+                    source_unit="L",
                     aliquot_quantity=Decimal("10"),
-                    aliquot_unit_type=UnitType.VOLUME,
+                    aliquot_unit="L",
                     location_id="non-existent-location-id",
                 )
             )
@@ -816,7 +816,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="EXACT-001",
             quantity=Decimal("50"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
         # Act - take exactly all available
@@ -824,9 +824,9 @@ class TestAliquotService(BaseTestCase):
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("50"),
-                source_unit_type=UnitType.VOLUME,
+                source_unit="L",
                 aliquot_quantity=Decimal("50"),
-                aliquot_unit_type=UnitType.VOLUME,
+                aliquot_unit="L",
             )
         )
 
@@ -850,7 +850,7 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="LOSS-001",
             quantity=Decimal("1000"),
-            unit_type=UnitType.MASS,
+            unit="g",
         )
 
         # Act - take 500g, produce only 300g (200g lost in process)
@@ -858,9 +858,9 @@ class TestAliquotService(BaseTestCase):
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("500"),
-                source_unit_type=UnitType.MASS,
+                source_unit="g",
                 aliquot_quantity=Decimal("300"),
-                aliquot_unit_type=UnitType.MASS,
+                aliquot_unit="g",
             )
         )
 
@@ -884,17 +884,17 @@ class TestAliquotService(BaseTestCase):
             material=material,
             batch_number="DILUTE-001",
             quantity=Decimal("100"),
-            unit_type=UnitType.VOLUME,
+            unit="L",
         )
 
-        # Act - take 10mL concentrate, dilute to 100mL
+        # Act - take 10L concentrate, dilute to 100L
         aliquot = service.create_aliquot(
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("10"),
-                source_unit_type=UnitType.VOLUME,
+                source_unit="L",
                 aliquot_quantity=Decimal("100"),
-                aliquot_unit_type=UnitType.VOLUME,
+                aliquot_unit="L",
             )
         )
 

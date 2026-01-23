@@ -24,6 +24,9 @@ from ..relabel_batch_form_dialog.relabel_batch_form_dialog_state import (
 from ..update_batch_form_dialog.update_batch_form_dialog_state import (
     UpdateBatchFormDialogState,
 )
+from ..aliquot_form_dialog.aliquot_form_dialog_state import (
+    AliquotFormDialogState,
+)
 
 
 class BatchDetailState(rx.State):
@@ -171,3 +174,12 @@ class BatchDetailState(rx.State):
         dialog_state = await self.get_state(DeleteBatchFormDialogState)
         dialog_state.set_callback_after_close(self._on_batch_delete_success)
         await dialog_state.open_delete_dialog(self.batch)
+
+    @rx.event
+    async def open_aliquot_dialog(self):
+        """Open the aliquot creation dialog for the current batch."""
+        if not self.batch:
+            return
+        dialog_state = await self.get_state(AliquotFormDialogState)
+        dialog_state.set_callback_after_close(self._on_batch_event_success)
+        dialog_state.open_dialog(self.batch)
