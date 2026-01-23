@@ -27,6 +27,7 @@ from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.materials.material_batch_dto import (
     CreateBatchDTO,
     DecrementQuantityDTO,
+    DeleteBatchResultDTO,
     MoveBatchDTO,
     ReceiveBatchDTO,
     RelabelBatchDTO,
@@ -235,7 +236,6 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(activity.entity.id, batch.id)
         self.assertEqual(activity.quantity, Decimal("100"))
         self.assertEqual(activity.unit_type, UnitType.COUNT)
-        self.assertEqual(activity.to_location.id, location.id)
         self.assertEqual(activity.notes, "Test activity creation")
 
         # Cleanup
@@ -461,7 +461,6 @@ class TestMaterialBatchService(BaseTestCase):
         self.assertEqual(receive_activity.activity_type, ActivityType.RECEIVE)
         self.assertEqual(receive_activity.quantity, Decimal("100"))
         self.assertEqual(receive_activity.unit_type, UnitType.MASS)
-        self.assertEqual(receive_activity.to_location.id, location.id)
 
         # Cleanup
         Activity.delete().where(Activity.entity == batch).execute()
@@ -1540,8 +1539,7 @@ class TestMaterialBatchService(BaseTestCase):
         result = service.delete_batch(batch_id, notes="Test deletion")
 
         # Assert - hard deleted
-        self.assertTrue(result["deleted"])
-        self.assertTrue(result["hard_deleted"])
+        self.assertEqual(result, DeleteBatchResultDTO.DELETED)
         self.assertFalse(MaterialBatch.select().where(MaterialBatch.id == batch_id).exists())
         # Activities should also be deleted
         self.assertEqual(Activity.count_by_batch_id(batch_id), 0)
@@ -1579,8 +1577,7 @@ class TestMaterialBatchService(BaseTestCase):
         result = service.delete_batch(batch_id, notes="Expired stock")
 
         # Assert - soft deleted (discarded)
-        self.assertTrue(result["deleted"])
-        self.assertFalse(result["hard_deleted"])
+        self.assertEqual(result, DeleteBatchResultDTO.DISCARDED)
 
         # Batch still exists but is discarded
         db_batch = MaterialBatch.get_by_id(batch_id)

@@ -6,6 +6,7 @@ Defines data transfer objects for MaterialBatchService operations.
 
 from datetime import date
 from decimal import Decimal
+from enum import Enum
 
 from gws_core import BaseModelDTO, ModelDTO, UserDTO
 
@@ -90,6 +91,13 @@ class RelabelBatchDTO(BaseModelDTO):
 
     batch_number: str | None = None
     label: str | None = None
+
+
+class DeleteBatchResultDTO(Enum):
+    """Enum for delete batch operation results."""
+
+    DELETED = "deleted"
+    DISCARDED = "discarded"
 
 
 class CreateAliquotDTO(BaseModelDTO):

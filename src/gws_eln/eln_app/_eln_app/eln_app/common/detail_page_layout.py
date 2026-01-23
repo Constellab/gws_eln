@@ -81,7 +81,7 @@ def detail_page_layout(
         flex="1",
         min_height="0",
         width="100%",
-        height="100%",
         spacing="4",
         align_items="start",
+        class_name="detail-page-layout",
     )

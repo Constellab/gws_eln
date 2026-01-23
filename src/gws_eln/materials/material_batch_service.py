@@ -21,7 +21,7 @@ from gws_eln.materials.material_batch_dto import (
     CreateAliquotDTO,
     CreateBatchDTO,
     DecrementQuantityDTO,
-    IncrementQuantityDTO,
+    DeleteBatchResultDTO,
     MoveBatchDTO,
     ReceiveBatchDTO,
     RelabelBatchDTO,
@@ -196,49 +196,6 @@ class MaterialBatchService:
                 entity_id=batch.id,
                 quantity=base_quantity,
                 unit_type=batch.unit_type,
-                notes=dto.notes,
-            )
-        )
-
-        return batch
-
-    @ElnDbManager.transaction()
-    def increment_quantity(self, batch_id: str, dto: IncrementQuantityDTO) -> MaterialBatch:
-        """
-        Increment batch quantity.
-
-        :param batch_id: The ID of the batch
-        :type batch_id: str
-        :param dto: DTO containing increment data
-        :type dto: IncrementQuantityDTO
-        :return: The updated batch
-        :rtype: MaterialBatch
-        :raises NotFoundException: If batch not found
-        :raises BadRequestException: If validation fails
-        """
-        # Get existing batch
-        batch = self.get_batch(batch_id)
-
-        # Validate quantity is positive
-        validated_quantity = QuantityValidator.validate_quantity(dto.quantity)
-
-        # Validate unit and convert to base unit
-        base_quantity = self._validate_and_convert_quantity(batch, validated_quantity, dto.unit)
-
-        # Add quantity to existing (both in base units)
-        batch.quantity = batch.quantity + base_quantity
-
-        # Save (last_modified_by updated automatically by ModelWithUser)
-        batch.save()
-
-        # Create 'receive' activity entry (increment is like receiving more stock)
-        self._activity_service.log_activity(
-            CreateActivityDTO(
-                activity_type=ActivityType.RECEIVE,
-                entity_id=batch.id,
-                quantity=base_quantity,
-                unit_type=batch.unit_type,
-                to_location_id=batch.location.id,
                 notes=dto.notes,
             )
         )
@@ -434,7 +391,7 @@ class MaterialBatchService:
         return batch
 
     @ElnDbManager.transaction()
-    def delete_batch(self, batch_id: str, notes: str | None = None) -> dict:
+    def delete_batch(self, batch_id: str, notes: str | None = None) -> DeleteBatchResultDTO:
         """
         Delete or discard a batch if it has no child batches (aliquots).
 
@@ -479,7 +436,7 @@ class MaterialBatchService:
             Activity.delete().where(Activity.entity == batch).execute()
             # Hard delete the batch
             batch.delete_instance()
-            return {"deleted": True, "hard_deleted": True}
+            return DeleteBatchResultDTO.DELETED
 
         # Otherwise, soft delete (mark as discarded)
         # Create 'discard' activity entry
@@ -497,7 +454,7 @@ class MaterialBatchService:
         batch.status = BatchStatus.DISCARDED
         batch.save()
 
-        return {"deleted": True, "hard_deleted": False}
+        return DeleteBatchResultDTO.DISCARDED
 
     def _validate_batch_number(self, batch_number: str) -> None:
         """

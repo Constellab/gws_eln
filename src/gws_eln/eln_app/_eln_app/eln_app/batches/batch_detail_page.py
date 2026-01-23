@@ -16,8 +16,17 @@ from ..common.materials.material_components import (
 )
 from ..common.page_layout import page_layout
 from ..common.supplier.inline_supplier_component import inline_supplier_component
+from ..delete_batch_form_dialog.delete_batch_form_dialog_component import (
+    delete_batch_dialog,
+)
 from ..move_batch_form_dialog.move_batch_form_dialog_component import (
     move_batch_dialog,
+)
+from ..relabel_batch_form_dialog.relabel_batch_form_dialog_component import (
+    relabel_batch_dialog,
+)
+from ..update_batch_form_dialog.update_batch_form_dialog_component import (
+    update_batch_dialog,
 )
 from .batch_detail_state import BatchDetailState
 
@@ -50,10 +59,12 @@ def _details_sidebar() -> rx.Component:
             rx.text("Batch Number", size="2", color="gray", weight="medium"),
             rx.text(BatchDetailState.batch.batch_number, size="2", weight="medium"),
             # Label
-            rx.text("Label", size="2", color="gray", weight="medium"),
             rx.cond(
                 BatchDetailState.batch.label,
-                rx.text(BatchDetailState.batch.label, size="2"),
+                rx.fragment(
+                    rx.text("Label", size="2", color="gray", weight="medium"),
+                    rx.text(BatchDetailState.batch.label, size="2"),
+                ),
             ),
             # Material Name
             rx.text("Material", size="2", color="gray", weight="medium"),
@@ -62,10 +73,12 @@ def _details_sidebar() -> rx.Component:
             rx.text("Location", size="2", color="gray", weight="medium"),
             inline_location_component(BatchDetailState.batch.location),
             # Supplier
-            rx.text("Supplier", size="2", color="gray", weight="medium"),
             rx.cond(
                 BatchDetailState.batch.supplier,
-                inline_supplier_component(BatchDetailState.batch.supplier),
+                rx.fragment(
+                    rx.text("Supplier", size="2", color="gray", weight="medium"),
+                    inline_supplier_component(BatchDetailState.batch.supplier),
+                ),
             ),
             # Quantity
             rx.text("Quantity", size="2", color="gray", weight="medium"),
@@ -80,19 +93,25 @@ def _details_sidebar() -> rx.Component:
                 width="fit-content",
             ),
             # Parent Batch
-            rx.text("Parent Batch", size="2", color="gray", weight="medium"),
             rx.cond(
                 BatchDetailState.batch.parent_batch_id,
-                rx.link(
-                    rx.text("View parent", size="2"),
-                    href=ElnAppRouter.get_batch_detail_url(BatchDetailState.batch.parent_batch_id),
+                rx.fragment(
+                    rx.text("Parent Batch", size="2", color="gray", weight="medium"),
+                    rx.link(
+                        rx.text("View parent", size="2"),
+                        href=ElnAppRouter.get_batch_detail_url(
+                            BatchDetailState.batch.parent_batch_id
+                        ),
+                    ),
                 ),
             ),
             # Notes
-            rx.text("Notes", size="2", color="gray", weight="medium"),
             rx.cond(
                 BatchDetailState.batch.notes,
-                rx.text(BatchDetailState.batch.notes, size="2"),
+                rx.fragment(
+                    rx.text("Notes", size="2", color="gray", weight="medium"),
+                    rx.text(BatchDetailState.batch.notes, size="2"),
+                ),
             ),
             # Divider before technical info
             rx.divider(margin_top="0.5rem", margin_bottom="0.5rem", grid_column="span 2"),
@@ -180,6 +199,23 @@ def _actions_menu() -> rx.Component:
                 rx.icon("arrow-right-from-line", size=16),
                 "Move Batch",
                 on_click=BatchDetailState.open_move_dialog,
+            ),
+            rx.menu.item(
+                rx.icon("pencil", size=16),
+                "Update Batch",
+                on_click=BatchDetailState.open_update_dialog,
+            ),
+            rx.menu.item(
+                rx.icon("tag", size=16),
+                "Relabel Batch",
+                on_click=BatchDetailState.open_relabel_dialog,
+            ),
+            rx.menu.separator(),
+            rx.menu.item(
+                rx.icon("trash-2", size=16),
+                "Delete Batch",
+                color="red",
+                on_click=BatchDetailState.open_delete_dialog,
             ),
         ),
     )
@@ -271,4 +307,7 @@ def batch_detail_page() -> rx.Component:
         ),
         batch_event_form_dialog(),
         move_batch_dialog(),
+        update_batch_dialog(),
+        relabel_batch_dialog(),
+        delete_batch_dialog(),
     )

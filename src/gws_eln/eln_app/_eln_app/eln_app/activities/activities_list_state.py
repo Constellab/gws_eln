@@ -83,6 +83,7 @@ class ActivitiesListState(ReflexMainState):
                 return
 
             self._batch_id = batch_id
+            self._activities = []
             self.is_loading = True
 
         try:

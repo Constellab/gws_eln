@@ -2,7 +2,7 @@
 
 import reflex as rx
 from gws_eln.materials.material_batch import MaterialBatch
-from gws_eln.materials.material_batch_dto import MaterialBatchDTO
+from gws_eln.materials.material_batch_dto import DeleteBatchResultDTO, MaterialBatchDTO
 from gws_eln.materials.material_batch_service import MaterialBatchService
 from gws_reflex_main import ReflexMainState
 
@@ -11,8 +11,18 @@ from ..batch_event_form_dialog.batch_event_form_dialog_state import (
     BatchEventFormDialogState,
     BatchEventType,
 )
+from ..common.eln_app_router import ElnAppRouter
+from ..delete_batch_form_dialog.delete_batch_form_dialog_state import (
+    DeleteBatchFormDialogState,
+)
 from ..move_batch_form_dialog.move_batch_form_dialog_state import (
     MoveBatchFormDialogState,
+)
+from ..relabel_batch_form_dialog.relabel_batch_form_dialog_state import (
+    RelabelBatchFormDialogState,
+)
+from ..update_batch_form_dialog.update_batch_form_dialog_state import (
+    UpdateBatchFormDialogState,
 )
 
 
@@ -108,3 +118,56 @@ class BatchDetailState(rx.State):
         dialog_state = await self.get_state(MoveBatchFormDialogState)
         dialog_state.set_callback_after_close(self._on_batch_event_success)
         await dialog_state.open_move_dialog(self.batch)
+
+    async def _on_batch_update_success(self, updated_batch: MaterialBatchDTO):
+        """Callback invoked when update_batch completes successfully.
+
+        Only refreshes the batch data (no activity is created for update).
+
+        :param updated_batch: The updated batch DTO
+        :type updated_batch: MaterialBatchDTO
+        """
+        # Update the batch with the new data
+        self.batch = updated_batch
+
+    @rx.event
+    async def open_update_dialog(self):
+        """Open the update batch dialog for the current batch."""
+        if not self.batch:
+            return
+        dialog_state = await self.get_state(UpdateBatchFormDialogState)
+        dialog_state.set_callback_after_close(self._on_batch_update_success)
+        await dialog_state.open_update_dialog(self.batch)
+
+    @rx.event
+    async def open_relabel_dialog(self):
+        """Open the relabel batch dialog for the current batch."""
+        if not self.batch:
+            return
+        dialog_state = await self.get_state(RelabelBatchFormDialogState)
+        dialog_state.set_callback_after_close(self._on_batch_event_success)
+        await dialog_state.open_relabel_dialog(self.batch)
+
+    async def _on_batch_delete_success(self, result: DeleteBatchResultDTO):
+        """Callback invoked when delete_batch completes successfully.
+
+        Refreshes the batch data and activities list.
+        """
+        # Reload the batch (it may be discarded now or deleted)
+        if result == DeleteBatchResultDTO.DISCARDED:
+            await self.load_batch(self.batch.id)
+
+            # Refresh the activities list
+            activities_state = await self.get_state(ActivitiesListState)
+            await activities_state.refresh_activities()
+        else:
+            yield rx.redirect(ElnAppRouter.get_material_detail_url(self.batch.material.id))
+
+    @rx.event
+    async def open_delete_dialog(self):
+        """Open the delete batch dialog for the current batch."""
+        if not self.batch:
+            return
+        dialog_state = await self.get_state(DeleteBatchFormDialogState)
+        dialog_state.set_callback_after_close(self._on_batch_delete_success)
+        await dialog_state.open_delete_dialog(self.batch)

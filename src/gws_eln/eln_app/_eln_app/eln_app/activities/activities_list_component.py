@@ -25,26 +25,14 @@ def _type_specific_description(activity: ActivityDTO) -> rx.Component:
         rx.match(
             activity.activity_type,
             (
-                ActivityType.RECEIVE.value,
-                rx.hstack(
-                    rx.text("From: ", size="2", color="gray"),
-                    rx.cond(
-                        activity.to_location,
-                        inline_location_component(activity.to_location),
-                    ),
-                    spacing="1",
-                    align="center",
-                ),
-            ),
-            (
                 ActivityType.MOVE.value,
                 rx.hstack(
-                    rx.icon("map-pin", size=18, color="gray"),
+                    rx.icon("map-pin", size=18),
                     rx.cond(
                         activity.from_location,
                         inline_location_component(activity.from_location),
                     ),
-                    rx.icon("arrow-right", size=14, color="gray"),
+                    rx.icon("arrow-right", size=14),
                     rx.cond(
                         activity.to_location,
                         inline_location_component(activity.to_location),

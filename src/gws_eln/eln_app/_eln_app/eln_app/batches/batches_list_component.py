@@ -240,6 +240,7 @@ def batches_list_component(material_id: rx.Var[str]) -> rx.Component:
             width="100%",
             spacing="4",
             on_mount=BatchesListState.fetch_batches_on_mount(material_id),
+            on_unmount=BatchesListState.on_unmount,
         ),
         key=material_id,
         width="100%",

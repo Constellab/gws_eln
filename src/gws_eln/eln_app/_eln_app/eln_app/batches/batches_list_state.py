@@ -1,13 +1,9 @@
 """State for the batches list component."""
 
 import reflex as rx
-from gws_eln.locations.location_dto import LocationDTO
-from gws_eln.locations.location_search_builder import LocationSearchBuilder
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material_batch_dto import MaterialBatchDTO
 from gws_eln.materials.material_batch_search_builder import MaterialBatchSearchBuilder
-from gws_eln.suppliers.supplier_dto import SupplierDTO
-from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
 from gws_reflex_main import ReflexMainState
 
 from ..material_batch_form_dialog.material_batch_form_dialog_state import (
@@ -29,10 +25,6 @@ class BatchesListState(ReflexMainState):
     _batches: list[MaterialBatchDTO] = []
     is_loading: bool = False
     error_message: str = ""
-
-    # Available options for dropdown filters
-    available_locations: list[LocationDTO] = []
-    available_suppliers: list[SupplierDTO] = []
 
     # Filter state
     search_text: str = ""
@@ -57,19 +49,6 @@ class BatchesListState(ReflexMainState):
         :rtype: str
         """
         return self._material_id or ""
-
-    async def _load_filter_options(self):
-        """Load available options for the filter dropdowns."""
-        with await self.authenticate_user():
-            # Load locations
-            location_search_builder = LocationSearchBuilder()
-            locations = location_search_builder.search_all()
-            self.available_locations = [location.to_dto() for location in locations]
-
-            # Load suppliers
-            supplier_search_builder = SupplierSearchBuilder()
-            suppliers = supplier_search_builder.search_all()
-            self.available_suppliers = [supplier.to_dto() for supplier in suppliers]
 
     async def _load_batches(self):
         """Load the list of batches with applied filters.
@@ -134,13 +113,24 @@ class BatchesListState(ReflexMainState):
         try:
             with await self.authenticate_user():
                 async with self:
-                    await self._load_filter_options()
                     await self._load_batches()
         except Exception:
             async with self:
                 self._batches = []
                 self.is_loading = False
                 self.error_message = "Failed to load batches"
+
+    @rx.event
+    def on_unmount(self):
+        """Reset state when the component is unmounted."""
+        self._material_id = None
+        self._batches = []
+        self.is_loading = False
+        self.error_message = ""
+        self.search_text = ""
+        self.filter_location_id = ALL_FILTER_VALUE
+        self.filter_supplier_id = ALL_FILTER_VALUE
+        self.filter_status = ALL_FILTER_VALUE
 
     @rx.event
     async def handle_search_change(self, value: str):

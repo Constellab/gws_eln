@@ -112,48 +112,50 @@ def material_detail_page() -> rx.Component:
     :return: The material detail page component
     :rtype: rx.Component
     """
-    return main_component(
-        page_layout(
-            rx.cond(
-                MaterialDetailState.error_message != "",
-                rx.callout(
-                    MaterialDetailState.error_message,
-                    icon="triangle_alert",
-                    color_scheme="red",
-                    role="alert",
-                ),
+    return rx.box(
+        main_component(
+            page_layout(
                 rx.cond(
-                    MaterialDetailState.is_loading,
-                    rx.center(rx.spinner(size="3"), padding="2rem"),
+                    MaterialDetailState.error_message != "",
+                    rx.callout(
+                        MaterialDetailState.error_message,
+                        icon="triangle_alert",
+                        color_scheme="red",
+                        role="alert",
+                    ),
                     rx.cond(
-                        MaterialDetailState.material,
-                        detail_page_layout(
-                            main_content=_main_content(),
-                            sidebar_content=_details_sidebar(),
-                        ),
-                        rx.center(
-                            rx.vstack(
-                                rx.icon("package-x", size=48, color="gray"),
-                                rx.text(
-                                    "Material not found",
-                                    size="4",
-                                    color="gray",
-                                    margin_top="1rem",
-                                ),
-                                spacing="2",
-                                align="center",
+                        MaterialDetailState.is_loading,
+                        rx.center(rx.spinner(size="3"), padding="2rem"),
+                        rx.cond(
+                            MaterialDetailState.material,
+                            detail_page_layout(
+                                main_content=_main_content(),
+                                sidebar_content=_details_sidebar(),
                             ),
-                            padding="3rem",
-                            width="100%",
+                            rx.center(
+                                rx.vstack(
+                                    rx.icon("package-x", size=48, color="gray"),
+                                    rx.text(
+                                        "Material not found",
+                                        size="4",
+                                        color="gray",
+                                        margin_top="1rem",
+                                    ),
+                                    spacing="2",
+                                    align="center",
+                                ),
+                                padding="3rem",
+                                width="100%",
+                            ),
                         ),
                     ),
                 ),
-            ),
-            header_content=rx.hstack(
-                _back_button(),
-                rx.heading(MaterialDetailState.material.name, size="6"),
-                align="center",
-                spacing="2",
-            ),
-        )
+                header_content=rx.hstack(
+                    _back_button(),
+                    rx.heading(MaterialDetailState.material.name, size="6"),
+                    align="center",
+                    spacing="2",
+                ),
+            )
+        ),
     )
