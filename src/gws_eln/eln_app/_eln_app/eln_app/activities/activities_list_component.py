@@ -9,7 +9,7 @@ from gws_reflex_main import user_with_date_component
 
 from ..common.batch.batch_components import batch_inline_link
 from ..common.location.inline_location_component import inline_location_component
-from .activities_list_state import ALL_FILTER_VALUE, ActivitiesListState
+from .activities_list_state import ALL_FILTER_VALUE, ALLIQUOT_FILTER_VALUE, ActivitiesListState
 from .activity_type_component import activity_type_badge
 
 
@@ -89,8 +89,7 @@ def _filter_bar() -> rx.Component:
                 rx.select.item("Consumed", value=ActivityType.CONSUME.value),
                 rx.select.item("Used", value=ActivityType.USE.value),
                 rx.select.item("Discarded", value=ActivityType.DISCARD.value),
-                rx.select.item("Aliquot", value=ActivityType.ALIQUOT.value),
-                rx.select.item("Created", value=ActivityType.ALIQUOT_CREATED.value),
+                rx.select.item("Aliquot", value=ALLIQUOT_FILTER_VALUE),
                 rx.select.item("Relabeled", value=ActivityType.RELABEL.value),
             ),
             value=ActivitiesListState.filter_activity_type,

@@ -13,6 +13,13 @@ class ActivitySearchBuilder(SearchBuilder):
         self.add_expression(Activity.activity_type == activity_type)
         return self
 
+    def add_activity_types_filter(
+        self, activity_types: list[ActivityType]
+    ) -> "ActivitySearchBuilder":
+        """Filter the search query by multiple activity types"""
+        self.add_expression(Activity.activity_type.in_(activity_types))
+        return self
+
     def add_entity_filter(self, entity_id: str) -> "ActivitySearchBuilder":
         """Filter the search query by entity (material batch) ID"""
         self.add_expression(Activity.batch == entity_id)
