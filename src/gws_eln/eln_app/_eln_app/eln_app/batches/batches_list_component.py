@@ -11,6 +11,7 @@ from ..batch_event_form_dialog.batch_event_form_dialog_component import (
 from ..common.batch.batch_actions_menu import batch_actions_menu
 from ..common.batch.batch_components import batch_inline, expiry_date_badge
 from ..common.batch.batch_status_select_component import batch_status_select_component
+from ..common.eln_app_router import ElnAppRouter
 from ..common.location.inline_location_component import inline_location_component
 from ..common.location.location_select_component import location_select_component
 from ..common.supplier.inline_supplier_component import inline_supplier_component
@@ -153,7 +154,7 @@ def _row(batch: MaterialBatchDTO) -> rx.Component:
                 stop_propagation=True,
             ),
         ),
-        on_click=rx.redirect(f"/batches/{batch.id}"),
+        on_click=rx.redirect(ElnAppRouter.get_batch_detail_url(batch.id)),
         style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
     )
 

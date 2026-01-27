@@ -4,9 +4,12 @@ Material Batch DTOs for create, receive, and other operations.
 Defines data transfer objects for MaterialBatchService operations.
 """
 
+from __future__ import annotations
+
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from gws_core import BaseModelDTO, UserDTO
 
@@ -15,6 +18,9 @@ from gws_eln.locations.location_dto import LocationDTO
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material_dto import MaterialDTO
 from gws_eln.suppliers.supplier_dto import SupplierDTO
+
+if TYPE_CHECKING:
+    pass
 
 
 class CreateBatchDTO(BaseModelDTO):
@@ -34,6 +40,7 @@ class CreateBatchDTO(BaseModelDTO):
     expiry_date: date | None = None
     label: str | None = None
     notes: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
 
 
 class ReceiveBatchDTO(BaseModelDTO):
@@ -46,6 +53,7 @@ class ReceiveBatchDTO(BaseModelDTO):
     quantity: Decimal
     unit: str  # Exact unit (e.g., 'mL', 'g', 'kg') - converted to base unit for storage
     notes: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
 
 
 class IncrementQuantityDTO(BaseModelDTO):
@@ -70,12 +78,14 @@ class DecrementQuantityDTO(BaseModelDTO):
     quantity: Decimal
     unit: str  # Exact unit (e.g., 'mL', 'g', 'kg') - converted to base unit for storage
     notes: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
 
 
 class MoveBatchDTO(BaseModelDTO):
     """DTO for moving a batch to a different location."""
 
     to_location_id: str
+    note_id: str | None = None  # Link to Constellab Note
 
 
 class UpdateBatchDTO(BaseModelDTO):
@@ -84,6 +94,21 @@ class UpdateBatchDTO(BaseModelDTO):
     notes: str | None = None
     expiry_date: date | None = None
     supplier_id: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
+
+
+class UseBatchDTO(BaseModelDTO):
+    """DTO for recording a USE activity on a batch (reference only, no state change)."""
+
+    notes: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
+
+
+class DiscardBatchDTO(BaseModelDTO):
+    """DTO for discarding a batch."""
+
+    notes: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
 
 
 class RelabelBatchDTO(BaseModelDTO):
@@ -91,6 +116,7 @@ class RelabelBatchDTO(BaseModelDTO):
 
     batch_number: str | None = None
     label: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
 
 
 class DeleteBatchResultDTO(Enum):
@@ -127,6 +153,7 @@ class CreateAliquotDTO(BaseModelDTO):
     location_id: str | None = None  # Default to parent's location if None
     notes: str | None = None
     supplier_id: str | None = None  # Default to None
+    note_id: str | None = None  # Link to Constellab Note
 
 
 class MaterialBatchSimpleDTO(BaseModelDTO):

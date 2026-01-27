@@ -5,6 +5,9 @@ Handles CRUD operations, validation, and business logic for material batches.
 Implements Story 5.1 from Epic 5: Service Layer - Material Batches.
 """
 
+import re
+from typing import cast
+
 from gws_core import BadRequestException, CurrentUserService
 
 from gws_eln.activities.activity import Activity
@@ -14,6 +17,7 @@ from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.locations.location import Location
 from gws_eln.locations.location_service import LocationService
+from gws_eln.materials.batch_activity_dto import BatchActivityResult
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material import Material
 from gws_eln.materials.material_batch import MaterialBatch
@@ -22,11 +26,13 @@ from gws_eln.materials.material_batch_dto import (
     CreateBatchDTO,
     DecrementQuantityDTO,
     DeleteBatchResultDTO,
+    DiscardBatchDTO,
     HierarchyObjectDTO,
     MoveBatchDTO,
     ReceiveBatchDTO,
     RelabelBatchDTO,
     UpdateBatchDTO,
+    UseBatchDTO,
 )
 from gws_eln.suppliers.supplier_service import SupplierService
 from gws_eln.utils.units_converter import UnitConverter
@@ -121,14 +127,14 @@ class MaterialBatchService:
         return list(query.order_by(MaterialBatch.created_at.desc()))
 
     @ElnDbManager.transaction()
-    def create_batch(self, dto: CreateBatchDTO) -> MaterialBatch:
+    def create_batch(self, dto: CreateBatchDTO) -> BatchActivityResult:
         """
         Create a new material batch.
 
         :param dto: DTO containing batch data
         :type dto: CreateBatchDTO
-        :return: The created batch
-        :rtype: MaterialBatch
+        :return: The created batch and its receive activity
+        :rtype: BatchActivityResult
         :raises BadRequestException: If validation fails or references don't exist
         """
         # Validate input
@@ -177,20 +183,21 @@ class MaterialBatchService:
         batch.save()
 
         # Create 'receive' activity entry using ActivityService
-        self._activity_service.log_activity(
+        activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.RECEIVE,
                 batch_id=batch.id,
                 quantity=base_quantity,
                 unit_type=unit_type,
                 notes=dto.notes,
+                note_id=dto.note_id,
             )
         )
 
-        return batch
+        return BatchActivityResult(batch=batch, activity=activity)
 
     @ElnDbManager.transaction()
-    def receive_batch(self, batch_id: str, dto: ReceiveBatchDTO) -> MaterialBatch:
+    def receive_batch(self, batch_id: str, dto: ReceiveBatchDTO) -> BatchActivityResult:
         """
         Receive additional stock to an existing batch (increments quantity).
 
@@ -198,8 +205,8 @@ class MaterialBatchService:
         :type batch_id: str
         :param dto: DTO containing receive data
         :type dto: ReceiveBatchDTO
-        :return: The updated batch
-        :rtype: MaterialBatch
+        :return: The updated batch and the created activity
+        :rtype: BatchActivityResult
         :raises NotFoundException: If batch not found
         :raises BadRequestException: If validation fails
         """
@@ -219,20 +226,21 @@ class MaterialBatchService:
         batch.save()
 
         # Create 'receive' activity entry using ActivityService
-        self._activity_service.log_activity(
+        activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.RECEIVE,
                 batch_id=batch.id,
                 quantity=base_quantity,
                 unit_type=batch.unit_type,
                 notes=dto.notes,
+                note_id=dto.note_id,
             )
         )
 
-        return batch
+        return BatchActivityResult(batch=batch, activity=activity)
 
     @ElnDbManager.transaction()
-    def consume_quantity(self, batch_id: str, dto: DecrementQuantityDTO) -> MaterialBatch:
+    def consume_quantity(self, batch_id: str, dto: DecrementQuantityDTO) -> BatchActivityResult:
         """
         Decrement batch quantity (consumables only).
 
@@ -240,8 +248,8 @@ class MaterialBatchService:
         :type batch_id: str
         :param dto: DTO containing decrement data
         :type dto: DecrementQuantityDTO
-        :return: The updated batch
-        :rtype: MaterialBatch
+        :return: The updated batch and the created activity
+        :rtype: BatchActivityResult
         :raises NotFoundException: If batch not found
         :raises BadRequestException: If validation fails, batch is non-consumable,
                                      or would result in negative stock
@@ -271,20 +279,21 @@ class MaterialBatchService:
         batch.save()
 
         # Create 'consume' activity entry
-        self._activity_service.log_activity(
+        activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.CONSUME,
                 batch_id=batch.id,
                 quantity=base_quantity,
                 unit_type=batch.unit_type,
                 notes=dto.notes,
+                note_id=dto.note_id,
             )
         )
 
-        return batch
+        return BatchActivityResult(batch=batch, activity=activity)
 
     @ElnDbManager.transaction()
-    def move_batch(self, batch_id: str, dto: MoveBatchDTO) -> MaterialBatch:
+    def move_batch(self, batch_id: str, dto: MoveBatchDTO) -> BatchActivityResult:
         """
         Move a batch to a different location.
 
@@ -292,8 +301,8 @@ class MaterialBatchService:
         :type batch_id: str
         :param dto: DTO containing move data
         :type dto: MoveBatchDTO
-        :return: The updated batch
-        :rtype: MaterialBatch
+        :return: The updated batch and the created activity
+        :rtype: BatchActivityResult
         :raises NotFoundException: If batch not found
         :raises BadRequestException: If destination location doesn't exist
         """
@@ -313,16 +322,17 @@ class MaterialBatchService:
         batch.save()
 
         # Create 'move' activity entry
-        self._activity_service.log_activity(
+        activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.MOVE,
                 batch_id=batch.id,
                 from_location_id=from_location.id,
                 to_location_id=to_location.id,
+                note_id=dto.note_id,
             )
         )
 
-        return batch
+        return BatchActivityResult(batch=batch, activity=activity)
 
     def update_batch(self, batch_id: str, dto: UpdateBatchDTO) -> MaterialBatch:
         """
@@ -358,8 +368,72 @@ class MaterialBatchService:
 
         return batch
 
+    def use_batch(self, batch_id: str, dto: UseBatchDTO) -> BatchActivityResult:
+        """
+        Record a USE activity on a batch (reference only, no state change).
+
+        USE is for non-consumable materials or when you just want to log
+        that a batch was used without changing its quantity.
+
+        :param batch_id: The ID of the batch
+        :type batch_id: str
+        :param dto: DTO containing use data
+        :type dto: UseBatchDTO
+        :return: The batch and the created activity
+        :rtype: BatchActivityResult
+        """
+        # Validate batch exists
+        batch = self.get_batch(batch_id)
+
+        activity = self._activity_service.log_activity(
+            CreateActivityDTO(
+                activity_type=ActivityType.USE,
+                batch_id=batch_id,
+                notes=dto.notes,
+                note_id=dto.note_id,
+            )
+        )
+
+        return BatchActivityResult(batch=batch, activity=activity)
+
     @ElnDbManager.transaction()
-    def relabel_batch(self, batch_id: str, dto: RelabelBatchDTO) -> MaterialBatch:
+    def discard_batch(self, batch_id: str, dto: DiscardBatchDTO) -> BatchActivityResult:
+        """
+        Discard a batch (soft delete with activity logging).
+
+        :param batch_id: The ID of the batch to discard
+        :type batch_id: str
+        :param dto: DTO containing discard data
+        :type dto: DiscardBatchDTO
+        :return: The updated batch and the created activity
+        :rtype: BatchActivityResult
+        :raises NotFoundException: If batch not found
+        :raises BadRequestException: If batch is already discarded
+        """
+        batch = self.get_batch(batch_id)
+
+        if batch.is_discarded():
+            raise BadRequestException(f"Batch '{batch.batch_number}' is already discarded")
+
+        # Create 'discard' activity entry
+        activity = self._activity_service.log_activity(
+            CreateActivityDTO(
+                activity_type=ActivityType.DISCARD,
+                batch_id=batch.id,
+                quantity=batch.quantity,
+                unit_type=batch.unit_type,
+                notes=dto.notes or "Batch discarded",
+                note_id=dto.note_id,
+            )
+        )
+
+        batch.status = BatchStatus.DISCARDED
+        batch.save()
+
+        return BatchActivityResult(batch=batch, activity=activity)
+
+    @ElnDbManager.transaction()
+    def relabel_batch(self, batch_id: str, dto: RelabelBatchDTO) -> BatchActivityResult:
         """
         Relabel a batch (change batch_number and/or label) with activity logging.
 
@@ -367,8 +441,8 @@ class MaterialBatchService:
         :type batch_id: str
         :param dto: DTO containing relabel data
         :type dto: RelabelBatchDTO
-        :return: The updated batch
-        :rtype: MaterialBatch
+        :return: The updated batch and the created activity (activity is None if no changes)
+        :rtype: BatchActivityResult
         :raises NotFoundException: If batch not found
         :raises BadRequestException: If validation fails or no changes provided
         """
@@ -401,26 +475,29 @@ class MaterialBatchService:
                 batch.label = new_label
                 changes.append(f"label: '{old_label}' -> '{new_label}'")
 
-        # If no actual changes, return batch as-is
+        # If no actual changes, return batch as-is with no activity
         if not changes:
-            return batch
+            return BatchActivityResult(batch=batch, activity=None)
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         batch.save()
 
         # Create 'relabel' activity entry
-        self._activity_service.log_activity(
+        activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.RELABEL,
                 batch_id=batch.id,
                 notes="; ".join(changes),
+                note_id=dto.note_id,
             )
         )
 
-        return batch
+        return BatchActivityResult(batch=batch, activity=activity)
 
     @ElnDbManager.transaction()
-    def delete_batch(self, batch_id: str, notes: str | None = None) -> DeleteBatchResultDTO:
+    def delete_batch(
+        self, batch_id: str, notes: str | None = None, note_id: str | None = None
+    ) -> DeleteBatchResultDTO:
         """
         Delete or discard a batch if it has no child batches (aliquots).
 
@@ -476,6 +553,7 @@ class MaterialBatchService:
                 quantity=batch.quantity,
                 unit_type=batch.unit_type,
                 notes=notes if notes else "Batch discarded",
+                note_id=note_id,
             )
         )
 
@@ -534,10 +612,201 @@ class MaterialBatchService:
 
         return UnitConverter.to_base_unit(quantity, unit, unit_type)
 
+    ########################## REVERSE ACTIVITY ##############################
+
+    @ElnDbManager.transaction()
+    def reverse_activity(self, activity_id: str) -> None:
+        """Reverse an activity: undo its effect on the batch and delete the activity record.
+
+        This is called when a materialActivity block is removed from a note.
+        The batch state is restored to what it was before the activity.
+
+        :param activity_id: The ID of the activity to reverse
+        :type activity_id: str
+        :raises BadRequestException: If activity not found, or reversal is not possible
+        """
+        CurrentUserService.get_and_check_current_user()
+
+        activity = Activity.get_by_id(activity_id)
+        if not activity:
+            raise BadRequestException(f"Activity with ID '{activity_id}' does not exist")
+
+        batch = cast(MaterialBatch, activity.batch)
+        activity_type = activity.activity_type
+
+        if activity_type == ActivityType.RECEIVE:
+            self._reverse_receive(activity, batch)
+        elif activity_type == ActivityType.CONSUME:
+            self._reverse_consume(activity, batch)
+        elif activity_type == ActivityType.MOVE:
+            self._reverse_move(activity, batch)
+        elif activity_type == ActivityType.USE:
+            self._reverse_use(activity, batch)
+        elif activity_type == ActivityType.DISCARD:
+            self._reverse_discard(activity, batch)
+        elif activity_type == ActivityType.ALIQUOT:
+            self._reverse_aliquot(activity, batch)
+        elif activity_type == ActivityType.ALIQUOT_CREATED:
+            raise BadRequestException(
+                "Cannot reverse ALIQUOT_CREATED directly. "
+                "Reverse the parent ALIQUOT activity instead."
+            )
+        elif activity_type == ActivityType.RELABEL:
+            self._reverse_relabel(activity, batch)
+        else:
+            raise BadRequestException(f"Unknown activity type: {activity_type}")
+
+        # Delete the activity record
+        activity.delete_instance()
+
+    def _reverse_receive(self, activity: Activity, batch: MaterialBatch) -> None:
+        """Reverse RECEIVE: decrement quantity that was added.
+
+        Original effect: batch.quantity += activity.quantity
+        Reversal: batch.quantity -= activity.quantity
+        """
+        if activity.quantity is None:
+            raise BadRequestException("Cannot reverse RECEIVE activity without quantity")
+
+        if batch.quantity < activity.quantity:
+            raise BadRequestException(
+                f"Cannot reverse RECEIVE: batch '{batch.batch_number}' current quantity "
+                f"({batch.quantity}) is less than the received quantity ({activity.quantity}). "
+                f"The batch may have been consumed since this receive."
+            )
+
+        batch.quantity = batch.quantity - activity.quantity
+        batch.save()
+
+    def _reverse_consume(self, activity: Activity, batch: MaterialBatch) -> None:
+        """Reverse CONSUME: re-add quantity that was consumed.
+
+        Original effect: batch.quantity -= activity.quantity
+        Reversal: batch.quantity += activity.quantity
+        """
+        if activity.quantity is None:
+            raise BadRequestException("Cannot reverse CONSUME activity without quantity")
+
+        batch.quantity = batch.quantity + activity.quantity
+        batch.save()
+
+    def _reverse_move(self, activity: Activity, batch: MaterialBatch) -> None:
+        """Reverse MOVE: restore original location.
+
+        Original effect: batch.location = activity.to_location
+        Reversal: batch.location = activity.from_location
+        """
+        if activity.from_location is None:
+            raise BadRequestException(
+                "Cannot reverse MOVE activity: original location (from_location) is not recorded"
+            )
+
+        batch.location = activity.from_location
+        batch.save()
+
+    def _reverse_use(self, activity: Activity, batch: MaterialBatch) -> None:
+        """Reverse USE: no batch state change needed.
+
+        USE is reference-only (no quantity/location change).
+        Just delete the activity record (done in reverse_activity).
+        """
+        pass
+
+    def _reverse_discard(self, activity: Activity, batch: MaterialBatch) -> None:
+        """Reverse DISCARD: reactivate the batch.
+
+        Original effect: batch.status = DISCARDED
+        Reversal: batch.status = ACTIVE
+        """
+        if not batch.is_discarded():
+            raise BadRequestException(
+                f"Cannot reverse DISCARD: batch '{batch.batch_number}' is not discarded"
+            )
+
+        batch.status = BatchStatus.ACTIVE
+        batch.save()
+
+    def _reverse_aliquot(self, activity: Activity, batch: MaterialBatch) -> None:
+        """Reverse ALIQUOT: restore parent quantity, delete child batch and its ALIQUOT_CREATED activity.
+
+        Original effect:
+        - parent.quantity -= source_quantity (recorded in activity.quantity)
+        - child batch created (referenced by activity.related_batch)
+        - ALIQUOT_CREATED activity created on child batch
+
+        Reversal:
+        - Verify child batch has no active children (sub-aliquots)
+        - Delete ALIQUOT_CREATED activity on child batch
+        - Delete child batch
+        - parent.quantity += activity.quantity
+        """
+        child_batch = activity.related_batch
+        if child_batch is None:
+            raise BadRequestException(
+                "Cannot reverse ALIQUOT activity: related child batch not found"
+            )
+
+        # Check child batch has no active children
+        active_children_count = (
+            MaterialBatch.select()
+            .where(MaterialBatch.parent_batch == child_batch)
+            .where(MaterialBatch.status == BatchStatus.ACTIVE)
+            .count()
+        )
+        if active_children_count > 0:
+            raise BadRequestException(
+                f"Cannot reverse ALIQUOT: child batch '{child_batch.batch_number}' has "
+                f"{active_children_count} active sub-aliquot(s). Delete them first."
+            )
+
+        # Delete ALIQUOT_CREATED activity on the child batch
+        Activity.delete().where(
+            (Activity.batch == child_batch)
+            & (Activity.activity_type == ActivityType.ALIQUOT_CREATED)
+        ).execute()
+
+        # Delete all activities on the child batch (there should only be the ALIQUOT_CREATED)
+        Activity.delete().where(Activity.batch == child_batch).execute()
+
+        # Delete child batch
+        child_batch.delete_instance()
+
+        # Restore parent quantity
+        if activity.quantity is not None:
+            batch.quantity = batch.quantity + activity.quantity
+            batch.save()
+
+    def _reverse_relabel(self, activity: Activity, batch: MaterialBatch) -> None:
+        """Reverse RELABEL: restore original batch_number and/or label.
+
+        The original values are stored in activity.notes with format:
+        "batch_number: 'old_value' -> 'new_value'; label: 'old_value' -> 'new_value'"
+
+        Parse this string to extract and restore original values.
+        """
+        if not activity.notes:
+            raise BadRequestException(
+                "Cannot reverse RELABEL activity: no change details recorded in notes"
+            )
+
+        # Parse batch_number change
+        batch_number_match = re.search(r"batch_number: '(.+?)' -> '(.+?)'", activity.notes)
+        if batch_number_match:
+            old_batch_number = batch_number_match.group(1)
+            batch.batch_number = old_batch_number
+
+        # Parse label change
+        label_match = re.search(r"label: '(.+?)' -> '(.+?)'", activity.notes)
+        if label_match:
+            old_label = label_match.group(1)
+            batch.label = None if old_label == "None" else old_label
+
+        batch.save()
+
     ########################## ALIQUOTS ##############################
 
     @ElnDbManager.transaction()
-    def create_aliquot(self, dto: CreateAliquotDTO) -> MaterialBatch:
+    def create_aliquot(self, dto: CreateAliquotDTO) -> BatchActivityResult:
         """
         Create an aliquot from a parent batch.
 
@@ -555,8 +824,8 @@ class MaterialBatchService:
 
         :param dto: DTO containing aliquot data
         :type dto: CreateAliquotDTO
-        :return: The created aliquot batch
-        :rtype: MaterialBatch
+        :return: The created aliquot batch and the ALIQUOT activity (on the parent)
+        :rtype: BatchActivityResult
         :raises BadRequestException: If validation fails, parent doesn't exist,
                                      or insufficient quantity in parent
         """
@@ -644,7 +913,7 @@ class MaterialBatchService:
 
         # Create activity on PARENT batch (ALIQUOT type)
         # Documents that quantity was taken from parent to create the aliquot
-        self._activity_service.log_activity(
+        aliquot_activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.ALIQUOT,
                 batch_id=parent_batch.id,
@@ -654,6 +923,7 @@ class MaterialBatchService:
                 to_location_id=location.id,
                 related_batch_id=aliquot.id,  # Reference to the child aliquot
                 notes=dto.notes.strip() if dto.notes else None,
+                note_id=dto.note_id,
             )
         )
 
@@ -668,7 +938,8 @@ class MaterialBatchService:
                 to_location_id=location.id,
                 related_batch_id=parent_batch.id,  # Reference to the parent batch
                 notes=dto.notes.strip() if dto.notes else None,
+                note_id=dto.note_id,
             )
         )
 
-        return aliquot
+        return BatchActivityResult(batch=aliquot, activity=aliquot_activity)

@@ -204,22 +204,21 @@ class BatchEventFormDialogState(FormDialogState, rx.State):
             main_state = await self.get_state(ReflexMainState)
 
         # Execute the appropriate event
-        batch: MaterialBatch
         with await main_state.authenticate_user():
             batch_service = MaterialBatchService()
 
             if self._event_type == BatchEventType.RECEIVE:
                 dto = ReceiveBatchDTO(quantity=quantity, unit=unit, notes=notes)
-                batch = batch_service.receive_batch(self._batch.id, dto)
+                result = batch_service.receive_batch(self._batch.id, dto)
                 yield rx.toast.success("Stock received successfully")
 
             elif self._event_type == BatchEventType.CONSUME:
                 dto = DecrementQuantityDTO(quantity=quantity, unit=unit, notes=notes)
-                batch = batch_service.consume_quantity(self._batch.id, dto)
+                result = batch_service.consume_quantity(self._batch.id, dto)
                 yield rx.toast.success("Stock consumed successfully")
 
         if self._callback_after_close:
-            await self._callback_after_close(batch.to_dto())
+            await self._callback_after_close(result.batch.to_dto())
 
     async def _update(self, form_data: dict):
         """Not implemented - this dialog only creates events."""

@@ -257,8 +257,8 @@ class AliquotFormDialogState(FormDialogState, rx.State):
                 supplier_id=supplier_id,
                 notes=notes,
             )
-            aliquot = batch_service.create_aliquot(dto)
-            yield rx.toast.success(f"Aliquot '{aliquot.batch_number}' created successfully")
+            result = batch_service.create_aliquot(dto)
+            yield rx.toast.success(f"Aliquot '{result.batch.batch_number}' created successfully")
 
             # Refresh the parent batch to show updated quantity
             parent_batch = batch_service.get_batch(self._batch.id)

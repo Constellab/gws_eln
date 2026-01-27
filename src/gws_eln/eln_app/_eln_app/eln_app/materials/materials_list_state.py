@@ -9,6 +9,7 @@ from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
+from ..common.eln_app_router import ElnAppRouter
 from ..material_form_dialog.material_form_dialog_state import MaterialFormDialogState
 
 # Constants for "all" filter options
@@ -198,4 +199,4 @@ class MaterialsListState(rx.State):
         :param material_id: The ID of the material to view
         :type material_id: str
         """
-        return rx.redirect(f"/materials/{material_id}")
+        return rx.redirect(ElnAppRouter.get_material_detail_url(material_id))

@@ -110,13 +110,13 @@ class MoveBatchFormDialogState(FormDialogState, rx.State):
         with await main_state.authenticate_user():
             batch_service = MaterialBatchService()
             dto = MoveBatchDTO(to_location_id=location_id)
-            batch = batch_service.move_batch(self._batch.id, dto)
+            result = batch_service.move_batch(self._batch.id, dto)
 
         # Show success toast
         yield rx.toast.success("Batch moved successfully")
 
         if self._callback_after_close:
-            await self._callback_after_close(batch.to_dto())
+            await self._callback_after_close(result.batch.to_dto())
 
     async def _update(self, form_data: dict):
         """Not implemented - this dialog only supports move operation."""

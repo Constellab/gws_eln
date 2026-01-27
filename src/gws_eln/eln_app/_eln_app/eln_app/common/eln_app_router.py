@@ -22,6 +22,26 @@ class ElnAppRouter:
         return f"/materials/{material_id}"
 
     @staticmethod
+    def get_notes_list_url() -> str:
+        """Get the URL for the notes list page.
+
+        :return: The notes list URL
+        :rtype: str
+        """
+        return "/notes"
+
+    @staticmethod
+    def get_note_detail_url(note_id: str) -> str:
+        """Get the URL for the note detail page.
+
+        :param note_id: The ID of the note
+        :type note_id: str
+        :return: The note detail URL
+        :rtype: str
+        """
+        return f"/notes/{note_id}"
+
+    @staticmethod
     def get_batch_detail_url(batch_id: str) -> str:
         """Get the URL for the batch detail page.
 

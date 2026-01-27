@@ -109,6 +109,7 @@ def _mobile_sidebar_overlay(sidebar_content: rx.Component) -> rx.Component:
 def detail_page_layout(
     main_content: rx.Component,
     sidebar_content: rx.Component,
+    show_breadcrumb: bool = True,
 ) -> rx.Component:
     """Create a common layout for detail pages with breadcrumb, main content and sidebar.
 
@@ -130,7 +131,10 @@ def detail_page_layout(
     return rx.vstack(
         # Header row with breadcrumb and toggle button
         rx.hstack(
-            breadcrumb_component(),
+            rx.cond(
+                show_breadcrumb,
+                breadcrumb_component(),
+            ),
             rx.spacer(),
             rx.tooltip(
                 rx.icon_button(

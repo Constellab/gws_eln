@@ -9,6 +9,10 @@ from .materials.material_detail_page import material_detail_page
 from .materials.material_detail_state import MaterialDetailState
 from .materials.materials_list_state import MaterialsListState
 from .materials.materials_page import materials_page
+from .notes.note_detail_page import note_detail_page
+from .notes.note_detail_state import NoteDetailState
+from .notes.notes_list_state import NotesListState
+from .notes.notes_page import notes_page
 from .suppliers.suppliers_list_state import SuppliersListState
 from .suppliers.suppliers_page import suppliers_page
 
@@ -19,6 +23,12 @@ app = register_gws_reflex_app()
 def index():
     """Materials page (home)."""
     return materials_page()
+
+
+@rx.page(route="/notes", on_load=[NotesListState.on_load])
+def notes():
+    """Notes page."""
+    return notes_page()
 
 
 @rx.page(route="/locations", on_load=[LocationsListState.on_load])
@@ -37,6 +47,12 @@ def suppliers():
 def material_detail():
     """Material detail page."""
     return material_detail_page()
+
+
+@rx.page(route="/notes/[note_id]", on_load=[NoteDetailState.on_load])
+def note_detail():
+    """Note detail page."""
+    return note_detail_page()
 
 
 @rx.page(route="/batches/[batch_id]", on_load=[BatchDetailState.on_load])

@@ -122,13 +122,13 @@ class RelabelBatchFormDialogState(FormDialogState, rx.State):
         # Relabel the batch
         with await main_state.authenticate_user():
             batch_service = MaterialBatchService()
-            batch = batch_service.relabel_batch(self._batch.id, dto)
+            result = batch_service.relabel_batch(self._batch.id, dto)
 
         # Show success toast
         yield rx.toast.success("Batch relabeled successfully")
 
         if self._callback_after_close:
-            await self._callback_after_close(batch.to_dto())
+            await self._callback_after_close(result.batch.to_dto())
 
     async def _update(self, form_data: dict):
         """Not implemented - this dialog only supports create (relabel)."""
