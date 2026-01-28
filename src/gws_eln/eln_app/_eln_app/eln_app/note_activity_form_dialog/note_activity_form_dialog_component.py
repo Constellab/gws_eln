@@ -13,11 +13,13 @@ from ..common.activity.activity_type_select_component import (
 )
 from ..common.activity_form_sections import (
     aliquot_form_section,
+    create_batch_form_section,
     move_form_section,
     receive_consume_form_section,
     relabel_form_section,
     use_discard_form_section,
 )
+from ..common.materials.material_select_component import material_select_component
 from ..common.batch.batch_select_component import batch_select_component
 from .note_activity_form_dialog_state import NoteActivityFormDialogState
 
@@ -25,9 +27,9 @@ S = NoteActivityFormDialogState
 
 
 def _batch_info_section() -> rx.Component:
-    """Read-only display of selected batch info, shown when a sub-form is active."""
+    """Read-only display of selected batch info, shown when a sub-form is active (except for CREATE)."""
     return rx.cond(
-        S.show_sub_form,
+        S.show_sub_form & ~S.is_create_activity,
         rx.vstack(
             rx.vstack(
                 rx.text("Current Quantity", size="2", weight="bold"),
@@ -45,6 +47,19 @@ def _batch_info_section() -> rx.Component:
 def _sub_form() -> rx.Component:
     """Conditionally render the activity-specific sub-form."""
     return rx.fragment(
+        rx.cond(
+            S.show_create_form,
+            create_batch_form_section(
+                form_unit_type=S.form_unit_type,
+                form_unit=S.form_unit,
+                on_unit_change=S.set_unit,
+                form_location_id=S.form_location_id,
+                on_location_change=S.set_location_id,
+                form_supplier_id=S.form_supplier_id,
+                on_supplier_change=S.set_supplier_id,
+                form_notes=S.form_notes,
+            ),
+        ),
         rx.cond(
             S.show_receive_consume_form,
             receive_consume_form_section(
@@ -89,6 +104,7 @@ def _sub_form() -> rx.Component:
                 form_unit_type=S.form_unit_type,
                 form_source_unit=S.form_source_unit,
                 on_source_unit_change=S.set_source_unit,
+                form_aliquot_unit_type=S.form_aliquot_unit_type,
                 form_aliquot_unit=S.form_aliquot_unit,
                 on_aliquot_unit_change=S.set_aliquot_unit,
                 form_location_id=S.form_location_id,
@@ -96,6 +112,10 @@ def _sub_form() -> rx.Component:
                 form_supplier_id=S.form_supplier_id,
                 on_supplier_change=S.set_supplier_id,
                 form_notes=S.form_notes,
+                form_target_material_id=S.form_target_material_id,
+                on_target_material_change=S.set_target_material_id,
+                parent_batch_number=S.batch_number,
+                parent_available_quantity=S.current_quantity,
             ),
         ),
     )
@@ -104,17 +124,6 @@ def _sub_form() -> rx.Component:
 def _form_content() -> rx.Component:
     """Full form content: selection step + dynamic sub-form."""
     return rx.vstack(
-        # Step 1: Batch selection
-        rx.vstack(
-            rx.text("Batch*", size="2", weight="bold"),
-            batch_select_component(
-                placeholder="Select a batch...",
-                value=S.form_batch_id,
-                on_change=S.set_batch_id,
-            ),
-            width="100%",
-            spacing="1",
-        ),
         # Step 1: Activity type selection
         rx.vstack(
             rx.text("Activity Type*", size="2", weight="bold"),
@@ -124,6 +133,35 @@ def _form_content() -> rx.Component:
             ),
             width="100%",
             spacing="1",
+        ),
+        # Step 2: Batch or Material selection (only shown after activity type is selected)
+        rx.cond(
+            S.form_activity_type != "",
+            rx.cond(
+                S.is_create_activity,
+                # For CREATE activity: show material selector
+                rx.vstack(
+                    rx.text("Material*", size="2", weight="bold"),
+                    material_select_component(
+                        placeholder="Select a material...",
+                        value=S.form_material_id,
+                        on_change=S.set_material_id,
+                    ),
+                    width="100%",
+                    spacing="1",
+                ),
+                # For other activities: show batch selector
+                rx.vstack(
+                    rx.text("Batch*", size="2", weight="bold"),
+                    batch_select_component(
+                        placeholder="Select a batch...",
+                        value=S.form_batch_id,
+                        on_change=S.set_batch_id,
+                    ),
+                    width="100%",
+                    spacing="1",
+                ),
+            ),
         ),
         # Batch info + sub-form (shown after both selections)
         _batch_info_section(),

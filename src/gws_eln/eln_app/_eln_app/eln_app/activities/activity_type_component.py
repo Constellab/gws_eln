@@ -19,6 +19,12 @@ def activity_type_badge(activity_type: ActivityType) -> rx.Component:
         rx.match(
             activity_type,
             (
+                ActivityType.CREATE.value,
+                rx.badge(
+                    rx.icon("package-plus", size=12), "Created", color_scheme="green", size="1"
+                ),
+            ),
+            (
                 ActivityType.RECEIVE.value,
                 rx.badge(
                     rx.icon("package-plus", size=12), "Received", color_scheme="green", size="1"

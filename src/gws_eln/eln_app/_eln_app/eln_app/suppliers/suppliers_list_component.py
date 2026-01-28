@@ -112,7 +112,7 @@ def suppliers_list_page() -> rx.Component:
     """Create the suppliers list page component.
 
     This component displays a table of suppliers with columns for
-    name, contact info, created by, and created at.
+    name, description, created by, and created at.
     Includes a search filter for filtering by supplier name.
 
     :return: The suppliers list page component
@@ -141,7 +141,7 @@ def suppliers_list_page() -> rx.Component:
                             rx.table.header(
                                 rx.table.row(
                                     rx.table.column_header_cell("Name"),
-                                    rx.table.column_header_cell("Contact Info"),
+                                    rx.table.column_header_cell("Description"),
                                     rx.table.column_header_cell("Created By"),
                                     rx.table.column_header_cell("Created At"),
                                     rx.table.column_header_cell(

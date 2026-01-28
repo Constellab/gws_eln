@@ -6,6 +6,7 @@ from typing import Any
 
 import reflex as rx
 from gws_eln.core.unit_type import UnitType
+from gws_eln.materials.material import Material
 from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.materials.material_batch_dto import (
     CreateAliquotDTO,
@@ -29,9 +30,11 @@ class AliquotFormDialogState(FormDialogState, rx.State):
     _batch: MaterialBatchDTO | None = None
 
     # Form field default values
-    form_unit_type: str = UnitType.COUNT.value
+    form_unit_type: str = UnitType.COUNT.value  # Parent batch unit type (for source)
     form_source_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
+    form_aliquot_unit_type: str = UnitType.COUNT.value  # Target material unit type (for aliquot)
     form_aliquot_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
+    form_target_material_id: str = ""  # Required target material for the aliquot
     form_location_id: str = ""
     form_supplier_id: str = ""
     form_notes: str = ""
@@ -97,12 +100,16 @@ class AliquotFormDialogState(FormDialogState, rx.State):
         # Reset form fields
         self.form_notes = ""
 
-        # Set unit type from batch
+        # Set unit type from batch (for source quantity)
         self.form_unit_type = batch.unit_type.value
 
         # Determine the best unit based on current quantity
         best_unit = self._get_best_unit_for_quantity(batch.quantity, batch.unit_type)
         self.form_source_unit = best_unit
+
+        # Default target material to parent's material
+        self.form_target_material_id = batch.material.id
+        self.form_aliquot_unit_type = batch.unit_type.value
         self.form_aliquot_unit = best_unit
 
         # Default location to parent's location
@@ -137,10 +144,23 @@ class AliquotFormDialogState(FormDialogState, rx.State):
         """Handle supplier selection change."""
         self.form_supplier_id = value
 
+    @rx.event
+    def set_target_material_id(self, value: str):
+        """Handle target material selection change.
+
+        Updates the aliquot unit type based on the selected material's default_unit_type.
+        """
+        self.form_target_material_id = value
+        if value:
+            material = Material.get_by_id_or_none(value)
+            if material:
+                self.form_aliquot_unit_type = material.default_unit_type.value
+                self.form_aliquot_unit = UnitConverter.get_default_unit(material.default_unit_type)
+
     def _validate_form_data(
         self, form_data: dict
     ) -> tuple[
-        Decimal, str, Decimal, str, str | None, str | None, str | None, str | None, str | None
+        str, Decimal, str, Decimal, str, str | None, str | None, str | None, str | None, str | None
     ]:
         """Validate and parse form data.
 
@@ -148,7 +168,7 @@ class AliquotFormDialogState(FormDialogState, rx.State):
             form_data: Dictionary containing form fields
 
         Returns:
-            Tuple of (source_quantity, source_unit, aliquot_quantity, aliquot_unit,
+            Tuple of (target_material_id, source_quantity, source_unit, aliquot_quantity, aliquot_unit,
                      aliquot_batch_number, label, location_id, supplier_id, notes) if validation succeeds
 
         Raises:
@@ -160,6 +180,9 @@ class AliquotFormDialogState(FormDialogState, rx.State):
         aliquot_batch_number = form_data.get("aliquot_batch_number", "").strip() or None
         label = form_data.get("label", "").strip() or None
         notes = form_data.get("notes", "").strip() or None
+
+        # Get target material from state
+        target_material_id = self.form_target_material_id
 
         # Get units from state
         source_unit = self.form_source_unit
@@ -173,6 +196,9 @@ class AliquotFormDialogState(FormDialogState, rx.State):
             supplier_id = None
 
         # Validate required fields
+        if not target_material_id:
+            raise Exception("Target material is required")
+
         if not source_quantity_str:
             raise Exception("Source quantity is required")
 
@@ -200,6 +226,7 @@ class AliquotFormDialogState(FormDialogState, rx.State):
             raise Exception("Aliquot unit is required")
 
         return (
+            target_material_id,
             source_quantity,
             source_unit,
             aliquot_quantity,
@@ -225,6 +252,7 @@ class AliquotFormDialogState(FormDialogState, rx.State):
 
         # Validate and parse form data
         (
+            target_material_id,
             source_quantity,
             source_unit,
             aliquot_quantity,
@@ -247,6 +275,7 @@ class AliquotFormDialogState(FormDialogState, rx.State):
 
             dto = CreateAliquotDTO(
                 parent_batch_id=self._batch.id,
+                target_material_id=target_material_id,
                 source_quantity=source_quantity,
                 source_unit=source_unit,
                 aliquot_quantity=aliquot_quantity,
@@ -275,7 +304,9 @@ class AliquotFormDialogState(FormDialogState, rx.State):
         self._batch = None
         self.form_unit_type = UnitType.COUNT.value
         self.form_source_unit = UnitConverter.get_default_unit(UnitType.COUNT)
+        self.form_aliquot_unit_type = UnitType.COUNT.value
         self.form_aliquot_unit = UnitConverter.get_default_unit(UnitType.COUNT)
+        self.form_target_material_id = ""
         self.form_location_id = ""
         self.form_supplier_id = ""
         self.form_notes = ""

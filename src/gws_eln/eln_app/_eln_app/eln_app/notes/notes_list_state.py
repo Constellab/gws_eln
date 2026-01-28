@@ -22,6 +22,7 @@ class NotesListState(rx.State):
     async def load_notes(self):
         """Load the list of ELN notes with applied filters."""
         main_state = await self.get_state(ReflexMainState)
+
         if not await main_state.check_authentication():
             self.error_message = "You must be authenticated to view notes"
             return

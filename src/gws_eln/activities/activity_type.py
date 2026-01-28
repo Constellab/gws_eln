@@ -5,6 +5,7 @@ class ActivityType(Enum):
     """
     Enum representing the types of inventory activities.
 
+    - CREATE: Create a new batch for a material
     - RECEIVE: New batch received from supplier
     - MOVE: Change location of a batch
     - CONSUME: Use consumable material (decrements quantity)
@@ -15,6 +16,7 @@ class ActivityType(Enum):
     - RELABEL: Change label of a batch
     """
 
+    CREATE = "create"
     RECEIVE = "receive"
     MOVE = "move"
     CONSUME = "consume"

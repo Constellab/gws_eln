@@ -57,7 +57,7 @@ def _form_content() -> rx.Component:
         ),
         # Unit Type field
         rx.vstack(
-            rx.text("Default Unit Type", size="2", weight="bold"),
+            rx.text("Default unit type to use for quantity", size="2", weight="bold"),
             rx.select.root(
                 rx.select.trigger(placeholder="Select unit type", width="100%"),
                 rx.select.content(
@@ -105,7 +105,9 @@ def _dialog() -> rx.Component:
     """
     return form_dialog_component(
         state=MaterialFormDialogState,
-        title=rx.cond(MaterialFormDialogState.is_update_mode, "Update Material", "Create New Material"),
+        title=rx.cond(
+            MaterialFormDialogState.is_update_mode, "Update Material", "Create New Material"
+        ),
         description=rx.cond(
             MaterialFormDialogState.is_update_mode,
             "Update the material details below.",
@@ -127,7 +129,10 @@ def create_material_dialog() -> rx.Component:
     """
     return rx.fragment(
         rx.button(
-            rx.icon("plus", size=18), "Create New Material", size="3", on_click=MaterialFormDialogState.open_create_dialog
+            rx.icon("plus", size=18),
+            "Create New Material",
+            size="3",
+            on_click=MaterialFormDialogState.open_create_dialog,
         ),
         _dialog(),
     )

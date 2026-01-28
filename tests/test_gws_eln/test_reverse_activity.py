@@ -2,7 +2,7 @@
 Test suite for MaterialBatchService.reverse_activity().
 
 Tests the reversal logic for each activity type:
-- RECEIVE, CONSUME, MOVE, USE, DISCARD, ALIQUOT, ALIQUOT_CREATED, RELABEL
+- CREATE, RECEIVE, CONSUME, MOVE, USE, DISCARD, ALIQUOT, ALIQUOT_CREATED, RELABEL
 """
 
 from decimal import Decimal
@@ -66,6 +66,127 @@ class TestReverseActivity(BaseTestCase):
         service = LocationService()
         return service.get_default_location()
 
+    # ============== CREATE REVERSAL ==============
+
+    def test_reverse_create(self):
+        """Test reversing a CREATE activity deletes the batch entirely."""
+        service = MaterialBatchService()
+        material = self._create_test_material("Rev Create Material", True, UnitType.VOLUME)
+        self._ensure_default_location()
+
+        # Create batch with 100 mL
+        result = service.create_batch(
+            CreateBatchDTO(
+                material_id=material.id,
+                batch_number="REV-CRT-001",
+                quantity=Decimal("100"),
+                unit="mL",
+            )
+        )
+        batch_id = result.batch.id
+
+        # Find the CREATE activity
+        activities = Activity.find_by_batch_id(batch_id)
+        create_activity = next(a for a in activities if a.activity_type == ActivityType.CREATE)
+
+        # Reverse the create
+        service.reverse_activity(create_activity.id)
+
+        # Verify batch is deleted
+        self.assertFalse(MaterialBatch.select().where(MaterialBatch.id == batch_id).exists())
+
+        # Verify the CREATE activity is deleted
+        remaining = Activity.select().where(Activity.id == create_activity.id).count()
+        self.assertEqual(remaining, 0)
+
+        # Cleanup
+        material.delete_instance()
+
+    def test_reverse_create_with_activities_fails(self):
+        """Test that reversing CREATE fails when batch has additional activities."""
+        service = MaterialBatchService()
+        material = self._create_test_material("Rev Create Act Material", True, UnitType.VOLUME)
+        self._ensure_default_location()
+
+        # Create batch
+        result = service.create_batch(
+            CreateBatchDTO(
+                material_id=material.id,
+                batch_number="REV-CRT-ACT-001",
+                quantity=Decimal("100"),
+                unit="mL",
+            )
+        )
+        batch = result.batch
+
+        # Add additional activity (RECEIVE)
+        service.receive_batch(
+            batch.id,
+            ReceiveBatchDTO(quantity=Decimal("50"), unit="mL"),
+        )
+
+        # Find the CREATE activity
+        activities = Activity.find_by_batch_id(batch.id)
+        create_activity = next(a for a in activities if a.activity_type == ActivityType.CREATE)
+
+        # Try to reverse the CREATE
+        with self.assertRaises(BadRequestException) as context:
+            service.reverse_activity(create_activity.id)
+
+        self.assertIn("additional activities", str(context.exception))
+
+        # Cleanup
+        Activity.delete().where(Activity.batch == batch).execute()
+        batch.delete_instance()
+        material.delete_instance()
+
+    def test_reverse_create_with_child_batches_fails(self):
+        """Test that reversing CREATE fails when batch has child batches."""
+        service = MaterialBatchService()
+        material = self._create_test_material("Rev Create Child Material", True, UnitType.VOLUME)
+        self._ensure_default_location()
+
+        # Create parent batch
+        result = service.create_batch(
+            CreateBatchDTO(
+                material_id=material.id,
+                batch_number="REV-CRT-CHILD-001",
+                quantity=Decimal("100"),
+                unit="mL",
+            )
+        )
+        parent = result.batch
+
+        # Create aliquot (child batch)
+        aliquot_result = service.create_aliquot(
+            CreateAliquotDTO(
+                parent_batch_id=parent.id,
+                source_quantity=Decimal("20"),
+                source_unit="mL",
+                aliquot_quantity=Decimal("20"),
+                aliquot_unit="mL",
+                aliquot_batch_number="REV-CRT-CHILD-ALQ",
+            )
+        )
+        aliquot = aliquot_result.batch
+
+        # Find the CREATE activity on parent
+        activities = Activity.find_by_batch_id(parent.id)
+        create_activity = next(a for a in activities if a.activity_type == ActivityType.CREATE)
+
+        # Try to reverse the CREATE
+        with self.assertRaises(BadRequestException) as context:
+            service.reverse_activity(create_activity.id)
+
+        self.assertIn("child batch", str(context.exception))
+
+        # Cleanup
+        Activity.delete().where(Activity.batch == aliquot).execute()
+        Activity.delete().where(Activity.batch == parent).execute()
+        aliquot.delete_instance()
+        parent.delete_instance()
+        material.delete_instance()
+
     # ============== RECEIVE REVERSAL ==============
 
     def test_reverse_receive(self):
@@ -92,10 +213,9 @@ class TestReverseActivity(BaseTestCase):
         )
         self.assertEqual(updated_batch.quantity, original_quantity + Decimal("0.05"))
 
-        # Find the second RECEIVE activity (not the creation one)
+        # Find the RECEIVE activity (creation uses CREATE, so this is the only RECEIVE)
         activities = Activity.find_by_batch_id(batch.id)
         receive_activities = [a for a in activities if a.activity_type == ActivityType.RECEIVE]
-        # Most recent first (ordered by created_at DESC)
         receive_activity = receive_activities[0]
 
         # Reverse the receive
@@ -496,10 +616,9 @@ class TestReverseActivity(BaseTestCase):
             DecrementQuantityDTO(quantity=Decimal("120"), unit="mL"),
         )
 
-        # Find the second RECEIVE activity (the 50 mL one)
+        # Find the RECEIVE activity (the 50 mL one - creation uses CREATE now)
         activities = Activity.find_by_batch_id(batch.id)
         receive_activities = [a for a in activities if a.activity_type == ActivityType.RECEIVE]
-        # Most recent receive first
         receive_activity = receive_activities[0]
 
         # Try to reverse the 50 mL receive — batch only has 30 mL

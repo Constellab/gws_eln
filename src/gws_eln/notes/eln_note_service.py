@@ -20,6 +20,7 @@ from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.materials.batch_activity_dto import BatchActivityResult
 from gws_eln.materials.material_batch_dto import (
     CreateAliquotDTO,
+    CreateBatchDTO,
     DecrementQuantityDTO,
     DiscardBatchDTO,
     MoveBatchDTO,
@@ -62,8 +63,8 @@ class ElnNoteService:
         :return: True if the note is an ELN note, False otherwise.
         :rtype: bool
         """
-        note_tags = EntityTagList(TagEntityType.NOTE, note_id)
-        return note_tags.has_tag(Tag("eln", "note"))
+        note_tags = EntityTagList.find_by_entity(TagEntityType.NOTE, note_id)
+        return note_tags.has_tag(Tag(self.ELN_NOTE_TAG_KEY, self.ELN_NOTE_TAG_VALUE))
 
     @ElnDbManager.transaction()
     def add_activity(self, dto: AddNoteActivityDTO) -> Note:
@@ -120,6 +121,7 @@ class ElnNoteService:
         :raises BadRequestException: If the activity type is unsupported
         """
         handlers = {
+            ActivityType.CREATE: self._handle_create,
             ActivityType.RECEIVE: self._handle_receive,
             ActivityType.CONSUME: self._handle_consume,
             ActivityType.MOVE: self._handle_move,
@@ -134,6 +136,27 @@ class ElnNoteService:
                 f"Unsupported activity type for note activity: {activity_type.value}"
             )
         return handler
+
+    def _handle_create(
+        self,
+        batch_service: MaterialBatchService,
+        batch_id: str | None,
+        activity_data: dict[str, Any],
+        note_id: str,
+    ) -> BatchActivityResult:
+        batch_dto = CreateBatchDTO(
+            material_id=activity_data["material_id"],
+            batch_number=activity_data["batch_number"],
+            quantity=activity_data["quantity"],
+            unit=activity_data["unit"],
+            location_id=activity_data.get("location_id"),
+            supplier_id=activity_data.get("supplier_id"),
+            expiry_date=activity_data.get("expiry_date"),
+            label=activity_data.get("label"),
+            notes=activity_data.get("notes"),
+            note_id=note_id,
+        )
+        return batch_service.create_batch(batch_dto)
 
     def _handle_receive(
         self,

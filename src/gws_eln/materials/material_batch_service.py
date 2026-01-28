@@ -185,7 +185,7 @@ class MaterialBatchService:
         # Create 'receive' activity entry using ActivityService
         activity = self._activity_service.log_activity(
             CreateActivityDTO(
-                activity_type=ActivityType.RECEIVE,
+                activity_type=ActivityType.CREATE,
                 batch_id=batch.id,
                 quantity=base_quantity,
                 unit_type=unit_type,
@@ -494,24 +494,57 @@ class MaterialBatchService:
 
         return BatchActivityResult(batch=batch, activity=activity)
 
+    def cancel_creation(self, batch_id: str) -> None:
+        """
+        Cancel the creation of a batch by deleting it if it is deletable.
+
+        A batch is deletable if:
+        - It only has the initial 'create' activity (no other activities)
+        - It has no active child batches (aliquots)
+
+        This is intended for canceling a batch creation that was started but
+        should be discarded (e.g., user changed their mind, made an error, etc.).
+
+        :param batch_id: The ID of the batch to cancel
+        :type batch_id: str
+        :raises NotFoundException: If batch not found
+        :raises BadRequestException: If batch is not deletable
+        """
+        result = self.delete_batch(batch_id, allow_discard=False)
+        if result != DeleteBatchResultDTO.DELETED:
+            raise BadRequestException(
+                "Cannot cancel batch because it has activity history. "
+                "Use delete_batch or discard_batch instead."
+            )
+
     @ElnDbManager.transaction()
     def delete_batch(
-        self, batch_id: str, notes: str | None = None, note_id: str | None = None
+        self,
+        batch_id: str,
+        notes: str | None = None,
+        note_id: str | None = None,
+        allow_discard: bool = True,
     ) -> DeleteBatchResultDTO:
         """
         Delete or discard a batch if it has no child batches (aliquots).
 
-        - If batch only has the initial 'receive' activity from creation: hard delete
+        - If batch only has the initial 'create' activity from creation: hard delete
         - If batch has other activities (usage history): soft delete (set status to DISCARDED)
 
         :param batch_id: The ID of the batch to delete
         :type batch_id: str
         :param notes: Optional notes for discarding the batch
         :type notes: Optional[str]
-        :return: Dict with 'deleted' (bool) and 'hard_deleted' (bool) keys
-        :rtype: dict
+        :param note_id: Optional note ID to link the discard activity
+        :type note_id: Optional[str]
+        :param allow_discard: If False, raise an error instead of soft-deleting
+                              when batch has activity history (default: True)
+        :type allow_discard: bool
+        :return: Result indicating whether batch was deleted or discarded
+        :rtype: DeleteBatchResultDTO
         :raises NotFoundException: If batch not found
-        :raises BadRequestException: If batch has child batches or is already discarded
+        :raises BadRequestException: If batch has child batches, is already discarded,
+                                     or has activity history when allow_discard=False
         """
         # Get existing batch
         batch = self.get_batch(batch_id)
@@ -536,7 +569,7 @@ class MaterialBatchService:
         # Count activities for this batch
         activity_count = Activity.count_by_batch_id(batch.id)
 
-        # If only 1 activity (the creation 'receive'), hard delete
+        # If only 1 activity (the creation 'create'), hard delete
         if activity_count <= 1:
             # Delete associated activities first
             Activity.delete().where(Activity.batch == batch).execute()
@@ -544,7 +577,13 @@ class MaterialBatchService:
             batch.delete_instance()
             return DeleteBatchResultDTO.DELETED
 
-        # Otherwise, soft delete (mark as discarded)
+        # Batch has activity history
+        if not allow_discard:
+            raise BadRequestException(
+                f"Cannot delete batch '{batch.batch_number}' because it has activity history."
+            )
+
+        # Soft delete (mark as discarded)
         # Create 'discard' activity entry
         self._activity_service.log_activity(
             CreateActivityDTO(
@@ -634,7 +673,9 @@ class MaterialBatchService:
         batch = cast(MaterialBatch, activity.batch)
         activity_type = activity.activity_type
 
-        if activity_type == ActivityType.RECEIVE:
+        if activity_type == ActivityType.CREATE:
+            self._reverse_create(activity, batch)
+        elif activity_type == ActivityType.RECEIVE:
             self._reverse_receive(activity, batch)
         elif activity_type == ActivityType.CONSUME:
             self._reverse_consume(activity, batch)
@@ -656,8 +697,46 @@ class MaterialBatchService:
         else:
             raise BadRequestException(f"Unknown activity type: {activity_type}")
 
-        # Delete the activity record
+        # Delete the activity record (except for CREATE which deletes the batch)
+        if activity_type != ActivityType.CREATE:
+            activity.delete_instance()
+
+    def _reverse_create(self, activity: Activity, batch: MaterialBatch) -> None:
+        """Reverse CREATE: delete the batch if it is deletable.
+
+        Original effect: batch created with initial quantity
+        Reversal: hard delete the batch and its CREATE activity
+
+        A batch can only be reversed if it has no other activities and no child batches.
+        """
+        # Use cancel_creation logic via delete_batch with allow_discard=False
+        # But we need to handle the activity deletion ourselves since we're in reverse_activity
+        # Check for active child batches
+        child_count = (
+            MaterialBatch.select()
+            .where(MaterialBatch.parent_batch == batch)
+            .where(MaterialBatch.status == BatchStatus.ACTIVE)
+            .count()
+        )
+        if child_count > 0:
+            raise BadRequestException(
+                f"Cannot reverse CREATE: batch '{batch.batch_number}' has {child_count} "
+                "active child batch(es) (aliquots). Delete them first."
+            )
+
+        # Check activity count (should be exactly 1 - the CREATE activity)
+        activity_count = Activity.count_by_batch_id(batch.id)
+        if activity_count > 1:
+            raise BadRequestException(
+                f"Cannot reverse CREATE: batch '{batch.batch_number}' has additional activities. "
+                "Reverse those activities first."
+            )
+
+        # Delete the CREATE activity
         activity.delete_instance()
+
+        # Hard delete the batch
+        batch.delete_instance()
 
     def _reverse_receive(self, activity: Activity, batch: MaterialBatch) -> None:
         """Reverse RECEIVE: decrement quantity that was added.
@@ -811,16 +890,16 @@ class MaterialBatchService:
         Create an aliquot from a parent batch.
 
         Aliquots are derived samples that:
-        - Inherit material_id from the parent
-        - Inherit supplier_id from the parent's material
+        - Can inherit material_id from the parent OR use a different target material
         - Have a reference to the parent batch (parent_batch_id)
         - Can have their own quantity, label, and location
 
         The parent batch is decremented by source_quantity, while the aliquot
         is created with aliquot_quantity. These can differ (e.g., dilution,
-        processing loss, etc.).
+        processing loss, material transformation, etc.).
 
-        Example: Take 2L from parent to create a 500mL aliquot after dilution.
+        Example 1: Take 2L from parent to create a 500mL aliquot after dilution.
+        Example 2: Take 100mL from a solution to extract 5g of a different compound.
 
         :param dto: DTO containing aliquot data
         :type dto: CreateAliquotDTO
@@ -849,23 +928,37 @@ class MaterialBatchService:
                 "Aliquots can only be created from consumable materials (chemicals, reagents, samples)."
             )
 
-        # Get unit_type from parent batch
-        unit_type = parent_batch.unit_type
+        # Determine target material: use provided or inherit from parent
+        if dto.target_material_id:
+            target_material = self._validate_material_exists(dto.target_material_id)
+            # Validate target material is consumable
+            if not target_material.is_consumable:
+                raise BadRequestException(
+                    f"Cannot create aliquot with non-consumable material '{target_material.name}'. "
+                    "Aliquots can only be created with consumable materials."
+                )
+            aliquot_unit_type = target_material.default_unit_type
+        else:
+            target_material = parent_batch.material
+            aliquot_unit_type = parent_batch.unit_type
 
-        # Validate source unit and convert to base unit
+        # Get unit_type from parent batch for source quantity validation
+        parent_unit_type = parent_batch.unit_type
+
+        # Validate source unit and convert to base unit (against parent's unit_type)
         base_source_quantity = self._validate_and_convert_quantity(
             parent_batch, validated_source_quantity, dto.source_unit
         )
 
-        # Validate aliquot unit and convert to base unit
-        if not UnitConverter.is_valid_unit(dto.aliquot_unit, unit_type):
-            valid_units = ", ".join(UnitConverter.get_valid_units(unit_type))
+        # Validate aliquot unit and convert to base unit (against target material's unit_type)
+        if not UnitConverter.is_valid_unit(dto.aliquot_unit, aliquot_unit_type):
+            valid_units = ", ".join(UnitConverter.get_valid_units(aliquot_unit_type))
             raise BadRequestException(
-                f"Invalid aliquot unit '{dto.aliquot_unit}' for batch '{parent_batch.batch_number}' "
-                f"(unit type: {unit_type.value}). Valid units: {valid_units}"
+                f"Invalid aliquot unit '{dto.aliquot_unit}' for material '{target_material.name}' "
+                f"(unit type: {aliquot_unit_type.value}). Valid units: {valid_units}"
             )
         base_aliquot_quantity = UnitConverter.to_base_unit(
-            validated_aliquot_quantity, dto.aliquot_unit, unit_type
+            validated_aliquot_quantity, dto.aliquot_unit, aliquot_unit_type
         )
 
         # Validate sufficient quantity in parent (using base units)
@@ -895,12 +988,12 @@ class MaterialBatchService:
 
         # Create aliquot batch with aliquot_quantity (in base units)
         aliquot = MaterialBatch()
-        aliquot.material = parent_batch.material  # Inherit material from parent
+        aliquot.material = target_material  # Use target material (may differ from parent)
         aliquot.parent_batch = parent_batch  # Set parent reference
         aliquot.batch_number = aliquot_batch_number
         aliquot.label = dto.label.strip() if dto.label else None
         aliquot.quantity = base_aliquot_quantity  # Aliquot's own quantity in base units
-        aliquot.unit_type = unit_type  # Inherit unit_type from parent
+        aliquot.unit_type = aliquot_unit_type  # Use target material's unit_type
         aliquot.location = location
         aliquot.notes = dto.notes.strip() if dto.notes else None
         aliquot.expiry_date = parent_batch.expiry_date  # Inherit expiry from parent
@@ -918,7 +1011,7 @@ class MaterialBatchService:
                 activity_type=ActivityType.ALIQUOT,
                 batch_id=parent_batch.id,
                 quantity=base_source_quantity,  # Amount taken from parent (base units)
-                unit_type=unit_type,
+                unit_type=parent_unit_type,  # Use parent's unit_type
                 from_location_id=parent_batch.location.id,
                 to_location_id=location.id,
                 related_batch_id=aliquot.id,  # Reference to the child aliquot
@@ -934,7 +1027,7 @@ class MaterialBatchService:
                 activity_type=ActivityType.ALIQUOT_CREATED,
                 batch_id=aliquot.id,
                 quantity=base_aliquot_quantity,  # Aliquot's quantity (base units)
-                unit_type=unit_type,
+                unit_type=aliquot_unit_type,  # Use aliquot's unit_type (from target material)
                 to_location_id=location.id,
                 related_batch_id=parent_batch.id,  # Reference to the parent batch
                 notes=dto.notes.strip() if dto.notes else None,

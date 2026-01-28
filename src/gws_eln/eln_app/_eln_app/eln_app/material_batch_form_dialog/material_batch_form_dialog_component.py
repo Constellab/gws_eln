@@ -90,6 +90,11 @@ def _form_content() -> rx.Component:
                 width="100%",
                 default_value=MaterialBatchFormDialogState.form_label,
             ),
+            rx.text(
+                "Additional label to complement the batch number. Useful to provide extra information.",
+                size="1",
+                color="gray",
+            ),
             width="100%",
             spacing="1",
         ),

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import reflex as rx
 from gws_eln.materials.material import Material
+from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.materials.material_batch_service import MaterialBatchService
 from gws_eln.materials.material_service import MaterialService
 from gws_reflex_main import ReflexMainState
@@ -74,12 +75,9 @@ class BreadcrumbState(ReflexMainState):
         :return: The material or None if not found
         :rtype: Material | None
         """
-        try:
-            with await self.authenticate_user():
-                material_service = MaterialService()
-                return material_service.get_material(material_id)
-        except Exception:
-            return None
+        with await self.authenticate_user():
+            material_service = MaterialService()
+            return material_service.get_material(material_id)
 
     async def _build_breadcrumbs_for_batch(self, batch_id: str) -> list[BreadcrumbItem]:
         """Build breadcrumb items for a batch page.
@@ -93,42 +91,20 @@ class BreadcrumbState(ReflexMainState):
         """
         items: list[BreadcrumbItem] = []
 
-        try:
-            with await self.authenticate_user():
-                batch_service = MaterialBatchService()
-                # Get the full hierarchy including self and material
-                hierarchy = batch_service.get_parent_hierarchy(
-                    batch_id,
-                    include_self=True,
-                    include_material=True,
-                )
+        batch: MaterialBatch
+        with await self.authenticate_user():
+            batch_service = MaterialBatchService()
+            batch = batch_service.get_batch(batch_id)
 
-            if not hierarchy:
-                return items
-
-            # The hierarchy is ordered: [self, parent, ..., root, material]
-            # We need to reverse it to get: [material, root, ..., parent, self]
-            hierarchy.reverse()
-
-            for i, obj in enumerate(hierarchy):
-                if i == 0:
-                    # First item is the material
-                    items.append(
-                        BreadcrumbItem(
-                            label=obj.name,
-                            url=ElnAppRouter.get_material_detail_url(obj.id),
-                        )
-                    )
-                else:
-                    # Rest are batches
-                    items.append(
-                        BreadcrumbItem(
-                            label=obj.name,
-                            url=ElnAppRouter.get_batch_detail_url(obj.id),
-                        )
-                    )
-
-        except Exception:
-            pass
+        return [
+            BreadcrumbItem(
+                label=batch.material.name,
+                url=ElnAppRouter.get_material_detail_url(batch.material.id),
+            ),
+            BreadcrumbItem(
+                label=batch.batch_number,
+                url=ElnAppRouter.get_batch_detail_url(batch.id),
+            ),
+        ]
 
         return items

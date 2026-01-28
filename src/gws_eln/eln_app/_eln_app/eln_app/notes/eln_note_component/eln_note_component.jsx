@@ -8,6 +8,7 @@ import './eln_note_component.css';
  * (equivalents of the Lucide icons used in activity_type_component.py).
  */
 const ACTIVITY_TYPE_CONFIG = {
+  create: { label: 'Created', icon: 'add_box', color: 'var(--accent-9)' },
   receive: { label: 'Received', icon: 'inventory_2', color: 'var(--accent-9)' },
   move: { label: 'Moved', icon: 'arrow_forward', color: 'var(--accent-10)' },
   consume: { label: 'Consumed', icon: 'local_fire_department', color: 'var(--accent-11)' },
@@ -95,7 +96,7 @@ export function getCustomTools(customToolsConfig, authenticationInfo, customTool
       const details = [];
       const type = activity.activity_type;
 
-      if (['receive', 'consume', 'aliquot', 'aliquot_created'].includes(type)) {
+      if (['create', 'receive', 'consume', 'aliquot', 'aliquot_created'].includes(type)) {
         if (activity.pretty_quantity) {
           details.push(`Qty: ${activity.pretty_quantity}`);
         }
@@ -110,7 +111,7 @@ export function getCustomTools(customToolsConfig, authenticationInfo, customTool
         }
       }
 
-      if (type === 'receive') {
+      if (['create', 'receive'].includes(type)) {
         if (activity.to_location?.name) {
           details.push(`Location: ${activity.to_location.name}`);
         }

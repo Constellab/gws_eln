@@ -80,7 +80,7 @@ class TestAliquotService(BaseTestCase):
     ) -> MaterialBatch:
         """Helper to create a test batch."""
         service = MaterialBatchService()
-        return service.create_batch(
+        result = service.create_batch(
             CreateBatchDTO(
                 material_id=material.id,
                 batch_number=batch_number,
@@ -89,6 +89,7 @@ class TestAliquotService(BaseTestCase):
                 location_id=location.id if location else None,
             )
         )
+        return result.batch
 
     def _cleanup_batch(self, batch: MaterialBatch):
         """Helper to cleanup a batch and its activities."""
@@ -113,7 +114,7 @@ class TestAliquotService(BaseTestCase):
         )
 
         # Act - create aliquot: take 20L to create 15L aliquot (5L lost in process)
-        aliquot = service.create_aliquot(
+        result = service.create_aliquot(
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("20"),
@@ -123,6 +124,7 @@ class TestAliquotService(BaseTestCase):
                 label="Diluted sample",
             )
         )
+        aliquot = result.batch
 
         # Assert - aliquot properties
         self.assertIsNotNone(aliquot)
@@ -163,7 +165,7 @@ class TestAliquotService(BaseTestCase):
         )
 
         # Act - create aliquot with custom batch number
-        aliquot = service.create_aliquot(
+        result = service.create_aliquot(
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("100"),
@@ -173,6 +175,7 @@ class TestAliquotService(BaseTestCase):
                 aliquot_batch_number="CUSTOM-ALQ-001",
             )
         )
+        aliquot = result.batch
 
         # Assert
         self.assertEqual(aliquot.batch_number, "CUSTOM-ALQ-001")
@@ -198,7 +201,7 @@ class TestAliquotService(BaseTestCase):
         )
 
         # Act - create aliquot at different location
-        aliquot = service.create_aliquot(
+        result = service.create_aliquot(
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("25"),
@@ -208,6 +211,7 @@ class TestAliquotService(BaseTestCase):
                 location_id=location2.id,
             )
         )
+        aliquot = result.batch
 
         # Assert
         self.assertEqual(aliquot.location.id, location2.id)
@@ -234,7 +238,7 @@ class TestAliquotService(BaseTestCase):
         )
 
         # Act
-        aliquot = service.create_aliquot(
+        result = service.create_aliquot(
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("10"),
@@ -243,6 +247,7 @@ class TestAliquotService(BaseTestCase):
                 aliquot_unit="units",
             )
         )
+        aliquot = result.batch
 
         # Assert - material is inherited
         self.assertEqual(aliquot.material.id, material.id)
@@ -269,10 +274,10 @@ class TestAliquotService(BaseTestCase):
                 unit="L",
                 expiry_date=date(2027, 12, 31),
             )
-        )
+        ).batch
 
         # Act
-        aliquot = service.create_aliquot(
+        result = service.create_aliquot(
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("20"),
@@ -281,6 +286,7 @@ class TestAliquotService(BaseTestCase):
                 aliquot_unit="L",
             )
         )
+        aliquot = result.batch
 
         # Assert - expiry date is inherited
         self.assertEqual(aliquot.expiry_date, date(2027, 12, 31))
@@ -309,7 +315,7 @@ class TestAliquotService(BaseTestCase):
         self.assertEqual(initial_parent_activities, 1)
 
         # Act
-        aliquot = service.create_aliquot(
+        result = service.create_aliquot(
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
                 source_quantity=Decimal("30"),
@@ -318,6 +324,7 @@ class TestAliquotService(BaseTestCase):
                 aliquot_unit="L",
             )
         )
+        aliquot = result.batch
 
         # Assert - parent has ALIQUOT activity
         parent_activities = list(
@@ -328,7 +335,7 @@ class TestAliquotService(BaseTestCase):
         self.assertEqual(len(parent_activities), 1)
         parent_activity = parent_activities[0]
         self.assertEqual(parent_activity.quantity, Decimal("30"))  # source_quantity
-        self.assertEqual(parent_activity.related_entity_id, aliquot.id)
+        self.assertEqual(parent_activity.related_batch.id, aliquot.id)
 
         # Assert - aliquot has ALIQUOT_CREATED activity
         aliquot_activities = list(
@@ -339,7 +346,7 @@ class TestAliquotService(BaseTestCase):
         self.assertEqual(len(aliquot_activities), 1)
         aliquot_activity = aliquot_activities[0]
         self.assertEqual(aliquot_activity.quantity, Decimal("25"))  # aliquot_quantity
-        self.assertEqual(aliquot_activity.related_entity_id, parent.id)
+        self.assertEqual(aliquot_activity.related_batch.id, parent.id)
 
         # Cleanup
         self._cleanup_batch(aliquot)
@@ -372,7 +379,7 @@ class TestAliquotService(BaseTestCase):
                 aliquot_quantity=Decimal("40"),
                 aliquot_unit="L",
             )
-        )
+        ).batch
 
         # Act - create second-level aliquot (aliquot from aliquot)
         aliquot2 = service.create_aliquot(
@@ -383,7 +390,7 @@ class TestAliquotService(BaseTestCase):
                 aliquot_quantity=Decimal("15"),
                 aliquot_unit="L",
             )
-        )
+        ).batch
 
         # Assert
         self.assertIsNotNone(aliquot2)
@@ -426,7 +433,7 @@ class TestAliquotService(BaseTestCase):
                 aliquot_quantity=Decimal("20"),
                 aliquot_unit="L",
             )
-        )
+        ).batch
         aliquot2 = service.create_aliquot(
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
@@ -435,7 +442,7 @@ class TestAliquotService(BaseTestCase):
                 aliquot_quantity=Decimal("30"),
                 aliquot_unit="L",
             )
-        )
+        ).batch
         aliquot3 = service.create_aliquot(
             CreateAliquotDTO(
                 parent_batch_id=parent.id,
@@ -444,7 +451,7 @@ class TestAliquotService(BaseTestCase):
                 aliquot_quantity=Decimal("10"),
                 aliquot_unit="L",
             )
-        )
+        ).batch
 
         # Assert - batch numbers are incremented
         self.assertEqual(aliquot1.batch_number, "MULTI-ALQ-PARENT-A1")
@@ -828,7 +835,7 @@ class TestAliquotService(BaseTestCase):
                 aliquot_quantity=Decimal("50"),
                 aliquot_unit="L",
             )
-        )
+        ).batch
 
         # Assert - parent now has 0
         updated_parent = service.get_batch(parent.id)
@@ -862,12 +869,12 @@ class TestAliquotService(BaseTestCase):
                 aliquot_quantity=Decimal("300"),
                 aliquot_unit="g",
             )
-        )
+        ).batch
 
         # Assert
         updated_parent = service.get_batch(parent.id)
-        self.assertEqual(updated_parent.quantity, Decimal("500"))  # 1000 - 500
-        self.assertEqual(aliquot.quantity, Decimal("300"))
+        self.assertEqual(updated_parent.quantity, Decimal("500"))  # 1000g - 500g = 500g base
+        self.assertEqual(aliquot.quantity, Decimal("300"))  # 300g base
 
         # Cleanup
         self._cleanup_batch(aliquot)
@@ -896,7 +903,7 @@ class TestAliquotService(BaseTestCase):
                 aliquot_quantity=Decimal("100"),
                 aliquot_unit="L",
             )
-        )
+        ).batch
 
         # Assert
         updated_parent = service.get_batch(parent.id)
@@ -907,3 +914,342 @@ class TestAliquotService(BaseTestCase):
         self._cleanup_batch(aliquot)
         self._cleanup_batch(parent)
         material.delete_instance()
+
+    # ============== DIFFERENT MATERIAL ALIQUOT TESTS ==============
+
+    def test_create_aliquot_with_different_material(self):
+        """Test creating aliquot with a different target material"""
+        service = MaterialBatchService()
+        # Parent material: a solution (volume-based)
+        parent_material = self._create_test_material("Solution A", True, UnitType.VOLUME)
+        # Target material: extracted compound (mass-based)
+        target_material = self._create_test_material("Compound X", True, UnitType.MASS)
+        self._ensure_default_location()
+
+        parent = self._create_test_batch(
+            material=parent_material,
+            batch_number="SOLUTION-001",
+            quantity=Decimal("100"),
+            unit="L",
+        )
+
+        # Act - extract compound from solution (different material, different unit type)
+        aliquot = service.create_aliquot(
+            CreateAliquotDTO(
+                parent_batch_id=parent.id,
+                target_material_id=target_material.id,
+                source_quantity=Decimal("50"),
+                source_unit="L",  # Taking from volume-based parent
+                aliquot_quantity=Decimal("250"),
+                aliquot_unit="g",  # Creating mass-based aliquot
+                label="Extracted compound",
+            )
+        ).batch
+
+        # Assert - aliquot has different material
+        self.assertEqual(aliquot.material.id, target_material.id)
+        self.assertNotEqual(aliquot.material.id, parent_material.id)
+        self.assertEqual(aliquot.material.name, "Compound X")
+
+        # Assert - aliquot has correct unit_type from target material
+        self.assertEqual(aliquot.unit_type, UnitType.MASS)
+        self.assertNotEqual(aliquot.unit_type, parent.unit_type)
+
+        # Assert - quantities are correct
+        self.assertEqual(aliquot.quantity, Decimal("250"))  # 250g in base units (g)
+        updated_parent = service.get_batch(parent.id)
+        self.assertEqual(updated_parent.quantity, Decimal("50"))  # 100L - 50L
+
+        # Assert - parent reference maintained
+        self.assertEqual(aliquot.parent_batch.id, parent.id)
+        self.assertTrue(aliquot.is_aliquot())
+
+        # Cleanup
+        self._cleanup_batch(aliquot)
+        self._cleanup_batch(parent)
+        parent_material.delete_instance()
+        target_material.delete_instance()
+
+    def test_create_aliquot_with_different_material_same_unit_type(self):
+        """Test creating aliquot with different material but same unit type"""
+        service = MaterialBatchService()
+        # Both materials are volume-based
+        parent_material = self._create_test_material("Chemical A", True, UnitType.VOLUME)
+        target_material = self._create_test_material("Chemical B", True, UnitType.VOLUME)
+        self._ensure_default_location()
+
+        parent = self._create_test_batch(
+            material=parent_material,
+            batch_number="CHEM-A-001",
+            quantity=Decimal("100"),
+            unit="L",
+        )
+
+        # Act - transform Chemical A to Chemical B
+        aliquot = service.create_aliquot(
+            CreateAliquotDTO(
+                parent_batch_id=parent.id,
+                target_material_id=target_material.id,
+                source_quantity=Decimal("30"),
+                source_unit="L",
+                aliquot_quantity=Decimal("25"),
+                aliquot_unit="L",
+            )
+        ).batch
+
+        # Assert
+        self.assertEqual(aliquot.material.id, target_material.id)
+        self.assertEqual(aliquot.unit_type, UnitType.VOLUME)
+        self.assertEqual(aliquot.quantity, Decimal("25"))
+
+        # Cleanup
+        self._cleanup_batch(aliquot)
+        self._cleanup_batch(parent)
+        parent_material.delete_instance()
+        target_material.delete_instance()
+
+    def test_create_aliquot_without_target_material_inherits_parent(self):
+        """Test that omitting target_material_id inherits from parent (backward compatibility)"""
+        service = MaterialBatchService()
+        material = self._create_test_material("Inherited Material BC", True, UnitType.VOLUME)
+        self._ensure_default_location()
+
+        parent = self._create_test_batch(
+            material=material,
+            batch_number="BC-PARENT",
+            quantity=Decimal("100"),
+            unit="L",
+        )
+
+        # Act - create aliquot without target_material_id
+        aliquot = service.create_aliquot(
+            CreateAliquotDTO(
+                parent_batch_id=parent.id,
+                # target_material_id not provided - should inherit from parent
+                source_quantity=Decimal("20"),
+                source_unit="L",
+                aliquot_quantity=Decimal("20"),
+                aliquot_unit="L",
+            )
+        ).batch
+
+        # Assert - material is inherited from parent
+        self.assertEqual(aliquot.material.id, material.id)
+        self.assertEqual(aliquot.unit_type, UnitType.VOLUME)
+
+        # Cleanup
+        self._cleanup_batch(aliquot)
+        self._cleanup_batch(parent)
+        material.delete_instance()
+
+    def test_create_aliquot_with_non_existent_target_material_fails(self):
+        """Test creating aliquot with non-existent target material fails"""
+        service = MaterialBatchService()
+        material = self._create_test_material("Valid Parent Material", True, UnitType.VOLUME)
+        self._ensure_default_location()
+
+        parent = self._create_test_batch(
+            material=material,
+            batch_number="VALID-PARENT",
+            quantity=Decimal("100"),
+            unit="L",
+        )
+
+        # Act & Assert
+        with self.assertRaises(BadRequestException) as context:
+            service.create_aliquot(
+                CreateAliquotDTO(
+                    parent_batch_id=parent.id,
+                    target_material_id="non-existent-material-id",
+                    source_quantity=Decimal("20"),
+                    source_unit="L",
+                    aliquot_quantity=Decimal("20"),
+                    aliquot_unit="L",
+                )
+            )
+
+        self.assertIn("does not exist", str(context.exception))
+
+        # Cleanup
+        self._cleanup_batch(parent)
+        material.delete_instance()
+
+    def test_create_aliquot_with_non_consumable_target_material_fails(self):
+        """Test creating aliquot with non-consumable target material fails"""
+        service = MaterialBatchService()
+        parent_material = self._create_test_material("Consumable Parent", True, UnitType.VOLUME)
+        target_material = self._create_test_material("Instrument", False, UnitType.COUNT)
+        self._ensure_default_location()
+
+        parent = self._create_test_batch(
+            material=parent_material,
+            batch_number="CONS-PARENT",
+            quantity=Decimal("100"),
+            unit="L",
+        )
+
+        # Act & Assert - target material is non-consumable
+        with self.assertRaises(BadRequestException) as context:
+            service.create_aliquot(
+                CreateAliquotDTO(
+                    parent_batch_id=parent.id,
+                    target_material_id=target_material.id,
+                    source_quantity=Decimal("20"),
+                    source_unit="L",
+                    aliquot_quantity=Decimal("5"),
+                    aliquot_unit="units",
+                )
+            )
+
+        self.assertIn("non-consumable", str(context.exception).lower())
+
+        # Cleanup
+        self._cleanup_batch(parent)
+        parent_material.delete_instance()
+        target_material.delete_instance()
+
+    def test_create_aliquot_with_different_material_validates_aliquot_unit(self):
+        """Test that aliquot unit is validated against target material's unit type"""
+        service = MaterialBatchService()
+        parent_material = self._create_test_material("Volume Parent", True, UnitType.VOLUME)
+        target_material = self._create_test_material("Mass Target", True, UnitType.MASS)
+        self._ensure_default_location()
+
+        parent = self._create_test_batch(
+            material=parent_material,
+            batch_number="VOL-PARENT",
+            quantity=Decimal("100"),
+            unit="L",
+        )
+
+        # Act & Assert - aliquot unit doesn't match target material's unit type
+        with self.assertRaises(BadRequestException) as context:
+            service.create_aliquot(
+                CreateAliquotDTO(
+                    parent_batch_id=parent.id,
+                    target_material_id=target_material.id,
+                    source_quantity=Decimal("20"),
+                    source_unit="L",
+                    aliquot_quantity=Decimal("20"),
+                    aliquot_unit="L",  # Wrong! Target is MASS, should use g/kg/etc.
+                )
+            )
+
+        self.assertIn("Invalid aliquot unit", str(context.exception))
+
+        # Cleanup
+        self._cleanup_batch(parent)
+        parent_material.delete_instance()
+        target_material.delete_instance()
+
+    def test_create_aliquot_different_material_activities_have_correct_unit_types(self):
+        """Test that activities log correct unit types for different material aliquots"""
+        service = MaterialBatchService()
+        parent_material = self._create_test_material("Activity Parent Mat", True, UnitType.VOLUME)
+        target_material = self._create_test_material("Activity Target Mat", True, UnitType.MASS)
+        self._ensure_default_location()
+
+        parent = self._create_test_batch(
+            material=parent_material,
+            batch_number="ACT-DIFF-PARENT",
+            quantity=Decimal("100"),
+            unit="L",
+        )
+
+        # Act
+        aliquot = service.create_aliquot(
+            CreateAliquotDTO(
+                parent_batch_id=parent.id,
+                target_material_id=target_material.id,
+                source_quantity=Decimal("30"),
+                source_unit="L",
+                aliquot_quantity=Decimal("500"),
+                aliquot_unit="g",
+            )
+        ).batch
+
+        # Assert - ALIQUOT activity on parent has parent's unit_type
+        parent_activities = list(
+            Activity.select()
+            .where(Activity.batch == parent)
+            .where(Activity.activity_type == ActivityType.ALIQUOT)
+        )
+        self.assertEqual(len(parent_activities), 1)
+        self.assertEqual(parent_activities[0].unit_type, UnitType.VOLUME)
+        self.assertEqual(parent_activities[0].quantity, Decimal("30"))
+
+        # Assert - ALIQUOT_CREATED activity on aliquot has target material's unit_type
+        aliquot_activities = list(
+            Activity.select()
+            .where(Activity.batch == aliquot)
+            .where(Activity.activity_type == ActivityType.ALIQUOT_CREATED)
+        )
+        self.assertEqual(len(aliquot_activities), 1)
+        self.assertEqual(aliquot_activities[0].unit_type, UnitType.MASS)
+        self.assertEqual(aliquot_activities[0].quantity, Decimal("500"))  # 500g base
+
+        # Cleanup
+        self._cleanup_batch(aliquot)
+        self._cleanup_batch(parent)
+        parent_material.delete_instance()
+        target_material.delete_instance()
+
+    def test_create_multi_level_aliquot_with_different_materials(self):
+        """Test multi-level aliquots where each level can have different materials"""
+        service = MaterialBatchService()
+        material_a = self._create_test_material("Material A", True, UnitType.VOLUME)
+        material_b = self._create_test_material("Material B", True, UnitType.MASS)
+        material_c = self._create_test_material("Material C", True, UnitType.COUNT)
+        self._ensure_default_location()
+
+        # Create original batch of Material A
+        parent = self._create_test_batch(
+            material=material_a,
+            batch_number="MULTI-MAT-PARENT",
+            quantity=Decimal("100"),
+            unit="L",
+        )
+
+        # Create first-level aliquot with Material B
+        aliquot1 = service.create_aliquot(
+            CreateAliquotDTO(
+                parent_batch_id=parent.id,
+                target_material_id=material_b.id,
+                source_quantity=Decimal("50"),
+                source_unit="L",
+                aliquot_quantity=Decimal("200"),
+                aliquot_unit="g",
+            )
+        ).batch
+
+        # Create second-level aliquot with Material C
+        aliquot2 = service.create_aliquot(
+            CreateAliquotDTO(
+                parent_batch_id=aliquot1.id,
+                target_material_id=material_c.id,
+                source_quantity=Decimal("100"),
+                source_unit="g",
+                aliquot_quantity=Decimal("50"),
+                aliquot_unit="units",
+            )
+        ).batch
+
+        # Assert - each aliquot has correct material
+        self.assertEqual(aliquot1.material.id, material_b.id)
+        self.assertEqual(aliquot2.material.id, material_c.id)
+
+        # Assert - each aliquot has correct unit_type
+        self.assertEqual(aliquot1.unit_type, UnitType.MASS)
+        self.assertEqual(aliquot2.unit_type, UnitType.COUNT)
+
+        # Assert - parent references are correct
+        self.assertEqual(aliquot1.parent_batch.id, parent.id)
+        self.assertEqual(aliquot2.parent_batch.id, aliquot1.id)
+
+        # Cleanup
+        self._cleanup_batch(aliquot2)
+        self._cleanup_batch(aliquot1)
+        self._cleanup_batch(parent)
+        material_a.delete_instance()
+        material_b.delete_instance()
+        material_c.delete_instance()

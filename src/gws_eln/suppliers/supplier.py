@@ -9,12 +9,12 @@ class Supplier(ModelWithUser):
     """
     Supplier entity - represents a material supplier/vendor.
 
-    Stores supplier information including name and contact details.
+    Stores supplier information including name and description.
     Materials can optionally reference a supplier.
 
     Attributes:
         name: Supplier name (required, unique, indexed)
-        description: Contact information (email, phone, address, etc.)
+        description: Description (email, phone, address, etc.)
     """
 
     # Required fields

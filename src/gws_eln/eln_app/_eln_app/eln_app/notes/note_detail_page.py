@@ -108,60 +108,58 @@ def note_detail_page() -> rx.Component:
     :return: The note detail page component
     :rtype: rx.Component
     """
-    return rx.box(
-        main_component(
-            page_layout(
+    return main_component(
+        page_layout(
+            rx.cond(
+                NoteDetailState.error_message != "",
+                rx.callout(
+                    NoteDetailState.error_message,
+                    icon="triangle_alert",
+                    color_scheme="red",
+                    role="alert",
+                ),
                 rx.cond(
-                    NoteDetailState.error_message != "",
-                    rx.callout(
-                        NoteDetailState.error_message,
-                        icon="triangle_alert",
-                        color_scheme="red",
-                        role="alert",
-                    ),
+                    NoteDetailState.is_loading,
+                    rx.center(rx.spinner(size="3"), padding="2rem"),
                     rx.cond(
-                        NoteDetailState.is_loading,
-                        rx.center(rx.spinner(size="3"), padding="2rem"),
-                        rx.cond(
-                            NoteDetailState.note,
-                            detail_page_layout(
-                                main_content=eln_note_component(),
-                                sidebar_content=_details_sidebar(),
-                                show_header=False,
-                            ),
-                            rx.center(
-                                rx.vstack(
-                                    rx.icon("notebook-text", size=48, color="gray"),
-                                    rx.text(
-                                        "Note not found",
-                                        size="4",
-                                        color="gray",
-                                        margin_top="1rem",
-                                    ),
-                                    spacing="2",
-                                    align="center",
+                        NoteDetailState.note,
+                        detail_page_layout(
+                            main_content=eln_note_component(),
+                            sidebar_content=_details_sidebar(),
+                            show_header=False,
+                        ),
+                        rx.center(
+                            rx.vstack(
+                                rx.icon("notebook-text", size=48, color="gray"),
+                                rx.text(
+                                    "Note not found",
+                                    size="4",
+                                    color="gray",
+                                    margin_top="1rem",
                                 ),
-                                padding="3rem",
-                                width="100%",
+                                spacing="2",
+                                align="center",
                             ),
+                            padding="3rem",
+                            width="100%",
                         ),
                     ),
                 ),
-                header_content=rx.hstack(
-                    rx.heading(NoteDetailState.note.title, size="6"),
-                    rx.hstack(
-                        note_actions_menu(
-                            on_update=NoteDetailState.open_update_dialog,
-                            on_delete=NoteDetailState.open_delete_dialog,
-                        ),
-                        detail_toggle_sidebar_button(),
-                        note_update_dialog(),
-                        note_activity_form_dialog(),
+            ),
+            header_content=rx.hstack(
+                rx.heading(NoteDetailState.note.title, size="6"),
+                rx.hstack(
+                    note_actions_menu(
+                        on_update=NoteDetailState.open_update_dialog,
+                        on_delete=NoteDetailState.open_delete_dialog,
                     ),
-                    justify="between",
-                    align="center",
-                    width="100%",
+                    detail_toggle_sidebar_button(),
+                    note_update_dialog(),
+                    note_activity_form_dialog(),
                 ),
-            )
-        ),
+                justify="between",
+                align="center",
+                width="100%",
+            ),
+        )
     )

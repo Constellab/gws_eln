@@ -2,6 +2,7 @@ import reflex as rx
 from gws_eln.activities.activity_type import ActivityType
 
 ACTIVITY_TYPE_OPTIONS = [
+    (ActivityType.CREATE.value, "Create"),
     (ActivityType.RECEIVE.value, "Receive"),
     (ActivityType.MOVE.value, "Move"),
     (ActivityType.CONSUME.value, "Consume"),

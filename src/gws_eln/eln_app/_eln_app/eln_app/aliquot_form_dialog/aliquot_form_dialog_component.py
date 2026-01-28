@@ -9,45 +9,22 @@ from .aliquot_form_dialog_state import AliquotFormDialogState
 
 def _form_content() -> rx.Component:
     """Form content for entering aliquot details."""
-    return rx.vstack(
-        # Parent batch info (read-only display)
-        rx.vstack(
-            rx.text("Parent Batch", size="2", weight="bold"),
-            rx.text(
-                AliquotFormDialogState.batch_number,
-                size="2",
-                color="gray",
-            ),
-            width="100%",
-            spacing="1",
-        ),
-        # Current quantity display
-        rx.vstack(
-            rx.text("Available Quantity", size="2", weight="bold"),
-            rx.text(
-                AliquotFormDialogState.current_quantity,
-                size="2",
-                color="gray",
-            ),
-            width="100%",
-            spacing="1",
-        ),
-        rx.divider(),
-        # Reusable aliquot form section
-        aliquot_form_section(
-            form_unit_type=AliquotFormDialogState.form_unit_type,
-            form_source_unit=AliquotFormDialogState.form_source_unit,
-            on_source_unit_change=AliquotFormDialogState.set_source_unit,
-            form_aliquot_unit=AliquotFormDialogState.form_aliquot_unit,
-            on_aliquot_unit_change=AliquotFormDialogState.set_aliquot_unit,
-            form_location_id=AliquotFormDialogState.form_location_id,
-            on_location_change=AliquotFormDialogState.set_location_id,
-            form_supplier_id=AliquotFormDialogState.form_supplier_id,
-            on_supplier_change=AliquotFormDialogState.set_supplier_id,
-            form_notes=AliquotFormDialogState.form_notes,
-        ),
-        width="100%",
-        spacing="3",
+    return aliquot_form_section(
+        form_unit_type=AliquotFormDialogState.form_unit_type,
+        form_source_unit=AliquotFormDialogState.form_source_unit,
+        on_source_unit_change=AliquotFormDialogState.set_source_unit,
+        form_aliquot_unit_type=AliquotFormDialogState.form_aliquot_unit_type,
+        form_aliquot_unit=AliquotFormDialogState.form_aliquot_unit,
+        on_aliquot_unit_change=AliquotFormDialogState.set_aliquot_unit,
+        form_location_id=AliquotFormDialogState.form_location_id,
+        on_location_change=AliquotFormDialogState.set_location_id,
+        form_supplier_id=AliquotFormDialogState.form_supplier_id,
+        on_supplier_change=AliquotFormDialogState.set_supplier_id,
+        form_notes=AliquotFormDialogState.form_notes,
+        form_target_material_id=AliquotFormDialogState.form_target_material_id,
+        on_target_material_change=AliquotFormDialogState.set_target_material_id,
+        parent_batch_number=AliquotFormDialogState.batch_number,
+        parent_available_quantity=AliquotFormDialogState.current_quantity,
     )
 
 

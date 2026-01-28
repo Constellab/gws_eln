@@ -125,18 +125,26 @@ class DeleteBatchResultDTO(Enum):
 class CreateAliquotDTO(BaseModelDTO):
     """DTO for creating an aliquot from a parent batch.
 
-    Aliquots are derived samples that inherit material_id and supplier
-    from the parent batch. The parent's quantity will be decremented
-    by source_quantity.
+    Aliquots are derived samples that can either inherit material_id from
+    the parent batch or be assigned a different target material (e.g., for
+    transformations like extracting a compound from a solution).
 
-    Example: Take 2L from parent (source_quantity=2, source_unit='L')
+    The parent's quantity will be decremented by source_quantity.
+
+    Example 1 (same material): Take 2L from parent (source_quantity=2, source_unit='L')
     to create a 500mL aliquot (aliquot_quantity=500, aliquot_unit='mL').
 
-    Note: Both units must be compatible with the parent batch's unit_type.
-    The quantities are converted from the given units to base units for storage.
+    Example 2 (different material): Take 100mL from a solution to create 5g of
+    extracted compound (target_material_id points to the compound material).
+
+    Note: source_unit must be compatible with the parent batch's unit_type.
+    aliquot_unit must be compatible with the target material's unit_type
+    (or parent's unit_type if no target material is specified).
     """
 
     parent_batch_id: str
+    # Optional target material for the aliquot (if None, inherit from parent)
+    target_material_id: str | None = None
     # Amount to take from parent batch (decrements parent)
     source_quantity: Decimal
     source_unit: str  # Exact unit (e.g., 'mL', 'L', 'g') - converted to base unit for storage

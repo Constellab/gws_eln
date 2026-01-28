@@ -20,11 +20,11 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Contact Info field
+        # Description field
         rx.vstack(
-            rx.text("Contact Info", size="2", weight="bold"),
+            rx.text("Description", size="2", weight="bold"),
             rx.text_area(
-                placeholder="Enter contact information (optional)",
+                placeholder="Enter description (optional)",
                 name="description",
                 width="100%",
                 default_value=SupplierFormDialogState.form_description,

@@ -15,10 +15,12 @@ from gws_eln.materials.material_batch_dto import (
 from gws_eln.materials.material_batch_service import MaterialBatchService
 from gws_eln.materials.material_dto import CreateMaterialDTO
 from gws_eln.materials.material_service import MaterialService
+from gws_eln.notes.eln_note_service import ElnNoteService
 from gws_eln.rich_text.rich_text_block_material_activity import RichTextBlockMaterialActivity
 from gws_eln.user.eln_user_sync_service import ElnUserSyncService
 
 
+# test_eln_note_content_listener.py
 class TestElnNoteContentListener(BaseTestCase):
     @classmethod
     def init_before_test(cls):
@@ -45,7 +47,7 @@ class TestElnNoteContentListener(BaseTestCase):
     def _create_batch(self, material: Material, quantity_ml: Decimal) -> MaterialBatch:
         """Helper to create a batch with given quantity in mL."""
         service = MaterialBatchService()
-        return service.create_batch(
+        result = service.create_batch(
             CreateBatchDTO(
                 material_id=material.id,
                 batch_number=f"BATCH-{quantity_ml}",
@@ -53,6 +55,7 @@ class TestElnNoteContentListener(BaseTestCase):
                 unit="mL",
             )
         )
+        return result.batch
 
     def _build_activity_block(
         self, activity_id: str | None, block_id: str = "block-1"
@@ -86,7 +89,7 @@ class TestElnNoteContentListener(BaseTestCase):
         consume_activity = [a for a in activities if a.activity_type == ActivityType.CONSUME][0]
 
         # Create a note
-        note = NoteService.create(NoteSaveDTO(title="Test Listener Note"))
+        note = ElnNoteService().create_note(NoteSaveDTO(title="Test Listener Note"))
 
         # Build content WITH the materialActivity block
         activity_block = self._build_activity_block(consume_activity.id)
@@ -150,7 +153,7 @@ class TestElnNoteContentListener(BaseTestCase):
         consume_activity = [a for a in activities if a.activity_type == ActivityType.CONSUME][0]
 
         # Create note with materialActivity block
-        note = NoteService.create(NoteSaveDTO(title="Delete Test Note"))
+        note = ElnNoteService().create_note(NoteSaveDTO(title="Delete Test Note"))
         activity_block = self._build_activity_block(consume_activity.id)
         content = RichText.create_rich_text_dto(
             [
@@ -185,7 +188,7 @@ class TestElnNoteContentListener(BaseTestCase):
     def test_block_without_activity_id_is_ignored(self):
         """Removing a materialActivity block with no activity_id does not cause errors."""
         # Create a note
-        note = NoteService.create(NoteSaveDTO(title="No Activity ID Note"))
+        note = ElnNoteService().create_note(NoteSaveDTO(title="No Activity ID Note"))
 
         # Build content with a materialActivity block that has activity_id=None
         activity_block = self._build_activity_block(None)
@@ -244,7 +247,7 @@ class TestElnNoteContentListener(BaseTestCase):
         ][0]
 
         # Create note with a materialActivity block referencing the RECEIVE (50 mL) activity
-        note = NoteService.create(NoteSaveDTO(title="Rollback Test Note"))
+        note = ElnNoteService().create_note(NoteSaveDTO(title="Rollback Test Note"))
         activity_block = self._build_activity_block(receive_50_activity.id)
         content_with_block = RichText.create_rich_text_dto(
             [
@@ -315,7 +318,7 @@ class TestElnNoteContentListener(BaseTestCase):
         self.assertEqual(len(consume_activities), 2)
 
         # Create note with two materialActivity blocks
-        note = NoteService.create(NoteSaveDTO(title="Multi Block Note"))
+        note = ElnNoteService().create_note(NoteSaveDTO(title="Multi Block Note"))
         block1 = self._build_activity_block(consume_activities[0].id, "block-1")
         block2 = self._build_activity_block(consume_activities[1].id, "block-2")
         content_with_blocks = RichText.create_rich_text_dto(
@@ -375,7 +378,7 @@ class TestElnNoteContentListener(BaseTestCase):
         consume_activity = [a for a in activities if a.activity_type == ActivityType.CONSUME][0]
 
         # Create note with a paragraph + materialActivity block
-        note = NoteService.create(NoteSaveDTO(title="No Change Note"))
+        note = ElnNoteService().create_note(NoteSaveDTO(title="No Change Note"))
         activity_block = self._build_activity_block(consume_activity.id)
         content = RichText.create_rich_text_dto(
             [
