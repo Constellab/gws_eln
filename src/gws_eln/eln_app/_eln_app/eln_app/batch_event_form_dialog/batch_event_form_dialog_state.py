@@ -7,7 +7,6 @@ from typing import Any
 
 import reflex as rx
 from gws_eln.core.unit_type import UnitType
-from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.materials.material_batch_dto import (
     DecrementQuantityDTO,
     MaterialBatchDTO,

@@ -9,7 +9,6 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import TYPE_CHECKING
 
 from gws_core import BaseModelDTO, UserDTO
 
@@ -18,9 +17,6 @@ from gws_eln.locations.location_dto import LocationDTO
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material_dto import MaterialDTO
 from gws_eln.suppliers.supplier_dto import SupplierDTO
-
-if TYPE_CHECKING:
-    pass
 
 
 class CreateBatchDTO(BaseModelDTO):

@@ -1,4 +1,4 @@
-from gws_core import ApiRegistry
+from gws_core import ApiRegistry, Settings
 
 
 class ELNSettings:
@@ -19,6 +19,16 @@ class ELNSettings:
         :return: The ELN API route path
         """
         return ApiRegistry.get_brick_api_path(cls.get_brick_name())
+
+    @classmethod
+    def get_eln_api_url(cls) -> str:
+        """Get the full API URL for the ELN brick.
+
+        :return: The ELN API URL
+        """
+        base_url = Settings.get_lab_api_url().rstrip("/")
+        route_path = cls.get_eln_api_route_path().lstrip("/")
+        return f"{base_url}/{route_path}"
 
 
 # Register the app so it gets mounted at /brick/gws_eln/

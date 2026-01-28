@@ -3,7 +3,7 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
-from ..common.unit.unit_components import quantity_unit_input
+from ..common.activity_form_sections import receive_consume_form_section
 from .batch_event_form_dialog_state import BatchEventFormDialogState
 
 
@@ -32,25 +32,13 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Quantity input with unit
-        quantity_unit_input(
+        # Reusable receive/consume form section
+        receive_consume_form_section(
             unit_type=BatchEventFormDialogState.form_unit_type,
             unit_value=BatchEventFormDialogState.form_unit,
             on_unit_change=BatchEventFormDialogState.set_unit,
             quantity_label=BatchEventFormDialogState.quantity_label,
-        ),
-        # Notes field
-        rx.vstack(
-            rx.text("Notes", size="2", weight="bold"),
-            rx.text_area(
-                placeholder="Enter notes (optional)",
-                name="notes",
-                width="100%",
-                default_value=BatchEventFormDialogState.form_notes,
-                rows="3",
-            ),
-            width="100%",
-            spacing="1",
+            form_notes=BatchEventFormDialogState.form_notes,
         ),
         width="100%",
         spacing="3",

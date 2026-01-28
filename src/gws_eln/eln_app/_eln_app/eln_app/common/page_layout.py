@@ -17,8 +17,8 @@ def sidebar_content() -> rx.Component:
     return sidebar_menu_component(
         title="Constellab ELN",
         menu_items=[
-            menu_item_component("notebook-text", "Notes", "/notes"),
-            menu_item_component("package", "Materials", "/"),
+            menu_item_component("notebook-text", "Notes", "/"),
+            menu_item_component("package", "Materials", "/materials"),
             menu_item_component("map-pin", "Locations", "/locations"),
             menu_item_component("truck", "Suppliers", "/suppliers"),
         ],

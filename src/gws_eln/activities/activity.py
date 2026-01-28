@@ -68,7 +68,7 @@ class Activity(ModelWithUser):
     notes = TextField(null=True)
 
     # Link to Constellab Note (for Note-linked actions)
-    note_id = CharField(max_length=255, null=True, index=True)
+    note_id = CharField(max_length=36, null=True)
 
     @classmethod
     def find_by_batch_id(cls, batch_id: str) -> list["Activity"]:

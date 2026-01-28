@@ -8,7 +8,6 @@ from gws_eln.activities.activity_type import ActivityType
 from gws_reflex_main import ReflexMainState
 
 ALL_FILTER_VALUE = "__all__"
-ALLIQUOT_FILTER_VALUE = "aliquot"
 
 
 class ActivitiesListState(rx.State):
@@ -60,7 +59,7 @@ class ActivitiesListState(rx.State):
             search_builder.add_entity_filter(self._batch_id)
 
             if self.filter_activity_type and self.filter_activity_type != ALL_FILTER_VALUE:
-                if self.filter_activity_type == ALLIQUOT_FILTER_VALUE:
+                if self.filter_activity_type == ActivityType.ALIQUOT.value:
                     activity_types = [
                         ActivityType.ALIQUOT,
                         ActivityType.ALIQUOT_CREATED,

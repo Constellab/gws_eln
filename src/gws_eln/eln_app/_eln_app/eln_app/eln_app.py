@@ -19,16 +19,16 @@ from .suppliers.suppliers_page import suppliers_page
 app = register_gws_reflex_app()
 
 
-@rx.page(on_load=[MaterialsListState.on_load])
-def index():
-    """Materials page (home)."""
-    return materials_page()
-
-
-@rx.page(route="/notes", on_load=[NotesListState.on_load])
+@rx.page(route="/", on_load=[NotesListState.on_load])
 def notes():
     """Notes page."""
     return notes_page()
+
+
+@rx.page(route="/materials", on_load=[MaterialsListState.on_load])
+def index():
+    """Materials page (home)."""
+    return materials_page()
 
 
 @rx.page(route="/locations", on_load=[LocationsListState.on_load])

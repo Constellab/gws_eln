@@ -7,9 +7,13 @@ from gws_eln.activities.activity_dto import ActivityDTO
 from gws_eln.activities.activity_type import ActivityType
 from gws_reflex_main import user_with_date_component
 
+from ..common.activity.activity_type_select_component import (
+    activity_type_select_component,
+)
 from ..common.batch.batch_components import batch_inline_link
+from ..common.eln_app_router import ElnAppRouter
 from ..common.location.inline_location_component import inline_location_component
-from .activities_list_state import ALL_FILTER_VALUE, ALLIQUOT_FILTER_VALUE, ActivitiesListState
+from .activities_list_state import ALL_FILTER_VALUE, ActivitiesListState
 from .activity_type_component import activity_type_badge
 
 
@@ -80,18 +84,10 @@ def _filter_bar() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.hstack(
-        rx.select.root(
-            rx.select.trigger(placeholder="Activity type", width="180px"),
-            rx.select.content(
-                rx.select.item("All types", value=ALL_FILTER_VALUE),
-                rx.select.item("Received", value=ActivityType.RECEIVE.value),
-                rx.select.item("Moved", value=ActivityType.MOVE.value),
-                rx.select.item("Consumed", value=ActivityType.CONSUME.value),
-                rx.select.item("Used", value=ActivityType.USE.value),
-                rx.select.item("Discarded", value=ActivityType.DISCARD.value),
-                rx.select.item("Aliquot", value=ALLIQUOT_FILTER_VALUE),
-                rx.select.item("Relabeled", value=ActivityType.RELABEL.value),
-            ),
+        activity_type_select_component(
+            placeholder="Activity type",
+            width="180px",
+            all_option=("All types", ALL_FILTER_VALUE),
             value=ActivitiesListState.filter_activity_type,
             on_change=ActivitiesListState.handle_activity_type_filter_change,
         ),
@@ -122,6 +118,17 @@ def _row(activity: ActivityDTO) -> rx.Component:
         ),
         rx.table.cell(_activity_description(activity)),
         rx.table.cell(activity.pretty_quantity),
+        rx.table.cell(
+            rx.cond(
+                activity.note_id,
+                rx.link(
+                    "View note",
+                    href=ElnAppRouter.get_note_detail_url(activity.note_id),
+                    size="2",
+                ),
+                rx.fragment(),
+            )
+        ),
         rx.table.cell(
             user_with_date_component(
                 activity.created_by,
@@ -188,6 +195,7 @@ def _activities_table() -> rx.Component:
                         rx.table.column_header_cell("Type"),
                         rx.table.column_header_cell("Description"),
                         rx.table.column_header_cell("Quantity"),
+                        rx.table.column_header_cell("Note"),
                         rx.table.column_header_cell("By"),
                     ),
                 ),

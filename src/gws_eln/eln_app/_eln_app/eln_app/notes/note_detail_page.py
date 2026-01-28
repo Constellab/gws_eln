@@ -3,10 +3,14 @@
 import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
 
-from ..common.detail_page_layout import detail_page_layout
+from ..common.detail_page_layout import detail_page_layout, detail_toggle_sidebar_button
 from ..common.notes.note_actions_menu import note_actions_menu
 from ..common.page_layout import page_layout
+from ..note_activity_form_dialog.note_activity_form_dialog_component import (
+    note_activity_form_dialog,
+)
 from ..note_form_dialog.note_form_dialog_component import note_update_dialog
+from .eln_note_component.eln_note_component import eln_note_component
 from .note_detail_state import NoteDetailState
 
 
@@ -39,9 +43,7 @@ def _details_sidebar() -> rx.Component:
             # Last modified at
             rx.text("Last modified at", size="2", color="gray", weight="medium"),
             rx.text(
-                rx.moment(
-                    NoteDetailState.note.last_modified_at, format="MMM D, YYYY HH:mm"
-                ),
+                rx.moment(NoteDetailState.note.last_modified_at, format="MMM D, YYYY HH:mm"),
                 size="2",
             ),
             # Validation section (only shown if validated)
@@ -59,7 +61,9 @@ def _details_sidebar() -> rx.Component:
                     rx.cond(
                         NoteDetailState.note.validated_at,
                         rx.text(
-                            rx.moment(NoteDetailState.note.validated_at, format="MMM D, YYYY HH:mm"),
+                            rx.moment(
+                                NoteDetailState.note.validated_at, format="MMM D, YYYY HH:mm"
+                            ),
                             size="2",
                         ),
                         rx.text("-", size="2"),
@@ -95,15 +99,6 @@ def _details_sidebar() -> rx.Component:
     )
 
 
-def _main_content() -> rx.Component:
-    """Create the main content area.
-
-    :return: The main content component
-    :rtype: rx.Component
-    """
-    return rx.box()
-
-
 def note_detail_page() -> rx.Component:
     """Create the note detail page component.
 
@@ -130,9 +125,9 @@ def note_detail_page() -> rx.Component:
                         rx.cond(
                             NoteDetailState.note,
                             detail_page_layout(
-                                main_content=_main_content(),
+                                main_content=eln_note_component(),
                                 sidebar_content=_details_sidebar(),
-                                show_breadcrumb=False,
+                                show_header=False,
                             ),
                             rx.center(
                                 rx.vstack(
@@ -154,12 +149,14 @@ def note_detail_page() -> rx.Component:
                 ),
                 header_content=rx.hstack(
                     rx.heading(NoteDetailState.note.title, size="6"),
-                    rx.fragment(
+                    rx.hstack(
                         note_actions_menu(
                             on_update=NoteDetailState.open_update_dialog,
                             on_delete=NoteDetailState.open_delete_dialog,
                         ),
+                        detail_toggle_sidebar_button(),
                         note_update_dialog(),
+                        note_activity_form_dialog(),
                     ),
                     justify="between",
                     align="center",

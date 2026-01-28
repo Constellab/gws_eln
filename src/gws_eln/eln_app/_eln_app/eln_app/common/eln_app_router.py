@@ -2,33 +2,13 @@ class ElnAppRouter:
     """Router for the ELN application."""
 
     @staticmethod
-    def get_material_list_url() -> str:
-        """Get the URL for the material list page.
-
-        :return: The material list URL
-        :rtype: str
-        """
-        return "/"
-
-    @staticmethod
-    def get_material_detail_url(material_id: str) -> str:
-        """Get the URL for the material detail page.
-
-        :param material_id: The ID of the material
-        :type material_id: str
-        :return: The material detail URL
-        :rtype: str
-        """
-        return f"/materials/{material_id}"
-
-    @staticmethod
     def get_notes_list_url() -> str:
         """Get the URL for the notes list page.
 
         :return: The notes list URL
         :rtype: str
         """
-        return "/notes"
+        return "/"
 
     @staticmethod
     def get_note_detail_url(note_id: str) -> str:
@@ -40,6 +20,26 @@ class ElnAppRouter:
         :rtype: str
         """
         return f"/notes/{note_id}"
+
+    @staticmethod
+    def get_material_list_url() -> str:
+        """Get the URL for the material list page.
+
+        :return: The material list URL
+        :rtype: str
+        """
+        return "/materials"
+
+    @staticmethod
+    def get_material_detail_url(material_id: str) -> str:
+        """Get the URL for the material detail page.
+
+        :param material_id: The ID of the material
+        :type material_id: str
+        :return: The material detail URL
+        :rtype: str
+        """
+        return f"/materials/{material_id}"
 
     @staticmethod
     def get_batch_detail_url(batch_id: str) -> str:

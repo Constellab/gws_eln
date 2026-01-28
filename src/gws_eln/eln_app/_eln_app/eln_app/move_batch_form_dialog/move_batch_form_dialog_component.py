@@ -1,9 +1,7 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
-from ..common.location.location_select_component import (
-    location_select_component,
-)
+from ..common.activity_form_sections import move_form_section
 from .move_batch_form_dialog_state import MoveBatchFormDialogState
 
 
@@ -32,16 +30,10 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Destination Location field
-        rx.vstack(
-            rx.text("Destination Location*", size="2", weight="bold"),
-            location_select_component(
-                placeholder="Select destination location",
-                value=MoveBatchFormDialogState.form_location_id,
-                on_change=MoveBatchFormDialogState.set_location_id,
-            ),
-            width="100%",
-            spacing="1",
+        # Reusable move form section
+        move_form_section(
+            form_location_id=MoveBatchFormDialogState.form_location_id,
+            on_location_change=MoveBatchFormDialogState.set_location_id,
         ),
         width="100%",
         spacing="3",

@@ -106,10 +106,36 @@ def _mobile_sidebar_overlay(sidebar_content: rx.Component) -> rx.Component:
     )
 
 
+def detail_toggle_sidebar_button() -> rx.Component:
+    """Create a button to toggle the sidebar visibility.
+
+    :return: The toggle button component
+    :rtype: rx.Component
+    """
+    return rx.tooltip(
+        rx.icon_button(
+            rx.cond(
+                DetailPageState.show_detail,
+                rx.icon("chevron-right", size=20),
+                rx.icon("chevron-left", size=20),
+            ),
+            on_click=DetailPageState.toggle_detail,
+            variant="soft",
+            size="2",
+            cursor="pointer",
+        ),
+        content=rx.cond(
+            DetailPageState.show_detail,
+            "Hide detail panel",
+            "Show detail panel",
+        ),
+    )
+
+
 def detail_page_layout(
     main_content: rx.Component,
     sidebar_content: rx.Component,
-    show_breadcrumb: bool = True,
+    show_header: bool = True,
 ) -> rx.Component:
     """Create a common layout for detail pages with breadcrumb, main content and sidebar.
 
@@ -125,37 +151,22 @@ def detail_page_layout(
     :type main_content: rx.Component
     :param sidebar_content: The sidebar content to display on the right
     :type sidebar_content: rx.Component
+    :param show_header: Whether to show the header with breadcrumb and toggle button, defaults to True
+    :type show_header: bool, optional
     :return: The detail page layout component
     :rtype: rx.Component
     """
     return rx.vstack(
         # Header row with breadcrumb and toggle button
-        rx.hstack(
-            rx.cond(
-                show_breadcrumb,
+        rx.cond(
+            show_header,
+            rx.hstack(
                 breadcrumb_component(),
+                rx.spacer(),
+                detail_toggle_sidebar_button(),
+                width="100%",
+                align_items="center",
             ),
-            rx.spacer(),
-            rx.tooltip(
-                rx.icon_button(
-                    rx.cond(
-                        DetailPageState.show_detail,
-                        rx.icon("chevron-right", size=20),
-                        rx.icon("chevron-left", size=20),
-                    ),
-                    on_click=DetailPageState.toggle_detail,
-                    variant="soft",
-                    size="2",
-                    cursor="pointer",
-                ),
-                content=rx.cond(
-                    DetailPageState.show_detail,
-                    "Hide detail panel",
-                    "Show detail panel",
-                ),
-            ),
-            width="100%",
-            align_items="center",
         ),
         rx.hstack(
             # Main content area (center, max width 1200px)
@@ -164,6 +175,7 @@ def detail_page_layout(
                 max_width="1200px",
                 width="100%",
                 height="100%",
+                class_name="detail-page-main-content",
             ),
             # Desktop sidebar (inline, visible on larger screens)
             rx.cond(
@@ -182,7 +194,10 @@ def detail_page_layout(
             DetailPageState.show_detail,
             _mobile_sidebar_overlay(sidebar_content),
         ),
-        height="100%",
         width="100%",
         position="relative",
+        flex=1,
+        display="flex",
+        flex_direction="column",
+        class_name="detail-page-layout-container",
     )

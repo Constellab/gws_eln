@@ -11,6 +11,7 @@ from gws_core import (
 )
 
 from gws_eln.materials.material_batch_service import MaterialBatchService
+from gws_eln.notes.eln_note_service import ElnNoteService
 from gws_eln.rich_text.rich_text_block_material_activity import (
     RichTextBlockMaterialActivity,
 )
@@ -33,6 +34,10 @@ class ElnNoteContentListener(EventListener):
 
     def handle(self, event: Event) -> None:
         if event.type != "note":
+            return
+
+        # Only process ELN notes
+        if not ElnNoteService().note_is_eln_note(event.note_id):
             return
 
         if event.action == "content_updated":

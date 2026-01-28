@@ -3,6 +3,7 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
+from ..common.activity_form_sections import relabel_form_section
 from .relabel_batch_form_dialog_state import RelabelBatchFormDialogState
 
 
@@ -43,30 +44,10 @@ def _form_content() -> rx.Component:
             spacing="1",
         ),
         rx.divider(margin_y="0.5rem"),
-        # New Batch Number field
-        rx.vstack(
-            rx.text("New Batch Number*", size="2", weight="bold"),
-            rx.input(
-                placeholder="Enter new batch number",
-                name="batch_number",
-                required=True,
-                width="100%",
-                default_value=RelabelBatchFormDialogState.form_batch_number,
-            ),
-            width="100%",
-            spacing="1",
-        ),
-        # New Label field
-        rx.vstack(
-            rx.text("New Label", size="2", weight="bold"),
-            rx.input(
-                placeholder="Enter new label (optional)",
-                name="label",
-                width="100%",
-                default_value=RelabelBatchFormDialogState.form_label,
-            ),
-            width="100%",
-            spacing="1",
+        # Reusable relabel form section
+        relabel_form_section(
+            form_batch_number=RelabelBatchFormDialogState.form_batch_number,
+            form_label=RelabelBatchFormDialogState.form_label,
         ),
         width="100%",
         spacing="3",

@@ -3,6 +3,7 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
+from ..common.activity_form_sections import use_discard_form_section
 from .delete_batch_form_dialog_state import DeleteBatchFormDialogState
 
 
@@ -49,18 +50,11 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Notes field (for discard reason)
-        rx.vstack(
-            rx.text("Reason (optional)", size="2", weight="bold"),
-            rx.text_area(
-                placeholder="Enter reason for deleting/discarding this batch",
-                name="notes",
-                width="100%",
-                default_value=DeleteBatchFormDialogState.form_notes,
-                rows="3",
-            ),
-            width="100%",
-            spacing="1",
+        # Reusable notes form section
+        use_discard_form_section(
+            form_notes=DeleteBatchFormDialogState.form_notes,
+            notes_label="Reason (optional)",
+            notes_placeholder="Enter reason for deleting/discarding this batch",
         ),
         width="100%",
         spacing="3",

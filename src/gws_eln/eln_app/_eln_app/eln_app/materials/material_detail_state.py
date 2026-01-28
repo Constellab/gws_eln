@@ -1,12 +1,12 @@
 """State for the material detail page."""
 
 import reflex as rx
-from gws_eln.eln_app._eln_app.eln_app.common.eln_app_router import ElnAppRouter
 from gws_eln.materials.material import Material
 from gws_eln.materials.material_dto import MaterialDTO
 from gws_eln.materials.material_service import MaterialService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
+from ..common.eln_app_router import ElnAppRouter
 from ..material_form_dialog.material_form_dialog_state import MaterialFormDialogState
 
 

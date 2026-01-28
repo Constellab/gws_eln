@@ -31,6 +31,20 @@ class ActivityService:
     - RELABEL: Change label of a batch
     """
 
+    def get_by_id_and_check(self, activity_id: str) -> Activity:
+        """
+        Get an activity by ID and check that it exists.
+
+        :param activity_id: The ID of the activity
+        :type activity_id: str
+        :return: The activity
+        :rtype: Activity
+        :raises BadRequestException: If activity doesn't exist
+        """
+        CurrentUserService.get_and_check_current_user()
+
+        return Activity.get_by_id_and_check(activity_id)
+
     def log_activity(self, dto: CreateActivityDTO) -> Activity:
         """
         Create an activity log entry.
