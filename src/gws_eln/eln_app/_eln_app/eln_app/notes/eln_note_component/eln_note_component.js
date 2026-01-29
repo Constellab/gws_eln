@@ -1,6 +1,7 @@
 
-import { DcHttpService } from '/public/external/gws_plugin/dc-reflex.js';
-import './eln_note_component.css';
+import { DcHttpService } from '/external/gws_plugin/dc-reflex.js';
+// CSS is loaded separately via rx.asset() in Python - don't import here
+// as dynamic imports can't handle CSS in production builds
 
 
 /**
