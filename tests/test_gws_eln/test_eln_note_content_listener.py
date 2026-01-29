@@ -1,7 +1,13 @@
 from decimal import Decimal
 
-from gws_core import BadRequestException, BaseTestCase, NoteService, RichText, RichTextBlock
-from gws_core.note.note_dto import NoteSaveDTO
+from gws_core import (
+    BadRequestException,
+    BaseTestCase,
+    NoteSaveDTO,
+    NoteService,
+    RichText,
+    RichTextBlock,
+)
 from gws_eln.activities.activity import Activity
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.unit_type import UnitType

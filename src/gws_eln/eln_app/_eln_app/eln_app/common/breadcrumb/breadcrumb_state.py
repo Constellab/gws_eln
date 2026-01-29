@@ -26,7 +26,7 @@ class BreadcrumbItem:
     url: str
 
 
-class BreadcrumbState(ReflexMainState):
+class BreadcrumbState(rx.State):
     """State for managing the breadcrumb navigation component.
 
     This state builds breadcrumb trails by detecting the current page type
@@ -75,7 +75,8 @@ class BreadcrumbState(ReflexMainState):
         :return: The material or None if not found
         :rtype: Material | None
         """
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             material_service = MaterialService()
             return material_service.get_material(material_id)
 
@@ -89,10 +90,9 @@ class BreadcrumbState(ReflexMainState):
         :return: List of breadcrumb items for the batch hierarchy
         :rtype: list[BreadcrumbItem]
         """
-        items: list[BreadcrumbItem] = []
-
         batch: MaterialBatch
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             batch_service = MaterialBatchService()
             batch = batch_service.get_batch(batch_id)
 
@@ -106,5 +106,3 @@ class BreadcrumbState(ReflexMainState):
                 url=ElnAppRouter.get_batch_detail_url(batch.id),
             ),
         ]
-
-        return items

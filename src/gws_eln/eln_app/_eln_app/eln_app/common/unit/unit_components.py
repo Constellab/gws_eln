@@ -124,15 +124,19 @@ def quantity_unit_input(
     if on_quantity_change:
         quantity_props["on_change"] = on_quantity_change
 
+    # Add asterisk to labels if quantity is required
+    display_quantity_label = f"{quantity_label} *" if quantity_required else quantity_label
+    display_unit_label = f"{unit_label} *" if quantity_required else unit_label
+
     return rx.hstack(
         rx.vstack(
-            rx.text(quantity_label, size="2", weight="bold"),
+            rx.text(display_quantity_label, size="2", weight="bold"),
             rx.input(**quantity_props),
             width=quantity_width,
             spacing="1",
         ),
         rx.vstack(
-            rx.text(unit_label, size="2", weight="bold"),
+            rx.text(display_unit_label, size="2", weight="bold"),
             unit_select,
             width=unit_width,
             spacing="1",

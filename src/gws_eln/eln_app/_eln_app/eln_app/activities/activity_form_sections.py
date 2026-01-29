@@ -146,7 +146,7 @@ def create_batch_form_section(
             unit_type=form_unit_type,
             unit_value=form_unit,
             on_unit_change=on_unit_change,
-            quantity_label="Initial Quantity*",
+            quantity_label="Initial Quantity",
         ),
         # Location + Supplier (optional, same row)
         rx.hstack(
@@ -304,7 +304,7 @@ def aliquot_form_section(
                     unit_name="source_unit",
                     unit_value=form_source_unit,
                     on_unit_change=on_source_unit_change,
-                    quantity_label="Quantity to Extract*",
+                    quantity_label="Quantity to Extract",
                     unit_label="Unit",
                     quantity_placeholder="Amount to take",
                 ),
@@ -337,7 +337,7 @@ def aliquot_form_section(
                         item_selected=on_target_material_change,
                     ),
                     rx.text(
-                        "The material type for the new aliquot (defines the unit type)",
+                        "The material type for the new aliquot",
                         size="1",
                         color="gray",
                     ),
@@ -367,7 +367,7 @@ def aliquot_form_section(
                     unit_name="aliquot_unit",
                     unit_value=form_aliquot_unit,
                     on_unit_change=on_aliquot_unit_change,
-                    quantity_label="Initial Quantity*",
+                    quantity_label="Initial Quantity",
                     unit_label="Unit",
                     quantity_placeholder="Starting amount",
                 ),

@@ -112,7 +112,8 @@ class LocationsListState(rx.State):
         :param location_id: The ID of the location to delete
         :type location_id: str
         """
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             location_service = LocationService()
             location_service.delete_location(location_id)
 

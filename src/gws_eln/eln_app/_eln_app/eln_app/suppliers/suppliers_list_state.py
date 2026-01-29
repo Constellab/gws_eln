@@ -112,7 +112,8 @@ class SuppliersListState(rx.State):
         :param supplier_id: The ID of the supplier to delete
         :type supplier_id: str
         """
-        with await self.authenticate_user():
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
             supplier_service = SupplierService()
             supplier_service.delete_supplier(supplier_id)
 

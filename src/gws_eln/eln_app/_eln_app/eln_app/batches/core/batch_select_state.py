@@ -1,5 +1,5 @@
 import reflex as rx
-from gws_core.core.model.model_dto import BaseModelDTO, PageDTO
+from gws_core import BaseModelDTO, PageDTO
 from gws_eln.materials.material_batch_search_builder import MaterialBatchSearchBuilder
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
