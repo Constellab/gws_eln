@@ -41,5 +41,6 @@ class GenerateElnApp(Task):
 
         reflex_app.set_app_config(ElnAppAppConfig())
         reflex_app.name = "Eln App"
+        reflex_app.set_requires_authentication(False)
 
         return {"reflex_app": reflex_app}

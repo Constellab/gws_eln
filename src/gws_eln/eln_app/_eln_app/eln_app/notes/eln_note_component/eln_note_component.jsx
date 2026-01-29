@@ -1,5 +1,5 @@
 
-import { DcHttpService } from '/public/external/browser/dc-reflex.js';
+import { DcHttpService } from '/public/external/gws_plugin/dc-reflex.js';
 import './eln_note_component.css';
 
 
