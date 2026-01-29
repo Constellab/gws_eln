@@ -9,6 +9,8 @@ def batch_select_component(
     placeholder: str = "Search a batch...",
     selected_item: Var | None = None,
     item_selected: rx.EventHandler | None = None,
+    disabled: bool = False,
+    **kwargs,
 ) -> rx.Component:
     """
     Reusable material batch search component.
@@ -37,6 +39,13 @@ def batch_select_component(
             selected_item=MyState.selected_batch,
             item_selected=MyState.handle_batch_selected,
         )
+
+        # Disabled state (read-only display)
+        batch_select_component(
+            selected_item=MyState.selected_batch,
+            item_selected=MyState.handle_batch_selected,
+            disabled=True,
+        )
     """
     # Use provided values or fall back to BatchSelectState defaults
 
@@ -46,4 +55,6 @@ def batch_select_component(
         item_selected=item_selected,
         search_trigger=BatchSelectState.search_batches,
         placeholder=placeholder,
+        disabled=disabled,
+        **kwargs,
     )

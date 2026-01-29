@@ -23,8 +23,8 @@ def _form_content() -> rx.Component:
         form_notes=AliquotFormDialogState.form_notes,
         form_target_material=AliquotFormDialogState.form_target_material,
         on_target_material_change=AliquotFormDialogState.set_target_material,
-        parent_batch_number=AliquotFormDialogState.batch_number,
-        parent_available_quantity=AliquotFormDialogState.current_quantity,
+        parent_batch=AliquotFormDialogState.batch,
+        batch_select_disabled=True,
     )
 
 

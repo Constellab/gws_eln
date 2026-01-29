@@ -45,18 +45,11 @@ class AliquotFormDialogState(FormDialogState, rx.State):
     _callback_after_close: FormDialogCloseCallback | None = None
 
     @rx.var
-    def batch_number(self) -> str:
+    def batch(self) -> MaterialBatchDTO | None:
         """Get the parent batch number for display."""
         if self._batch:
-            return self._batch.batch_number
-        return ""
-
-    @rx.var
-    def current_quantity(self) -> str:
-        """Get the current quantity of the parent batch for display."""
-        if self._batch:
-            return self._batch.pretty_quantity
-        return ""
+            return self._batch
+        return None
 
     @rx.var
     def dialog_title(self) -> str:
@@ -130,6 +123,13 @@ class AliquotFormDialogState(FormDialogState, rx.State):
 
         # Open the dialog
         self.dialog_opened = True
+
+    @rx.event
+    def set_batch(self, value: dict):
+        """Handle batch selection change (no-op since batch is already selected)."""
+        # This is a no-op because the batch is already set when opening the dialog
+        # and the batch select component is disabled
+        pass
 
     @rx.event
     def set_source_unit(self, value: str):

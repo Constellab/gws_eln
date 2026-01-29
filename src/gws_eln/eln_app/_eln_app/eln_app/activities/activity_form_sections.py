@@ -5,7 +5,9 @@ These are used by both the standalone form dialogs and the note activity dialog.
 """
 
 import reflex as rx
+from gws_eln.materials.material_batch_dto import MaterialBatchDTO
 
+from ..batches.core.batch_select_component import batch_select_component
 from ..common.unit.unit_components import quantity_unit_input
 from ..locations.core.location_select_component import location_select_component
 from ..materials.core.material_select_component import material_select_component
@@ -146,28 +148,31 @@ def create_batch_form_section(
             on_unit_change=on_unit_change,
             quantity_label="Initial Quantity*",
         ),
-        # Location (optional)
-        rx.vstack(
-            rx.text("Location", size="2", weight="bold"),
-            location_select_component(
-                placeholder="Select location (defaults to 'labo')...",
-                value=form_location_id,
-                on_change=on_location_change,
+        # Location + Supplier (optional, same row)
+        rx.hstack(
+            rx.vstack(
+                rx.text("Location", size="2", weight="bold"),
+                location_select_component(
+                    placeholder="Select location (defaults to 'labo')...",
+                    value=form_location_id,
+                    on_change=on_location_change,
+                ),
+                width="50%",
+                spacing="1",
+            ),
+            rx.vstack(
+                rx.text("Supplier", size="2", weight="bold"),
+                supplier_select_component(
+                    placeholder="Select supplier (optional)...",
+                    value=form_supplier_id,
+                    on_change=on_supplier_change,
+                    additional_option=("None", "__none__"),
+                ),
+                width="50%",
+                spacing="1",
             ),
             width="100%",
-            spacing="1",
-        ),
-        # Supplier (optional)
-        rx.vstack(
-            rx.text("Supplier", size="2", weight="bold"),
-            supplier_select_component(
-                placeholder="Select supplier (optional)...",
-                value=form_supplier_id,
-                on_change=on_supplier_change,
-                additional_option=("None", "__none__"),
-            ),
-            width="100%",
-            spacing="1",
+            spacing="3",
         ),
         # Label (optional)
         rx.vstack(
@@ -229,68 +234,96 @@ def aliquot_form_section(
     form_notes: rx.Var[str],
     form_target_material: rx.Var,
     on_target_material_change: rx.EventHandler,
-    parent_batch_number: rx.Var[str] | None = None,
-    parent_available_quantity: rx.Var[str] | None = None,
+    parent_batch: MaterialBatchDTO | None = None,
+    form_parent_batch: rx.Var | None = None,
+    on_parent_batch_change: rx.EventHandler | None = None,
+    batch_select_disabled: bool = True,
 ) -> rx.Component:
-    """Form section for aliquot creation with two steps: source extraction and new aliquot details."""
-    # Step 1: Parent batch section (only shown if parent_batch_number is provided)
-    parent_section = rx.fragment()
-    if parent_batch_number is not None and parent_available_quantity is not None:
-        parent_section = rx.fragment(
-            rx.box(
-                rx.vstack(
-                    _step_header(1, "Source"),
-                    rx.text(
-                        "Select how much to extract from the parent batch",
-                        size="1",
-                        color="gray",
-                    ),
-                    rx.hstack(
+    """Form section for aliquot creation with two steps: source extraction and new aliquot details.
+
+    :param form_unit_type: Unit type for source quantity
+    :param form_source_unit: Source unit value
+    :param on_source_unit_change: Handler for source unit change
+    :param form_aliquot_unit_type: Unit type for aliquot quantity
+    :param form_aliquot_unit: Aliquot unit value
+    :param on_aliquot_unit_change: Handler for aliquot unit change
+    :param form_location_id: Location ID value
+    :param on_location_change: Handler for location change
+    :param form_supplier_id: Supplier ID value
+    :param on_supplier_change: Handler for supplier change
+    :param form_notes: Notes value
+    :param form_target_material: Target material value
+    :param on_target_material_change: Handler for target material change
+    :param parent_batch_number: Parent batch number (for display)
+    :param parent_available_quantity: Parent available quantity (for display)
+    :param form_parent_batch: Parent batch selection value (for batch_select_component)
+    :param on_parent_batch_change: Handler for parent batch selection change
+    :param batch_select_disabled: Whether the batch selection is disabled (default True)
+    """
+    parent_section = rx.fragment(
+        rx.box(
+            rx.vstack(
+                _step_header(1, "Source"),
+                rx.text(
+                    "Select how much to extract from the parent batch",
+                    size="1",
+                    color="gray",
+                ),
+                rx.hstack(
+                    rx.cond(
+                        batch_select_disabled,
                         rx.vstack(
                             rx.text("Batch Number", size="2", weight="medium", color="gray"),
-                            rx.text(parent_batch_number, size="2"),
+                            rx.cond(parent_batch, rx.text(parent_batch.batch_number, size="2")),
                             spacing="1",
                             width="60%",
                         ),
-                        rx.vstack(
-                            rx.text("Available", size="2", weight="medium", color="gray"),
-                            rx.text(parent_available_quantity, size="2"),
-                            spacing="1",
-                            width="40%",
+                        rx.box(
+                            batch_select_component(
+                                placeholder="Select a batch...",
+                                selected_item=form_parent_batch,
+                                item_selected=on_parent_batch_change,
+                                disabled=batch_select_disabled,
+                            ),
+                            width="60%",
                         ),
-                        width="100%",
-                        spacing="3",
                     ),
-                    # Source quantity (amount to take from parent)
-                    quantity_unit_input(
-                        unit_type=form_unit_type,
-                        quantity_name="source_quantity",
-                        unit_name="source_unit",
-                        unit_value=form_source_unit,
-                        on_unit_change=on_source_unit_change,
-                        quantity_label="Quantity to Extract*",
-                        unit_label="Unit",
-                        quantity_placeholder="Amount to take",
+                    rx.vstack(
+                        rx.text("Available", size="2", weight="medium", color="gray"),
+                        rx.cond(parent_batch, rx.text(parent_batch.pretty_quantity, size="2")),
+                        spacing="1",
+                        width="40%",
                     ),
                     width="100%",
                     spacing="3",
                 ),
-                padding="12px",
-                border="1px solid var(--gray-5)",
-                border_radius="8px",
+                # Source quantity (amount to take from parent)
+                quantity_unit_input(
+                    unit_type=form_unit_type,
+                    quantity_name="source_quantity",
+                    unit_name="source_unit",
+                    unit_value=form_source_unit,
+                    on_unit_change=on_source_unit_change,
+                    quantity_label="Quantity to Extract*",
+                    unit_label="Unit",
+                    quantity_placeholder="Amount to take",
+                ),
                 width="100%",
+                spacing="3",
             ),
-        )
-
-    # Determine step number for new aliquot section
-    new_aliquot_step = 2 if parent_batch_number is not None else 1
+            padding="12px",
+            border="1px solid var(--gray-5)",
+            border_radius="8px",
+            width="100%",
+        ),
+    )
 
     return rx.vstack(
         parent_section,
         # Step 2: New aliquot section
         rx.box(
             rx.vstack(
-                _step_header(new_aliquot_step, "New Aliquot"),
+                _step_header(2, "New Aliquot"),
                 rx.text(
                     "Configure the new aliquot batch",
                     size="1",
@@ -298,7 +331,6 @@ def aliquot_form_section(
                 ),
                 # Target material selection (required)
                 rx.vstack(
-                    rx.text("Target Material*", size="2", weight="bold"),
                     material_select_component(
                         placeholder="Search target material...",
                         selected_item=form_target_material,
@@ -356,28 +388,31 @@ def aliquot_form_section(
                     width="100%",
                     spacing="1",
                 ),
-                # Location
-                rx.vstack(
-                    rx.text("Location", size="2", weight="bold"),
-                    location_select_component(
-                        placeholder="Select location...",
-                        value=form_location_id,
-                        on_change=on_location_change,
+                # Location + Supplier (same row)
+                rx.hstack(
+                    rx.vstack(
+                        rx.text("Location", size="2", weight="bold"),
+                        location_select_component(
+                            placeholder="Select location...",
+                            value=form_location_id,
+                            on_change=on_location_change,
+                        ),
+                        width="50%",
+                        spacing="1",
+                    ),
+                    rx.vstack(
+                        rx.text("Supplier", size="2", weight="bold"),
+                        supplier_select_component(
+                            placeholder="Select supplier (optional)...",
+                            value=form_supplier_id,
+                            on_change=on_supplier_change,
+                            additional_option=("None", "__none__"),
+                        ),
+                        width="50%",
+                        spacing="1",
                     ),
                     width="100%",
-                    spacing="1",
-                ),
-                # Supplier (optional)
-                rx.vstack(
-                    rx.text("Supplier", size="2", weight="bold"),
-                    supplier_select_component(
-                        placeholder="Select supplier (optional)...",
-                        value=form_supplier_id,
-                        on_change=on_supplier_change,
-                        additional_option=("None", "__none__"),
-                    ),
-                    width="100%",
-                    spacing="1",
+                    spacing="3",
                 ),
                 # Notes field
                 rx.vstack(

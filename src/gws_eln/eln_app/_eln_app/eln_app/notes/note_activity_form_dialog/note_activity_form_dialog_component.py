@@ -29,11 +29,11 @@ S = NoteActivityFormDialogState
 def _batch_info_section() -> rx.Component:
     """Read-only display of selected batch info, shown when a sub-form is active (except for CREATE)."""
     return rx.cond(
-        S.show_sub_form & ~S.is_create_activity,
+        S.show_batch_select & S.batch,
         rx.vstack(
             rx.vstack(
                 rx.text("Current Quantity", size="2", weight="bold"),
-                rx.text(S.current_quantity, size="2", color="gray"),
+                rx.text(S.batch.pretty_quantity, size="2", color="gray"),
                 width="100%",
                 spacing="1",
             ),
@@ -114,8 +114,10 @@ def _sub_form() -> rx.Component:
                 form_notes=S.form_notes,
                 form_target_material=S.form_target_material,
                 on_target_material_change=S.set_target_material,
-                parent_batch_number=S.batch_number,
-                parent_available_quantity=S.current_quantity,
+                form_parent_batch=S.form_batch,
+                parent_batch=S.batch,
+                on_parent_batch_change=S.set_batch,
+                batch_select_disabled=False,
             ),
         ),
     )
@@ -141,7 +143,6 @@ def _form_content() -> rx.Component:
                 S.is_create_activity,
                 # For CREATE activity: show material selector
                 rx.vstack(
-                    rx.text("Material*", size="2", weight="bold"),
                     material_select_component(
                         placeholder="Search a material...",
                         selected_item=S.form_material,
@@ -150,9 +151,11 @@ def _form_content() -> rx.Component:
                     width="100%",
                     spacing="1",
                 ),
+            ),
+            rx.cond(
+                S.show_batch_select,
                 # For other activities: show batch selector
                 rx.vstack(
-                    rx.text("Batch*", size="2", weight="bold"),
                     batch_select_component(
                         placeholder="Select a batch...",
                         selected_item=S.form_batch,

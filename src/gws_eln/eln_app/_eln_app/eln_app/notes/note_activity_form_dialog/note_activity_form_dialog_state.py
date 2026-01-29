@@ -73,13 +73,12 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
     _callback_after_close: NoteActivityCallback | None = None
 
     # --- Computed properties ---
-
     @rx.var
-    def batch_number(self) -> str:
-        """Selected batch number for display."""
+    def batch(self) -> MaterialBatchDTO | None:
+        """Get the parent batch for display."""
         if self._batch:
-            return self._batch.batch_number
-        return ""
+            return self._batch
+        return None
 
     @rx.var
     def current_quantity(self) -> str:
@@ -104,6 +103,19 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
     def is_create_activity(self) -> bool:
         """Whether the selected activity type is CREATE."""
         return self.form_activity_type == ActivityType.CREATE.value
+
+    @rx.var
+    def show_batch_select(self) -> bool:
+        """Whether to show the batch/material selection field.
+
+        For CREATE activity: show material selection
+        For other activities: show batch selection
+        """
+
+        return bool(self.form_activity_type) and self.form_activity_type not in [
+            ActivityType.CREATE.value,
+            ActivityType.ALIQUOT.value,
+        ]
 
     @rx.var
     def show_receive_consume_form(self) -> bool:
@@ -135,17 +147,6 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
     def show_aliquot_form(self) -> bool:
         """Whether to show the aliquot sub-form."""
         return self.form_activity_type == ActivityType.ALIQUOT.value
-
-    @rx.var
-    def show_sub_form(self) -> bool:
-        """Whether any sub-form should be shown.
-
-        For CREATE: requires material and activity type
-        For other activities: requires batch and activity type
-        """
-        if self.form_activity_type == ActivityType.CREATE.value:
-            return bool(self.form_material and self.form_activity_type)
-        return bool(self.form_batch and self.form_activity_type)
 
     @rx.var
     def quantity_label(self) -> str:
