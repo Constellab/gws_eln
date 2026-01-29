@@ -50,6 +50,15 @@ class MaterialBatchSearchBuilder(SearchBuilder):
         self.add_expression(MaterialBatch.label.ilike(like_pattern))
         return self
 
+    def add_label_or_batch_number_filter(self, text: str) -> "MaterialBatchSearchBuilder":
+        """Filter the search query by label or batch number (case-insensitive contains)"""
+        like_pattern = f"%{text}%"
+        self.add_expression(
+            (MaterialBatch.label.ilike(like_pattern))
+            | (MaterialBatch.batch_number.ilike(like_pattern))
+        )
+        return self
+
     def add_notes_filter(self, notes: str) -> "MaterialBatchSearchBuilder":
         """Filter the search query by notes (case-insensitive contains)"""
         like_pattern = f"%{notes}%"

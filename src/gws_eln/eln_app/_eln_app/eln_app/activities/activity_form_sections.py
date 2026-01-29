@@ -227,7 +227,7 @@ def aliquot_form_section(
     form_supplier_id: rx.Var[str],
     on_supplier_change: rx.EventHandler,
     form_notes: rx.Var[str],
-    form_target_material_id: rx.Var[str],
+    form_target_material: rx.Var,
     on_target_material_change: rx.EventHandler,
     parent_batch_number: rx.Var[str] | None = None,
     parent_available_quantity: rx.Var[str] | None = None,
@@ -300,10 +300,9 @@ def aliquot_form_section(
                 rx.vstack(
                     rx.text("Target Material*", size="2", weight="bold"),
                     material_select_component(
-                        placeholder="Select target material...",
-                        name="target_material_id",
-                        value=form_target_material_id,
-                        on_change=on_target_material_change,
+                        placeholder="Search target material...",
+                        selected_item=form_target_material,
+                        item_selected=on_target_material_change,
                     ),
                     rx.text(
                         "The material type for the new aliquot (defines the unit type)",

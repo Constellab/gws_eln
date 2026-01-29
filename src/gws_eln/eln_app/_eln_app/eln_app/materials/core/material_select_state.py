@@ -1,34 +1,43 @@
-from dataclasses import dataclass
-
 import reflex as rx
-from gws_eln.materials.material import Material
+from gws_core.core.model.model_dto import BaseModelDTO, PageDTO
+from gws_eln.materials.material_search_builder import MaterialSearchBuilder
+from gws_reflex_main.gws_components import InputSearchResultDTO
 
 
-@dataclass
-class MaterialSelectDTO:
-    value: str
-    label: str
+class SearchParam(BaseModelDTO):
+    """DTO for search parameters."""
+
+    search_text: str
+    page: int
+    page_size: int
 
 
 class MaterialSelectState(rx.State):
-    """State for managing material selection and loading materials from database."""
+    """State for managing material search and selection."""
 
-    _materials: list[MaterialSelectDTO] = []
+    search_results: PageDTO | None = None
 
-    @rx.var
-    def materials(self) -> list[MaterialSelectDTO]:
-        """Load all materials from the database, sorted by name."""
-        if not self._materials:
-            material_list = list(
-                Material.select()
-                .order_by(Material.name)
+    @rx.event
+    def search_materials(self, query: dict):
+        """Search materials based on the query.
+
+        :param query: The search query containing search_text, page, and page_size
+        """
+        search_param = SearchParam.from_json(query)
+
+        search_builder = MaterialSearchBuilder()
+
+        if search_param.search_text:
+            search_builder.add_name_filter(search_param.search_text)
+
+        result = search_builder.search_page(
+            page=search_param.page, number_of_items_per_page=search_param.page_size
+        )
+
+        self.search_results = result.map_page(
+            lambda material: InputSearchResultDTO(
+                id=material.id,
+                display_text=material.name,
+                object=material.to_dto(),
             )
-            self._materials = [
-                MaterialSelectDTO(
-                    value=str(material.id),
-                    label=material.name,
-                )
-                for material in material_list
-            ]
-
-        return self._materials
+        )

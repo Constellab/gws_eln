@@ -9,8 +9,8 @@ from ..common.detail_page_layout import detail_page_layout
 from ..common.page_layout import page_layout
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from .core.material_actions_menu import material_actions_menu
-from .material_form_dialog.material_form_dialog_component import material_update_dialog
 from .material_detail_state import MaterialDetailState
+from .material_form_dialog.material_form_dialog_component import material_update_dialog
 
 
 def _details_sidebar() -> rx.Component:
@@ -49,7 +49,11 @@ def _details_sidebar() -> rx.Component:
             ),
             # Default Unit Type
             rx.text("Default Unit Type", size="2", color="gray", weight="medium"),
-            rx.text(MaterialDetailState.material.default_unit_type, size="2", style={"text_transform": "capitalize"}),
+            rx.text(
+                MaterialDetailState.material.default_unit_type,
+                size="2",
+                style={"text_transform": "capitalize"},
+            ),
             # Divider before technical info
             rx.divider(margin_top="0.5rem", margin_bottom="0.5rem", grid_column="span 2"),
             # Created by

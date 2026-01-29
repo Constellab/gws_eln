@@ -118,26 +118,6 @@ def _dialog() -> rx.Component:
     )
 
 
-def create_material_dialog() -> rx.Component:
-    """Dialog component for creating a new material with a trigger button.
-
-    Displays a form for entering material details. Success and error messages
-    are displayed as toast notifications.
-
-    :return: The create material dialog component with trigger button
-    :rtype: rx.Component
-    """
-    return rx.fragment(
-        rx.button(
-            rx.icon("plus", size=18),
-            "Create New Material",
-            size="3",
-            on_click=MaterialFormDialogState.open_create_dialog,
-        ),
-        _dialog(),
-    )
-
-
 def material_update_dialog() -> rx.Component:
     """Dialog component for updating an existing material.
 

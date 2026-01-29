@@ -125,6 +125,7 @@ class NoteDetailState(rx.State):
 
     @rx.event
     async def on_custom_tool_event(self, event: dict):
+        print("Opening note activity form dialog from custom tool event:")
         if not self.note:
             return
 

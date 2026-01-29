@@ -6,15 +6,16 @@ from typing import Any
 
 import reflex as rx
 from gws_eln.core.unit_type import UnitType
-from gws_eln.materials.material import Material
 from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.materials.material_batch_dto import (
     CreateAliquotDTO,
     MaterialBatchDTO,
 )
 from gws_eln.materials.material_batch_service import MaterialBatchService
+from gws_eln.materials.material_dto import MaterialDTO
 from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_main import FormDialogState, ReflexMainState
+from gws_reflex_main.gws_components import InputSearchResultDTO
 
 FormDialogCloseCallback = Callable[[MaterialBatchDTO], Coroutine[Any, Any, None]]
 
@@ -34,7 +35,9 @@ class AliquotFormDialogState(FormDialogState, rx.State):
     form_source_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
     form_aliquot_unit_type: str = UnitType.COUNT.value  # Target material unit type (for aliquot)
     form_aliquot_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
-    form_target_material_id: str = ""  # Required target material for the aliquot
+    form_target_material: InputSearchResultDTO | None = (
+        None  # Required target material for the aliquot
+    )
     form_location_id: str = ""
     form_supplier_id: str = ""
     form_notes: str = ""
@@ -108,7 +111,11 @@ class AliquotFormDialogState(FormDialogState, rx.State):
         self.form_source_unit = best_unit
 
         # Default target material to parent's material
-        self.form_target_material_id = batch.material.id
+        self.form_target_material = InputSearchResultDTO(
+            id=batch.material.id,
+            display_text=batch.material.name,
+            object=batch.material,
+        )
         self.form_aliquot_unit_type = batch.unit_type.value
         self.form_aliquot_unit = best_unit
 
@@ -145,17 +152,19 @@ class AliquotFormDialogState(FormDialogState, rx.State):
         self.form_supplier_id = value
 
     @rx.event
-    def set_target_material_id(self, value: str):
+    def set_target_material(self, value: dict):
         """Handle target material selection change.
 
         Updates the aliquot unit type based on the selected material's default_unit_type.
         """
-        self.form_target_material_id = value
-        if value:
-            material = Material.get_by_id_and_check(value)
-            if material:
-                self.form_aliquot_unit_type = material.default_unit_type.value
-                self.form_aliquot_unit = UnitConverter.get_default_unit(material.default_unit_type)
+        if not value:
+            self.form_target_material = None
+            return
+        self.form_target_material = InputSearchResultDTO.from_json_object(value, MaterialDTO)
+        material: MaterialDTO = self.form_target_material.object
+        if material:
+            self.form_aliquot_unit_type = material.default_unit_type.value
+            self.form_aliquot_unit = UnitConverter.get_default_unit(material.default_unit_type)
 
     def _validate_form_data(
         self, form_data: dict
@@ -182,7 +191,7 @@ class AliquotFormDialogState(FormDialogState, rx.State):
         notes = form_data.get("notes", "").strip() or None
 
         # Get target material from state
-        target_material_id = self.form_target_material_id
+        target_material_id = self.form_target_material.id if self.form_target_material else None
 
         # Get units from state
         source_unit = self.form_source_unit
@@ -306,7 +315,7 @@ class AliquotFormDialogState(FormDialogState, rx.State):
         self.form_source_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.form_aliquot_unit_type = UnitType.COUNT.value
         self.form_aliquot_unit = UnitConverter.get_default_unit(UnitType.COUNT)
-        self.form_target_material_id = ""
+        self.form_target_material = None
         self.form_location_id = ""
         self.form_supplier_id = ""
         self.form_notes = ""

@@ -1,65 +1,47 @@
 import reflex as rx
+from gws_reflex_main.gws_components import input_search_component
+from reflex.vars import Var
 
 from .material_select_state import MaterialSelectState
 
 
 def material_select_component(
-    placeholder: str = "Select a material...",
-    name: str | None = None,
-    disabled: bool = False,
-    width: str = "100%",
-    all_option: tuple[str, str] | None = None,
-    **kwargs,
+    placeholder: str = "Search a material...",
+    selected_item: Var | None = None,
+    item_selected: rx.EventHandler | None = None,
 ) -> rx.Component:
     """
-    Reusable material select component.
+    Reusable material search component.
 
-    This component uses MaterialSelectState to load materials from the database.
-    The materials are loaded when the component mounts via on_load.
+    This component provides autocomplete functionality with search-as-you-type
+    for selecting materials.
 
     Args:
-        placeholder: Placeholder text for the select
-        name: Name attribute for the select element
-        disabled: Whether the select is disabled
-        width: Width of the select component
-        all_option: Optional tuple of (label, value) for an "All" option at the top
-        **kwargs: Additional props to pass to the select.root component
-                 (e.g., on_change, value, default_value)
+        placeholder: Placeholder text for the search input
+        selected_item: Optional state var for selected item. If not provided,
+            uses MaterialSelectState.selected_material
+        item_selected: Optional event handler for item selection. If not provided,
+            uses MaterialSelectState.select_material
 
     Returns:
-        A reflex component for material selection
+        A reflex component for material selection with search
 
     Example:
-        # With state binding for forms
+        # Basic usage with internal state
         material_select_component(
-            name="material_id",
-            value=MyFormState.material_id,
-            on_change=MyFormState.set_material_id,
-            width="100%"
+            placeholder="Search materials...",
         )
 
-        # With "All" option for filters
+        # With custom state binding
         material_select_component(
-            all_option=("All materials", "all"),
-            value=FilterState.material_id,
-            on_change=FilterState.set_material_id,
+            selected_item=MyState.selected_material,
+            item_selected=MyState.handle_material_selected,
         )
     """
-    all_item = rx.select.item(all_option[0], value=all_option[1]) if all_option else rx.fragment()
-
-    return rx.select.root(
-        rx.select.trigger(placeholder=placeholder, width=width),
-        rx.select.content(
-            all_item,
-            rx.foreach(
-                MaterialSelectState.materials,
-                lambda material: rx.select.item(
-                    material.label,
-                    value=material.value,
-                ),
-            ),
-        ),
-        name=name,
-        disabled=disabled,
-        **kwargs,
+    return input_search_component(
+        search_result=MaterialSelectState.search_results,
+        selected_item=selected_item,
+        item_selected=item_selected,
+        search_trigger=MaterialSelectState.search_materials,
+        placeholder=placeholder,
     )
