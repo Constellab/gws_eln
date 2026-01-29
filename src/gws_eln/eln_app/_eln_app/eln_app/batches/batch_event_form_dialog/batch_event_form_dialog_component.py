@@ -3,7 +3,7 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
-from ..common.activity_form_sections import receive_consume_form_section
+from ...activities.activity_form_sections import receive_consume_form_section
 from .batch_event_form_dialog_state import BatchEventFormDialogState
 
 

@@ -7,24 +7,24 @@ from gws_eln.materials.material_batch_service import MaterialBatchService
 from gws_reflex_main import ReflexMainState
 
 from ..activities.activities_list_state import ActivitiesListState
-from ..aliquot_form_dialog.aliquot_form_dialog_state import (
+from ..common.eln_app_router import ElnAppRouter
+from .aliquot_form_dialog.aliquot_form_dialog_state import (
     AliquotFormDialogState,
 )
-from ..batch_event_form_dialog.batch_event_form_dialog_state import (
+from .batch_event_form_dialog.batch_event_form_dialog_state import (
     BatchEventFormDialogState,
     BatchEventType,
 )
-from ..common.eln_app_router import ElnAppRouter
-from ..delete_batch_form_dialog.delete_batch_form_dialog_state import (
+from .delete_batch_form_dialog.delete_batch_form_dialog_state import (
     DeleteBatchFormDialogState,
 )
-from ..move_batch_form_dialog.move_batch_form_dialog_state import (
+from .move_batch_form_dialog.move_batch_form_dialog_state import (
     MoveBatchFormDialogState,
 )
-from ..relabel_batch_form_dialog.relabel_batch_form_dialog_state import (
+from .relabel_batch_form_dialog.relabel_batch_form_dialog_state import (
     RelabelBatchFormDialogState,
 )
-from ..update_batch_form_dialog.update_batch_form_dialog_state import (
+from .update_batch_form_dialog.update_batch_form_dialog_state import (
     UpdateBatchFormDialogState,
 )
 

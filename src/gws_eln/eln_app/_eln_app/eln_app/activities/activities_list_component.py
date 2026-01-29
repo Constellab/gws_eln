@@ -7,14 +7,14 @@ from gws_eln.activities.activity_dto import ActivityDTO
 from gws_eln.activities.activity_type import ActivityType
 from gws_reflex_main import user_with_date_component
 
-from ..common.activity.activity_type_select_component import (
-    activity_type_select_component,
-)
-from ..common.batch.batch_components import batch_inline_link
+from ..batches.core.batch_components import batch_inline_link
 from ..common.eln_app_router import ElnAppRouter
-from ..common.location.inline_location_component import inline_location_component
+from ..locations.core.inline_location_component import inline_location_component
 from .activities_list_state import ALL_FILTER_VALUE, ActivitiesListState
 from .activity_type_component import activity_type_badge
+from .activity_type_select_component import (
+    activity_type_select_component,
+)
 
 
 def _type_specific_description(activity: ActivityDTO) -> rx.Component:

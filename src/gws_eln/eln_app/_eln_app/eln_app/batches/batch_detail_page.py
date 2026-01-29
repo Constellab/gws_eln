@@ -4,31 +4,31 @@ import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
 
 from ..activities.activities_list_component import activities_list_component
-from ..aliquot_form_dialog.aliquot_form_dialog_component import (
-    aliquot_form_dialog,
-)
-from ..batch_event_form_dialog.batch_event_form_dialog_component import (
-    batch_event_form_dialog,
-)
-from ..common.batch.batch_actions_menu import batch_actions_menu
-from ..common.batch.batch_components import batch_inline_link, expiry_date_badge
 from ..common.detail_page_layout import detail_page_layout
-from ..common.location.inline_location_component import inline_location_component
-from ..common.materials.material_components import (
+from ..common.page_layout import page_layout
+from ..locations.core.inline_location_component import inline_location_component
+from ..materials.core.material_components import (
     inline_material_link,
 )
-from ..common.page_layout import page_layout
-from ..common.supplier.inline_supplier_component import inline_supplier_component
-from ..delete_batch_form_dialog.delete_batch_form_dialog_component import (
+from ..suppliers.core.inline_supplier_component import inline_supplier_component
+from .aliquot_form_dialog.aliquot_form_dialog_component import (
+    aliquot_form_dialog,
+)
+from .batch_event_form_dialog.batch_event_form_dialog_component import (
+    batch_event_form_dialog,
+)
+from .core.batch_actions_menu import batch_actions_menu
+from .core.batch_components import batch_inline_link, expiry_date_badge
+from .delete_batch_form_dialog.delete_batch_form_dialog_component import (
     delete_batch_dialog,
 )
-from ..move_batch_form_dialog.move_batch_form_dialog_component import (
+from .move_batch_form_dialog.move_batch_form_dialog_component import (
     move_batch_dialog,
 )
-from ..relabel_batch_form_dialog.relabel_batch_form_dialog_component import (
+from .relabel_batch_form_dialog.relabel_batch_form_dialog_component import (
     relabel_batch_dialog,
 )
-from ..update_batch_form_dialog.update_batch_form_dialog_component import (
+from .update_batch_form_dialog.update_batch_form_dialog_component import (
     update_batch_dialog,
 )
 from .batch_detail_state import BatchDetailState

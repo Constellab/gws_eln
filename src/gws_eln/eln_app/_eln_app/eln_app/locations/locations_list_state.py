@@ -6,7 +6,7 @@ from gws_eln.locations.location_search_builder import LocationSearchBuilder
 from gws_eln.locations.location_service import LocationService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
-from ..location_form_dialog.location_form_dialog_state import LocationFormDialogState
+from .location_form_dialog.location_form_dialog_state import LocationFormDialogState
 
 
 class LocationsListState(rx.State):

@@ -6,7 +6,7 @@ from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
 from gws_eln.suppliers.supplier_service import SupplierService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
-from ..supplier_form_dialog.supplier_form_dialog_state import SupplierFormDialogState
+from .supplier_form_dialog.supplier_form_dialog_state import SupplierFormDialogState
 
 
 class SuppliersListState(rx.State):

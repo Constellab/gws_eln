@@ -6,10 +6,10 @@ These are used by both the standalone form dialogs and the note activity dialog.
 
 import reflex as rx
 
-from .location.location_select_component import location_select_component
-from .materials.material_select_component import material_select_component
-from .supplier.supplier_select_component import supplier_select_component
-from .unit.unit_components import quantity_unit_input
+from ..common.unit.unit_components import quantity_unit_input
+from ..locations.core.location_select_component import location_select_component
+from ..materials.core.material_select_component import material_select_component
+from ..suppliers.core.supplier_select_component import supplier_select_component
 
 
 def receive_consume_form_section(

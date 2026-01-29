@@ -6,7 +6,7 @@ from typing import cast
 import reflex as rx
 from gws_eln.materials.material_batch_dto import MaterialBatchSimpleDTO
 
-from ..eln_app_router import ElnAppRouter
+from ...common.eln_app_router import ElnAppRouter
 
 
 def expiry_date_badge(expiry_date: date | None, warning_days: int = 30) -> rx.Component:

@@ -4,13 +4,13 @@ import reflex as rx
 from gws_eln.materials.material_dto import MaterialDTO
 from gws_reflex_main import main_component, user_with_date_component
 
-from ..common.batch.batch_components import consumable_badge
-from ..common.materials.material_actions_menu import material_actions_menu
+from ..batches.core.batch_components import consumable_badge
 from ..common.page_layout import page_layout
-from ..common.supplier.inline_supplier_component import inline_supplier_component
-from ..common.supplier.supplier_select_component import supplier_select_component
 from ..common.unit.unit_type_select_component import unit_type_select_component
-from ..material_form_dialog.material_form_dialog_component import material_update_dialog
+from ..suppliers.core.inline_supplier_component import inline_supplier_component
+from ..suppliers.core.supplier_select_component import supplier_select_component
+from .core.material_actions_menu import material_actions_menu
+from .material_form_dialog.material_form_dialog_component import material_update_dialog
 from .materials_list_state import ALL_FILTER_VALUE, MaterialsListState
 
 

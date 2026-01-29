@@ -10,24 +10,24 @@ from gws_eln.materials.material_batch_dto import DeleteBatchResultDTO, MaterialB
 from gws_eln.materials.material_batch_search_builder import MaterialBatchSearchBuilder
 from gws_reflex_main import ReflexMainState
 
-from ..aliquot_form_dialog.aliquot_form_dialog_state import AliquotFormDialogState
-from ..batch_event_form_dialog.batch_event_form_dialog_state import (
+from .aliquot_form_dialog.aliquot_form_dialog_state import AliquotFormDialogState
+from .batch_event_form_dialog.batch_event_form_dialog_state import (
     BatchEventFormDialogState,
     BatchEventType,
 )
-from ..delete_batch_form_dialog.delete_batch_form_dialog_state import (
+from .delete_batch_form_dialog.delete_batch_form_dialog_state import (
     DeleteBatchFormDialogState,
 )
-from ..material_batch_form_dialog.material_batch_form_dialog_state import (
+from .material_batch_form_dialog.material_batch_form_dialog_state import (
     MaterialBatchFormDialogState,
 )
-from ..move_batch_form_dialog.move_batch_form_dialog_state import (
+from .move_batch_form_dialog.move_batch_form_dialog_state import (
     MoveBatchFormDialogState,
 )
-from ..relabel_batch_form_dialog.relabel_batch_form_dialog_state import (
+from .relabel_batch_form_dialog.relabel_batch_form_dialog_state import (
     RelabelBatchFormDialogState,
 )
-from ..update_batch_form_dialog.update_batch_form_dialog_state import (
+from .update_batch_form_dialog.update_batch_form_dialog_state import (
     UpdateBatchFormDialogState,
 )
 

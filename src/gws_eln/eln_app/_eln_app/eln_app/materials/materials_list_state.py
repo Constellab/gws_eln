@@ -10,7 +10,7 @@ from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.eln_app_router import ElnAppRouter
-from ..material_form_dialog.material_form_dialog_state import MaterialFormDialogState
+from .material_form_dialog.material_form_dialog_state import MaterialFormDialogState
 
 # Constants for "all" filter options
 ALL_FILTER_VALUE = "__all__"

@@ -7,7 +7,7 @@ from gws_eln.materials.material_service import MaterialService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.eln_app_router import ElnAppRouter
-from ..material_form_dialog.material_form_dialog_state import MaterialFormDialogState
+from .material_form_dialog.material_form_dialog_state import MaterialFormDialogState
 
 
 class MaterialDetailState(rx.State):

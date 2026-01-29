@@ -4,9 +4,9 @@ import reflex as rx
 from gws_core import NoteDTO
 from gws_reflex_main import main_component, user_with_date_component
 
-from ..common.notes.note_actions_menu import note_actions_menu
 from ..common.page_layout import page_layout
-from ..note_form_dialog.note_form_dialog_component import note_create_dialog, note_update_dialog
+from .note_form_dialog.note_form_dialog_component import note_create_dialog, note_update_dialog
+from .note_actions_menu import note_actions_menu
 from .notes_list_state import NotesListState
 
 
@@ -58,9 +58,7 @@ def _row(note: NoteDTO) -> rx.Component:
     """
     return rx.table.row(
         rx.table.cell(rx.text(note.title)),
-        rx.table.cell(
-            user_with_date_component(note.created_by, note.created_at, size="small")
-        ),
+        rx.table.cell(user_with_date_component(note.created_by, note.created_at, size="small")),
         rx.table.cell(
             rx.box(
                 note_actions_menu(

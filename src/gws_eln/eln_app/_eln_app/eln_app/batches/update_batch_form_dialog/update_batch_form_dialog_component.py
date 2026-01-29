@@ -3,7 +3,7 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
-from ..common.supplier.supplier_select_component import supplier_select_component
+from ...suppliers.core.supplier_select_component import supplier_select_component
 from .update_batch_form_dialog_state import UpdateBatchFormDialogState
 
 

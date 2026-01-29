@@ -1,7 +1,7 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
-from ..common.activity_form_sections import move_form_section
+from ...activities.activity_form_sections import move_form_section
 from .move_batch_form_dialog_state import MoveBatchFormDialogState
 
 

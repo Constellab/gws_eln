@@ -4,29 +4,29 @@ import reflex as rx
 from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material_batch_dto import MaterialBatchDTO
 
-from ..aliquot_form_dialog.aliquot_form_dialog_component import aliquot_form_dialog
-from ..batch_event_form_dialog.batch_event_form_dialog_component import (
+from ..common.eln_app_router import ElnAppRouter
+from ..locations.core.inline_location_component import inline_location_component
+from ..locations.core.location_select_component import location_select_component
+from ..suppliers.core.inline_supplier_component import inline_supplier_component
+from ..suppliers.core.supplier_select_component import supplier_select_component
+from .aliquot_form_dialog.aliquot_form_dialog_component import aliquot_form_dialog
+from .batch_event_form_dialog.batch_event_form_dialog_component import (
     batch_event_form_dialog,
 )
-from ..common.batch.batch_actions_menu import batch_actions_menu
-from ..common.batch.batch_components import batch_inline, expiry_date_badge
-from ..common.batch.batch_status_select_component import batch_status_select_component
-from ..common.eln_app_router import ElnAppRouter
-from ..common.location.inline_location_component import inline_location_component
-from ..common.location.location_select_component import location_select_component
-from ..common.supplier.inline_supplier_component import inline_supplier_component
-from ..common.supplier.supplier_select_component import supplier_select_component
-from ..delete_batch_form_dialog.delete_batch_form_dialog_component import (
+from .core.batch_actions_menu import batch_actions_menu
+from .core.batch_components import batch_inline, expiry_date_badge
+from .core.batch_status_select_component import batch_status_select_component
+from .delete_batch_form_dialog.delete_batch_form_dialog_component import (
     delete_batch_dialog,
 )
-from ..material_batch_form_dialog.material_batch_form_dialog_component import (
+from .material_batch_form_dialog.material_batch_form_dialog_component import (
     create_material_batch_dialog,
 )
-from ..move_batch_form_dialog.move_batch_form_dialog_component import move_batch_dialog
-from ..relabel_batch_form_dialog.relabel_batch_form_dialog_component import (
+from .move_batch_form_dialog.move_batch_form_dialog_component import move_batch_dialog
+from .relabel_batch_form_dialog.relabel_batch_form_dialog_component import (
     relabel_batch_dialog,
 )
-from ..update_batch_form_dialog.update_batch_form_dialog_component import (
+from .update_batch_form_dialog.update_batch_form_dialog_component import (
     update_batch_dialog,
 )
 from .batches_list_state import ALL_FILTER_VALUE, BatchesListState

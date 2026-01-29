@@ -4,12 +4,12 @@ import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
 
 from ..batches.batches_list_component import batches_list_component
-from ..common.batch.batch_components import consumable_badge
+from ..batches.core.batch_components import consumable_badge
 from ..common.detail_page_layout import detail_page_layout
-from ..common.materials.material_actions_menu import material_actions_menu
 from ..common.page_layout import page_layout
-from ..common.supplier.inline_supplier_component import inline_supplier_component
-from ..material_form_dialog.material_form_dialog_component import material_update_dialog
+from ..suppliers.core.inline_supplier_component import inline_supplier_component
+from .core.material_actions_menu import material_actions_menu
+from .material_form_dialog.material_form_dialog_component import material_update_dialog
 from .material_detail_state import MaterialDetailState
 
 

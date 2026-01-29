@@ -1,7 +1,7 @@
 import reflex as rx
 from gws_eln.materials.material_dto import MaterialDTO
 
-from ..eln_app_router import ElnAppRouter
+from ...common.eln_app_router import ElnAppRouter
 
 
 def inline_material_link(material: MaterialDTO) -> rx.Component:

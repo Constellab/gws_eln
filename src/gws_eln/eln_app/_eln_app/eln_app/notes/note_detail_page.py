@@ -4,13 +4,13 @@ import reflex as rx
 from gws_reflex_main import main_component, user_inline_component
 
 from ..common.detail_page_layout import detail_page_layout, detail_toggle_sidebar_button
-from ..common.notes.note_actions_menu import note_actions_menu
 from ..common.page_layout import page_layout
-from ..note_activity_form_dialog.note_activity_form_dialog_component import (
+from .note_activity_form_dialog.note_activity_form_dialog_component import (
     note_activity_form_dialog,
 )
-from ..note_form_dialog.note_form_dialog_component import note_update_dialog
+from .note_form_dialog.note_form_dialog_component import note_update_dialog
 from .eln_note_component.eln_note_component import eln_note_component
+from .note_actions_menu import note_actions_menu
 from .note_detail_state import NoteDetailState
 
 

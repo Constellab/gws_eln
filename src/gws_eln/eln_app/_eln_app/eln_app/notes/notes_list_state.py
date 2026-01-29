@@ -6,7 +6,7 @@ from gws_eln.notes.eln_note_service import ElnNoteService
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.eln_app_router import ElnAppRouter
-from ..note_form_dialog.note_form_dialog_state import NoteFormDialogState
+from .note_form_dialog.note_form_dialog_state import NoteFormDialogState
 
 
 class NotesListState(rx.State):

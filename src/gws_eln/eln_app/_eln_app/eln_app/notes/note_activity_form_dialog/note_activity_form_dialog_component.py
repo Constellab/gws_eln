@@ -8,10 +8,7 @@ Two-step dialog for adding a batch activity from within a note:
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
-from ..common.activity.activity_type_select_component import (
-    activity_type_select_component,
-)
-from ..common.activity_form_sections import (
+from ...activities.activity_form_sections import (
     aliquot_form_section,
     create_batch_form_section,
     move_form_section,
@@ -19,8 +16,11 @@ from ..common.activity_form_sections import (
     relabel_form_section,
     use_discard_form_section,
 )
-from ..common.materials.material_select_component import material_select_component
-from ..common.batch.batch_select_component import batch_select_component
+from ...activities.activity_type_select_component import (
+    activity_type_select_component,
+)
+from ...batches.core.batch_select_component import batch_select_component
+from ...materials.core.material_select_component import material_select_component
 from .note_activity_form_dialog_state import NoteActivityFormDialogState
 
 S = NoteActivityFormDialogState

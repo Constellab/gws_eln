@@ -1,13 +1,13 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
-from ..common.location.location_select_component import (
+from ...common.unit.unit_components import quantity_unit_input
+from ...locations.core.location_select_component import (
     location_select_component,
 )
-from ..common.supplier.supplier_select_component import (
+from ...suppliers.core.supplier_select_component import (
     supplier_select_component,
 )
-from ..common.unit.unit_components import quantity_unit_input
 from .material_batch_form_dialog_state import MaterialBatchFormDialogState
 
 

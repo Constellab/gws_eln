@@ -5,8 +5,8 @@ from gws_core import Note, NoteDTO, NoteService, RichTextDTO
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.eln_app_router import ElnAppRouter
-from ..note_activity_form_dialog.note_activity_form_dialog_state import NoteActivityFormDialogState
-from ..note_form_dialog.note_form_dialog_state import NoteFormDialogState
+from .note_activity_form_dialog.note_activity_form_dialog_state import NoteActivityFormDialogState
+from .note_form_dialog.note_form_dialog_state import NoteFormDialogState
 
 
 class NoteDetailState(rx.State):
@@ -114,7 +114,12 @@ class NoteDetailState(rx.State):
 
         note: Note
         with await main_state.authenticate_user():
-            note = NoteService.update_content(self.note.id, rich_text_dto)
+            try:
+                note = NoteService.update_content(self.note.id, rich_text_dto)
+            except Exception as e:
+                # rollback on error
+                self.note_content = self.note_content
+                raise e
         self.note = note.to_dto()
         self.note_content = note.content
 

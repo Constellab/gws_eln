@@ -5,7 +5,7 @@ from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_reflex_main import main_component, user_inline_component
 
 from ..common.page_layout import page_layout
-from ..supplier_form_dialog.supplier_form_dialog_component import supplier_update_dialog
+from .supplier_form_dialog.supplier_form_dialog_component import supplier_update_dialog
 from .suppliers_list_state import SuppliersListState
 
 

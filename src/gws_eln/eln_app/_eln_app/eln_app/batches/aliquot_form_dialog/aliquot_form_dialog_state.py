@@ -152,7 +152,7 @@ class AliquotFormDialogState(FormDialogState, rx.State):
         """
         self.form_target_material_id = value
         if value:
-            material = Material.get_by_id_or_none(value)
+            material = Material.get_by_id_and_check(value)
             if material:
                 self.form_aliquot_unit_type = material.default_unit_type.value
                 self.form_aliquot_unit = UnitConverter.get_default_unit(material.default_unit_type)
