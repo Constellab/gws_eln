@@ -1,9 +1,7 @@
+// This file is loaded dynamically at runtime (not bundled by Vite)
+// The dcReflexPath is passed from reflex_rich_text_component.jsx via customToolsConfig
 
-import { DcHttpService } from '/external/gws_plugin/dc-reflex.js'; // for prod
-// import { DcHttpService } from '/public/external/gws_plugin/dc-reflex.js'; // for dev
-// CSS is loaded separately via rx.asset() in Python - don't import here
-// as dynamic imports can't handle CSS in production builds
-
+// CSS is loaded separately via rx.asset() in Python
 
 /**
  * Maps activity types to human-readable labels and Material Icons
@@ -175,17 +173,21 @@ export function getCustomTools(customToolsConfig, authenticationInfo, customTool
         return wrapper;
       }
 
-      const httpService = new DcHttpService(
-        authenticationInfo?.app_id || '',
-        authenticationInfo?.user_access_token || '',
-      );
+      // Dynamically import DcHttpService using path from config (handles dev/prod)
+      import(/* @vite-ignore */ customToolsConfig.dcReflexPath)
+        .then(module => {
+          const httpService = new module.DcHttpService(
+            authenticationInfo?.app_id || '',
+            authenticationInfo?.user_access_token || '',
+          );
 
-      httpService.get(`${customToolsConfig.config.apiUrl}activity/${activityId}`, {
-        headers: {
-          'gws_user_access_token': authenticationInfo?.user_access_token || '',
-          'gws_app_id': authenticationInfo?.app_id || '',
-        },
-      })
+          return httpService.get(`${customToolsConfig.config.apiUrl}activity/${activityId}`, {
+            headers: {
+              'gws_user_access_token': authenticationInfo?.user_access_token || '',
+              'gws_app_id': authenticationInfo?.app_id || '',
+            },
+          });
+        })
         .then(data => {
           this._renderCard(wrapper, data);
         })

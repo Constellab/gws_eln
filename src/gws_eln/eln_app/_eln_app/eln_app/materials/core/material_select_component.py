@@ -44,4 +44,6 @@ def material_select_component(
         item_selected=item_selected,
         search_trigger=MaterialSelectState.search_materials,
         placeholder=placeholder,
+        min_input_search_length=0,
+        init_search_on_focus=True,
     )

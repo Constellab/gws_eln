@@ -56,5 +56,7 @@ def batch_select_component(
         search_trigger=BatchSelectState.search_batches,
         placeholder=placeholder,
         disabled=disabled,
+        min_input_search_length=0,
+        init_search_on_focus=True,
         **kwargs,
     )

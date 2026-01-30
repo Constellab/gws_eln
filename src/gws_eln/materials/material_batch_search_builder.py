@@ -6,7 +6,7 @@ from gws_eln.materials.material_batch import MaterialBatch
 
 class MaterialBatchSearchBuilder(SearchBuilder):
     def __init__(self) -> None:
-        super().__init__(MaterialBatch, default_orders=[MaterialBatch.created_at.desc()])
+        super().__init__(MaterialBatch, default_orders=[MaterialBatch.batch_number])
 
     def add_material_filter(self, material_id: str) -> "MaterialBatchSearchBuilder":
         """Filter the search query by material ID"""
