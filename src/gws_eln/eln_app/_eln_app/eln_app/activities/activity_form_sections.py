@@ -118,6 +118,8 @@ def relabel_form_section(
 
 
 def create_batch_form_section(
+    form_material: rx.Var,
+    on_material_change: rx.EventHandler,
     form_unit_type: rx.Var[str],
     form_unit: rx.Var[str],
     on_unit_change: rx.EventHandler,
@@ -129,74 +131,84 @@ def create_batch_form_section(
 ) -> rx.Component:
     """Form section for creating a new batch: batch number, quantity, unit, location, supplier, label, notes."""
     return rx.vstack(
-        # Batch Number (required)
-        rx.vstack(
-            rx.text("Batch Number*", size="2", weight="bold"),
-            rx.input(
-                placeholder="Enter batch number",
-                name="batch_number",
-                required=True,
-                width="100%",
-            ),
-            width="100%",
-            spacing="1",
+        material_select_component(
+            placeholder="Search a material...",
+            selected_item=form_material,
+            item_selected=on_material_change,
         ),
-        # Quantity + Unit (required)
-        quantity_unit_input(
-            unit_type=form_unit_type,
-            unit_value=form_unit,
-            on_unit_change=on_unit_change,
-            quantity_label="Initial Quantity",
-        ),
-        # Location + Supplier (optional, same row)
-        rx.hstack(
-            rx.vstack(
-                rx.text("Location", size="2", weight="bold"),
-                location_select_component(
-                    placeholder="Select location (defaults to 'labo')...",
-                    value=form_location_id,
-                    on_change=on_location_change,
+        rx.cond(
+            form_material,
+            rx.fragment(
+                # Batch Number (required)
+                rx.vstack(
+                    rx.text("Batch Number*", size="2", weight="bold"),
+                    rx.input(
+                        placeholder="Enter batch number",
+                        name="batch_number",
+                        required=True,
+                        width="100%",
+                    ),
+                    width="100%",
+                    spacing="1",
                 ),
-                width="50%",
-                spacing="1",
-            ),
-            rx.vstack(
-                rx.text("Supplier", size="2", weight="bold"),
-                supplier_select_component(
-                    placeholder="Select supplier (optional)...",
-                    value=form_supplier_id,
-                    on_change=on_supplier_change,
-                    additional_option=("None", "__none__"),
+                # Quantity + Unit (required)
+                quantity_unit_input(
+                    unit_type=form_unit_type,
+                    unit_value=form_unit,
+                    on_unit_change=on_unit_change,
+                    quantity_label="Initial Quantity",
                 ),
-                width="50%",
-                spacing="1",
+                # Location + Supplier (optional, same row)
+                rx.hstack(
+                    rx.vstack(
+                        rx.text("Location", size="2", weight="bold"),
+                        location_select_component(
+                            placeholder="Select location (defaults to 'labo')...",
+                            value=form_location_id,
+                            on_change=on_location_change,
+                        ),
+                        width="50%",
+                        spacing="1",
+                    ),
+                    rx.vstack(
+                        rx.text("Supplier", size="2", weight="bold"),
+                        supplier_select_component(
+                            placeholder="Select supplier (optional)...",
+                            value=form_supplier_id,
+                            on_change=on_supplier_change,
+                            additional_option=("None", "__none__"),
+                        ),
+                        width="50%",
+                        spacing="1",
+                    ),
+                    width="100%",
+                    spacing="3",
+                ),
+                # Label (optional)
+                rx.vstack(
+                    rx.text("Label", size="2", weight="bold"),
+                    rx.input(
+                        placeholder="Enter label (optional)",
+                        name="label",
+                        width="100%",
+                    ),
+                    width="100%",
+                    spacing="1",
+                ),
+                # Notes (optional)
+                rx.vstack(
+                    rx.text("Notes", size="2", weight="bold"),
+                    rx.text_area(
+                        placeholder="Enter notes (optional)",
+                        name="notes",
+                        width="100%",
+                        default_value=form_notes,
+                        rows="3",
+                    ),
+                    width="100%",
+                    spacing="1",
+                ),
             ),
-            width="100%",
-            spacing="3",
-        ),
-        # Label (optional)
-        rx.vstack(
-            rx.text("Label", size="2", weight="bold"),
-            rx.input(
-                placeholder="Enter label (optional)",
-                name="label",
-                width="100%",
-            ),
-            width="100%",
-            spacing="1",
-        ),
-        # Notes (optional)
-        rx.vstack(
-            rx.text("Notes", size="2", weight="bold"),
-            rx.text_area(
-                placeholder="Enter notes (optional)",
-                name="notes",
-                width="100%",
-                default_value=form_notes,
-                rows="3",
-            ),
-            width="100%",
-            spacing="1",
         ),
         width="100%",
         spacing="3",

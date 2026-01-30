@@ -97,11 +97,6 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
     @rx.var
     def show_create_form(self) -> bool:
         """Whether to show the create batch sub-form (requires material to be selected)."""
-        return self.form_activity_type == ActivityType.CREATE.value and bool(self.form_material)
-
-    @rx.var
-    def is_create_activity(self) -> bool:
-        """Whether the selected activity type is CREATE."""
         return self.form_activity_type == ActivityType.CREATE.value
 
     @rx.var

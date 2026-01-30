@@ -1,5 +1,6 @@
 
-import { DcHttpService } from '/external/gws_plugin/dc-reflex.js';
+import { DcHttpService } from '/external/gws_plugin/dc-reflex.js'; // for prod
+// import { DcHttpService } from '/public/external/gws_plugin/dc-reflex.js'; // for dev
 // CSS is loaded separately via rx.asset() in Python - don't import here
 // as dynamic imports can't handle CSS in production builds
 

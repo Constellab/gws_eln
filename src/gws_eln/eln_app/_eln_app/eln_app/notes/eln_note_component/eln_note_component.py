@@ -14,7 +14,8 @@ asset_path = rx.asset("eln_note_component.js", shared=True)
 css_asset_path = rx.asset("eln_note_component.css", shared=True)
 # In production, assets are served directly from root (not /public)
 # rx.asset returns path like /external/app_name/...
-public_path = asset_path
+public_path = asset_path  # for prod
+# public_path = "/public" + asset_path  # for dev
 
 
 def eln_note_component() -> rx.Component:

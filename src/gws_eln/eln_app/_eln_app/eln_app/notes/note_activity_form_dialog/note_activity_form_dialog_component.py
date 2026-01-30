@@ -20,7 +20,6 @@ from ...activities.activity_type_select_component import (
     activity_type_select_component,
 )
 from ...batches.core.batch_select_component import batch_select_component
-from ...materials.core.material_select_component import material_select_component
 from .note_activity_form_dialog_state import NoteActivityFormDialogState
 
 S = NoteActivityFormDialogState
@@ -50,6 +49,8 @@ def _sub_form() -> rx.Component:
         rx.cond(
             S.show_create_form,
             create_batch_form_section(
+                form_material=S.form_material,
+                on_material_change=S.set_material,
                 form_unit_type=S.form_unit_type,
                 form_unit=S.form_unit,
                 on_unit_change=S.set_unit,
@@ -136,34 +137,17 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Step 2: Batch or Material selection (only shown after activity type is selected)
         rx.cond(
-            S.form_activity_type != "",
-            rx.cond(
-                S.is_create_activity,
-                # For CREATE activity: show material selector
-                rx.vstack(
-                    material_select_component(
-                        placeholder="Search a material...",
-                        selected_item=S.form_material,
-                        item_selected=S.set_material,
-                    ),
-                    width="100%",
-                    spacing="1",
+            S.show_batch_select,
+            # For other activities: show batch selector
+            rx.vstack(
+                batch_select_component(
+                    placeholder="Select a batch...",
+                    selected_item=S.form_batch,
+                    item_selected=S.set_batch,
                 ),
-            ),
-            rx.cond(
-                S.show_batch_select,
-                # For other activities: show batch selector
-                rx.vstack(
-                    batch_select_component(
-                        placeholder="Select a batch...",
-                        selected_item=S.form_batch,
-                        item_selected=S.set_batch,
-                    ),
-                    width="100%",
-                    spacing="1",
-                ),
+                width="100%",
+                spacing="1",
             ),
         ),
         # Batch info + sub-form (shown after both selections)
