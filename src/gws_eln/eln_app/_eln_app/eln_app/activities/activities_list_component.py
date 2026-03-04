@@ -94,7 +94,7 @@ def _filter_bar() -> rx.Component:
         rx.button(
             "Clear",
             on_click=ActivitiesListState.clear_filters,
-            variant="outline",
+            variant="surface",
             size="2",
         ),
         width="100%",
@@ -147,12 +147,6 @@ def _activities_header() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        rx.hstack(
-            rx.heading("Activity History", size="5"),
-            rx.spacer(),
-            width="100%",
-            align="center",
-        ),
         _filter_bar(),
         rx.cond(
             ActivitiesListState.error_message != "",

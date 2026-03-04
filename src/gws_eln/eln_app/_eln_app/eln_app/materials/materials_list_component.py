@@ -59,7 +59,7 @@ def _filter_bar() -> rx.Component:
         rx.button(
             "Clear",
             on_click=MaterialsListState.clear_filters,
-            variant="outline",
+            variant="surface",
             size="2",
         ),
         width="100%",
@@ -198,6 +198,7 @@ def materials_list_page() -> rx.Component:
                 justify="between",
                 align="center",
                 width="100%",
+                margin_bottom="1rem",
             ),
         )
     )

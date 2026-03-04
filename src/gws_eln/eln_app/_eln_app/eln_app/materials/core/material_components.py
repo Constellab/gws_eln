@@ -13,6 +13,6 @@ def inline_material_link(material: MaterialDTO) -> rx.Component:
     :rtype: rx.Component
     """
     return rx.link(
-        rx.text(material.name, size="2"),
+        rx.text(material.name, size="2", color="var(--accent-9)"),
         href=ElnAppRouter.get_material_detail_url(material.id),
     )

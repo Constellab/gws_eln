@@ -40,11 +40,16 @@ export function getCustomTools(customToolsConfig, authenticationInfo, customTool
       }
     }
 
+    static get isReadOnlySupported() {
+      return true;
+    }
+
     constructor(editorJs) {
       this.api = editorJs.api;
       this.data = editorJs.data;
       this.editorJs = editorJs;
     }
+
 
     /**
      * Render the activity as a condensed inline card.
@@ -224,6 +229,7 @@ export function getCustomTools(customToolsConfig, authenticationInfo, customTool
         }
       );
     }
+
   }
 
   return { [customToolsConfig.customBlocks.ActivityBlock]: DcTextEditorToolActivityBlock };

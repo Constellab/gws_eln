@@ -4,7 +4,9 @@ from datetime import date, timedelta
 from typing import cast
 
 import reflex as rx
+from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material_batch_dto import MaterialBatchSimpleDTO
+from gws_reflex_main import ReflexTheme
 
 from ...common.eln_app_router import ElnAppRouter
 
@@ -43,7 +45,7 @@ def expiry_date_badge(expiry_date: date | None, warning_days: int = 30) -> rx.Co
                         spacing="1",
                         align="center",
                     ),
-                    color_scheme="red",
+                    color_scheme=ReflexTheme.TERTIARY,
                     size="1",
                 ),
                 content="This batch has expired",
@@ -59,7 +61,7 @@ def expiry_date_badge(expiry_date: date | None, warning_days: int = 30) -> rx.Co
                             spacing="1",
                             align="center",
                         ),
-                        color_scheme="orange",
+                        color_scheme=ReflexTheme.SECONDARY,
                         size="1",
                     ),
                     content=f"This batch expires within {warning_days} days",
@@ -81,8 +83,23 @@ def consumable_badge(is_consumable: bool) -> rx.Component:
     """
     return rx.cond(
         is_consumable,
-        rx.badge("Consumable", color_scheme="blue", size="1"),
-        rx.badge("Non-consumable", color_scheme="gray", size="1"),
+        rx.badge("Consumable", color_scheme=ReflexTheme.SECONDARY, size="1"),
+        rx.badge("Non-consumable", color_scheme=ReflexTheme.TERTIARY, size="1"),
+    )
+
+
+def status_badge(status: BatchStatus) -> rx.Component:
+    """Create a badge indicating the batch status.
+
+    :param status: The batch status
+    :type status: BatchStatus
+    :return: The badge component
+    :rtype: rx.Component
+    """
+    return rx.cond(
+        status == BatchStatus.ACTIVE.value,
+        rx.badge("Active", color_scheme=ReflexTheme.SECONDARY, size="1"),
+        rx.badge("Discarded", color_scheme=ReflexTheme.TERTIARY, size="1"),
     )
 
 

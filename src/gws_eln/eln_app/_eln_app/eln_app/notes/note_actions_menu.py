@@ -28,7 +28,7 @@ def note_actions_menu(
         rx.menu.trigger(
             rx.button(
                 rx.icon("ellipsis-vertical", size=18),
-                variant="soft",
+                variant="ghost",
                 size="2",
             )
         ),

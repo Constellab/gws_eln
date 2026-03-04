@@ -1,7 +1,6 @@
 """Batches list component."""
 
 import reflex as rx
-from gws_eln.materials.batch_status import BatchStatus
 from gws_eln.materials.material_batch_dto import MaterialBatchDTO
 
 from ..common.eln_app_router import ElnAppRouter
@@ -13,8 +12,9 @@ from .aliquot_form_dialog.aliquot_form_dialog_component import aliquot_form_dial
 from .batch_event_form_dialog.batch_event_form_dialog_component import (
     batch_event_form_dialog,
 )
+from .batches_list_state import ALL_FILTER_VALUE, BatchesListState
 from .core.batch_actions_menu import batch_actions_menu
-from .core.batch_components import batch_inline, expiry_date_badge
+from .core.batch_components import batch_inline, expiry_date_badge, status_badge
 from .core.batch_status_select_component import batch_status_select_component
 from .delete_batch_form_dialog.delete_batch_form_dialog_component import (
     delete_batch_dialog,
@@ -29,7 +29,6 @@ from .relabel_batch_form_dialog.relabel_batch_form_dialog_component import (
 from .update_batch_form_dialog.update_batch_form_dialog_component import (
     update_batch_dialog,
 )
-from .batches_list_state import ALL_FILTER_VALUE, BatchesListState
 
 
 def _filter_bar() -> rx.Component:
@@ -74,42 +73,13 @@ def _filter_bar() -> rx.Component:
         rx.button(
             "Clear",
             on_click=BatchesListState.clear_filters,
-            variant="outline",
+            variant="surface",
             size="2",
         ),
         width="100%",
         spacing="3",
         wrap="wrap",
         align="center",
-    )
-
-
-def _create_batch_button() -> rx.Component:
-    """Create the button to open the create batch dialog.
-
-    :return: The create batch button component
-    :rtype: rx.Component
-    """
-    return rx.button(
-        rx.icon("plus", size=18),
-        "Create New Batch",
-        size="3",
-        on_click=BatchesListState.open_create_dialog,
-    )
-
-
-def _status_badge(status: BatchStatus) -> rx.Component:
-    """Create a badge indicating the batch status.
-
-    :param status: The batch status
-    :type status: BatchStatus
-    :return: The badge component
-    :rtype: rx.Component
-    """
-    return rx.cond(
-        status == BatchStatus.ACTIVE.value,
-        rx.badge("Active", color_scheme="green", size="1"),
-        rx.badge("Discarded", color_scheme="red", size="1"),
     )
 
 
@@ -140,7 +110,7 @@ def _row(batch: MaterialBatchDTO) -> rx.Component:
             rx.text(batch.pretty_quantity),
         ),
         rx.table.cell(expiry_date_badge(batch.expiry_date)),
-        rx.table.cell(rx.box(_status_badge(batch.status), width="fit-content")),
+        rx.table.cell(rx.box(status_badge(batch.status), width="fit-content")),
         rx.table.cell(
             batch_actions_menu(
                 batch=batch,
@@ -166,13 +136,6 @@ def _batches_header() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
-        rx.hstack(
-            rx.heading("Batches", size="5"),
-            rx.spacer(),
-            _create_batch_button(),
-            width="100%",
-            align="center",
-        ),
         _filter_bar(),
         rx.cond(
             BatchesListState.error_message != "",

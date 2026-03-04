@@ -3,6 +3,7 @@
 import reflex as rx
 
 from .breadcrumb.breadcrumb_component import breadcrumb_component
+from .breadcrumb.breadcrumb_state import BreadcrumbState
 
 # Breakpoint for small screens (in pixels)
 SMALL_SCREEN_BREAKPOINT = "900px"
@@ -161,7 +162,7 @@ def detail_page_layout(
         rx.cond(
             show_header,
             rx.hstack(
-                breadcrumb_component(),
+                breadcrumb_component(BreadcrumbState.breadcrumbs),
                 rx.spacer(),
                 detail_toggle_sidebar_button(),
                 width="100%",
@@ -200,4 +201,43 @@ def detail_page_layout(
         display="flex",
         flex_direction="column",
         class_name="detail-page-layout-container",
+    )
+
+
+def detail_content_layout(
+    main_content: rx.Component,
+    header_content: rx.Component | None = None,
+) -> rx.Component:
+    """Create a layout for detail pages with header and main content.
+
+    The right sidebar is handled at the page_layout / page_sidebar_component level.
+    This component only manages the main content column.
+
+    :param main_content: The main content to display
+    :type main_content: rx.Component
+    :param header_content: Optional header content to display below the breadcrumb
+    :type header_content: rx.Component | None
+    :return: The detail content layout component
+    :rtype: rx.Component
+    """
+    return rx.vstack(
+        # Optional header content
+        rx.cond(
+            header_content is not None,
+            rx.box(
+                header_content,
+                width="100%",
+            ),
+            rx.fragment(),
+        ),
+        # Main content area
+        rx.vstack(
+            main_content,
+            width="100%",
+            flex="1",
+            min_height="0",
+        ),
+        flex="1",
+        width="100%",
+        height="100%",
     )

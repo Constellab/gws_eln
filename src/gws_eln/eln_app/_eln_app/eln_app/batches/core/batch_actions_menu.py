@@ -49,9 +49,9 @@ def batch_actions_menu(
         rx.menu.trigger(
             rx.button(
                 rx.icon("ellipsis-vertical", size=18),
-                variant="soft",
                 size="2",
-            )
+                variant="ghost",
+            ),
         ),
         rx.menu.content(
             rx.menu.item(
