@@ -1,7 +1,7 @@
 {
   "name": "gws_eln",
   "author": "",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "variables": {
     "gws_eln:testdata_dir": "${CURRENT_DIR}/tests/testdata"
   },
@@ -10,7 +10,7 @@
     "bricks": [
       {
         "name": "gws_core",
-        "version": "0.19.0"
+        "version": "0.20.10"
       }
     ],
     "pip": [
