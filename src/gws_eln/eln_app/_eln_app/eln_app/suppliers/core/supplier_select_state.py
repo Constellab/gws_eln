@@ -17,12 +17,10 @@ class SupplierSelectState(rx.State):
     def suppliers(self) -> list[SupplierSelectDTO]:
         """Load all suppliers from the database, sorted by name."""
         supplier_list = list(Supplier.select().order_by(Supplier.name))
-        self._suppliers = [
+        return [
             SupplierSelectDTO(
                 value=str(supplier.id),
                 label=supplier.name,
             )
             for supplier in supplier_list
         ]
-
-        return self._suppliers
