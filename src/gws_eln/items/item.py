@@ -27,14 +27,14 @@ class Item(ModelWithUser):
     Handles: received batches, aliquots, instrument instances, sample instances.
 
     Key behaviors:
-    - parent_item_id NULL = original batch/instance
-    - parent_item_id NOT NULL = aliquot/sub-batch (inherits supplier from parent's item sheet)
+    - parent_item_id NULL = original item/instance
+    - parent_item_id NOT NULL = aliquot/sub-item (inherits supplier from parent's item sheet)
     - Quantity stored in BASE UNITS (L, kg, m, units)
 
     Attributes:
         item_sheet: Reference to the item sheet catalog entry (required)
-        parent_item: Self-reference for aliquots (NULL for original batches)
-        batch_number: Batch number from supplier (NULL for aliquots)
+        parent_item: Self-reference for aliquots (NULL for original items)
+        item_number: Item number from supplier (NULL for aliquots)
         label: Custom label for aliquots or identification
         expiry_date: Expiration date
         quantity: Amount in base units (DECIMAL for precision)
@@ -56,8 +56,8 @@ class Item(ModelWithUser):
     # Supplier relationship (optional FK to suppliers table)
     supplier = NullableForeignKeyField(Supplier, backref="items", on_delete="SET NULL", index=True)
 
-    # Batch identification
-    batch_number = TypedCharField(max_length=100, index=True)
+    # Item identification
+    item_number = TypedCharField(max_length=100, index=True)
     label = NullableCharField(
         max_length=255,
     )
@@ -82,8 +82,8 @@ class Item(ModelWithUser):
         """Check if this item is an aliquot (has a parent item)."""
         return self.parent_item is not None
 
-    def is_original_batch(self) -> bool:
-        """Check if this is an original batch (no parent)."""
+    def is_original_item(self) -> bool:
+        """Check if this is an original item (no parent)."""
         return self.parent_item is None
 
     def is_consumable(self) -> bool:
@@ -102,7 +102,7 @@ class Item(ModelWithUser):
         """Check if the item has sufficient quantity for an operation."""
         if self.quantity < required_quantity:
             raise BadRequestException(
-                f"Insufficient quantity in item {self.batch_number}. Available: {self.quantity}, Requested: {required_quantity}"
+                f"Insufficient quantity in item {self.item_number}. Available: {self.quantity}, Requested: {required_quantity}"
             )
 
     def get_pretty_quantity(self) -> str:
@@ -122,7 +122,7 @@ class Item(ModelWithUser):
 
         return ItemSimpleDTO(
             id=self.id,
-            item_number=self.batch_number,
+            item_number=self.item_number,
             label=self.label,
         )
 
@@ -134,7 +134,7 @@ class Item(ModelWithUser):
         """Get the full hierarchy of parent items.
 
         Returns a list of all parent items from the immediate parent
-        up to the root (original batch), ordered from closest to furthest ancestor.
+        up to the root (original item), ordered from closest to furthest ancestor.
 
         :param include_self: If True, include the current item at the beginning of the list.
         :type include_self: bool
@@ -150,7 +150,7 @@ class Item(ModelWithUser):
             hierarchy.append(
                 HierarchyObjectDTO(
                     id=self.id,
-                    name=self.batch_number,
+                    name=self.item_number,
                     sub_name=self.label,
                 )
             )
@@ -160,7 +160,7 @@ class Item(ModelWithUser):
             hierarchy.append(
                 HierarchyObjectDTO(
                     id=current.id,
-                    name=current.batch_number,
+                    name=current.item_number,
                     sub_name=current.label,
                 )
             )
@@ -190,7 +190,7 @@ class Item(ModelWithUser):
             location=self.location.to_dto(),
             parent_item=self.parent_item.to_simple_dto() if self.parent_item else None,
             supplier=self.supplier.to_dto() if self.supplier else None,
-            item_number=self.batch_number,
+            item_number=self.item_number,
             label=self.label,
             expiry_date=self.expiry_date,
             quantity=self.quantity,

@@ -2,7 +2,7 @@
 Validation utilities for gws_eln.
 
 This module provides a QuantityValidator class for validating quantities, units,
-and batch operations before they are processed or saved to the database.
+and item operations before they are processed or saved to the database.
 
 Validators ensure:
 - Quantities are positive numbers
@@ -20,7 +20,7 @@ from gws_eln.utils.units_converter import UnitConverter
 
 class QuantityValidator:
     """
-    Static class for validating quantities, units, and batch operations.
+    Static class for validating quantities, units, and item operations.
 
     Provides early error detection with clear error messages to prevent
     invalid data from corrupting the system.
@@ -92,7 +92,7 @@ class QuantityValidator:
         """
         Validate that an operation won't result in a negative quantity.
 
-        This is a simpler validator for when you don't have the full batch object
+        This is a simpler validator for when you don't have the full item object
         but want to ensure quantity calculations remain valid.
 
         :param current_quantity: The current quantity before the operation

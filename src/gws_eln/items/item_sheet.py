@@ -26,7 +26,7 @@ class ItemSheet(ModelWithUser):
         description: Optional description text
         default_supplier: Optional reference to supplier (FK to gws_eln_suppliers)
         is_consumable: Whether the item sheet is consumable (affects quantity behavior)
-        default_unit_type: Default unit type for batches of this item sheet
+        default_unit_type: Default unit type for items of this item sheet
     """
 
     # Required fields
@@ -36,7 +36,7 @@ class ItemSheet(ModelWithUser):
     description = NullableTextField()
 
     # Default supplier relationship (optional FK to suppliers table)
-    # This is to prefill the front form when receiving new batches
+    # This is to prefill the front form when receiving new items
     default_supplier = NullableForeignKeyField(
         Supplier, backref="item_sheets", on_delete="SET NULL", index=True
     )

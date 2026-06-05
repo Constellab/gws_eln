@@ -7,9 +7,9 @@ Implements Story 3.3 from Epic 3: Service Layer - Suppliers & Locations.
 
 from gws_core import BadRequestException, CurrentUserService
 
+from gws_eln.items.item import Item
 from gws_eln.locations.location import Location
 from gws_eln.locations.location_dto import CreateLocationDTO, UpdateLocationDTO
-from gws_eln.materials.material_batch import MaterialBatch
 
 # Default location name that cannot be deleted
 DEFAULT_LOCATION_NAME = "labo"
@@ -136,14 +136,14 @@ class LocationService:
 
     def delete_location(self, location_id: str) -> bool:
         """
-        Delete a location if not referenced by any batches and not the default "labo" location.
+        Delete a location if not referenced by any items and not the default "labo" location.
 
         :param location_id: The ID of the location to delete
         :type location_id: str
         :return: True if deletion was successful
         :rtype: bool
         :raises NotFoundException: If location not found
-        :raises BadRequestException: If location is referenced by batches or is the default location
+        :raises BadRequestException: If location is referenced by items or is the default location
         """
         # Get existing location
         location = self.get_location(location_id)
@@ -209,14 +209,14 @@ class LocationService:
 
     def _check_no_references(self, location: Location) -> None:
         """
-        Check that location is not referenced by any batches.
+        Check that location is not referenced by any items.
 
         :param location: Location to check
         :type location: Location
         :raises BadRequestException: If location is referenced
         """
-        if MaterialBatch.select().where(MaterialBatch.location == location).exists():
+        if Item.select().where(Item.location == location).exists():
             raise BadRequestException(
-                f"Cannot delete location '{location.name}' because it is referenced by one or more batches. "
-                "Move all batches to a different location first."
+                f"Cannot delete location '{location.name}' because it is referenced by one or more items. "
+                "Move all items to a different location first."
             )

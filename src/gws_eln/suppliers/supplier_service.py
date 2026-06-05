@@ -7,8 +7,8 @@ Implements Story 3.1 from Epic 3: Service Layer - Suppliers & Locations.
 
 from gws_core import BadRequestException, CurrentUserService
 
-from gws_eln.materials.material import Material
-from gws_eln.materials.material_batch import MaterialBatch
+from gws_eln.items.item import Item
+from gws_eln.items.item_sheet import ItemSheet
 from gws_eln.suppliers.supplier import Supplier
 from gws_eln.suppliers.supplier_dto import CreateSupplierDTO, UpdateSupplierDTO
 
@@ -102,14 +102,14 @@ class SupplierService:
 
     def delete_supplier(self, supplier_id: str) -> bool:
         """
-        Delete a supplier if not referenced by any materials.
+        Delete a supplier if not referenced by any item sheets.
 
         :param supplier_id: The ID of the supplier to delete
         :type supplier_id: str
         :return: True if deletion was successful
         :rtype: bool
         :raises NotFoundException: If supplier not found
-        :raises BadRequestException: If supplier is referenced by materials
+        :raises BadRequestException: If supplier is referenced by item sheets
         """
         # Get existing supplier
         supplier = self.get_supplier(supplier_id)
@@ -152,20 +152,20 @@ class SupplierService:
 
     def _check_no_references(self, supplier: Supplier) -> None:
         """
-        Check that supplier is not referenced by any materials.
+        Check that supplier is not referenced by any item sheets.
 
         :param supplier: Supplier to check
         :type supplier: Supplier
         :raises BadRequestException: If supplier is referenced
         """
-        if Material.select().where(Material.default_supplier == supplier).exists():
+        if ItemSheet.select().where(ItemSheet.default_supplier == supplier).exists():
             raise BadRequestException(
-                f"Cannot delete supplier '{supplier.name}' because it is referenced by one or more materials. "
-                "Remove the supplier reference from all materials first."
+                f"Cannot delete supplier '{supplier.name}' because it is referenced by one or more item sheets. "
+                "Remove the supplier reference from all item sheets first."
             )
 
-        if MaterialBatch.select().where(MaterialBatch.supplier == supplier).exists():
+        if Item.select().where(Item.supplier == supplier).exists():
             raise BadRequestException(
-                f"Cannot delete supplier '{supplier.name}' because it is referenced by one or more material batches. "
-                "Remove the supplier reference from all material batches first."
+                f"Cannot delete supplier '{supplier.name}' because it is referenced by one or more item sheets. "
+                "Remove the supplier reference from all item sheets first."
             )

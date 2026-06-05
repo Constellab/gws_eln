@@ -3,8 +3,8 @@ from gws_core import RichTextBlockDataSpecial, rich_text_block_decorator
 from gws_eln.activities.activity import Activity
 
 
-@rich_text_block_decorator("materialActivity", human_name="Material Activity")
-class RichTextBlockMaterialActivity(RichTextBlockDataSpecial):
+@rich_text_block_decorator("itemActivity", human_name="Item Activity")
+class RichTextBlockItemActivity(RichTextBlockDataSpecial):
     """Block representing an inventory activity in a note.
 
     Stores only the activity_id — a reference to an Activity entity
@@ -38,12 +38,12 @@ class RichTextBlockMaterialActivity(RichTextBlockDataSpecial):
 
         pretty_qty = activity.get_pretty_quantity() or ""
         activity_label = activity.activity_type.value.capitalize()
-        batch_label = activity.batch.batch_number
-        material_name = activity.batch.material.name
+        item_label = activity.item.item_number
+        item_sheet_name = activity.item.item_sheet.name
 
         html = '<div class="material-activity">'
         html += f"<strong>{activity_label}</strong>"
-        html += f' &mdash; <span class="batch">{material_name} ({batch_label})</span>'
+        html += f' &mdash; <span class="batch">{item_sheet_name} ({item_label})</span>'
         if pretty_qty:
             html += f" &mdash; {pretty_qty}"
         if activity.from_location and activity.to_location:
@@ -72,9 +72,9 @@ class RichTextBlockMaterialActivity(RichTextBlockDataSpecial):
 
         pretty_qty = activity.get_pretty_quantity() or ""
         activity_label = activity.activity_type.value.capitalize()
-        batch_label = activity.batch.batch_number
+        item_label = activity.item.item_number
 
-        parts = [f"**{activity_label}**", batch_label]
+        parts = [f"**{activity_label}**", item_label]
         if pretty_qty:
             parts.append(pretty_qty)
         return " — ".join(parts)

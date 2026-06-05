@@ -73,7 +73,7 @@ class ItemService:
         Get the full hierarchy of parent items for a given item.
 
         Returns a list of all parent items from the immediate parent
-        up to the root (original batch), ordered from closest to furthest ancestor.
+        up to the root (original item), ordered from closest to furthest ancestor.
 
         :param item_id: The ID of the item to get parent hierarchy for
         :type item_id: str
@@ -133,7 +133,7 @@ class ItemService:
         :param dto: DTO containing item data
         :type dto: CreateItemDTO
         :return: The created item and its receive activity
-        :rtype: BatchActivityResult
+        :rtype: ItemActivityResult
         :raises BadRequestException: If validation fails or references don't exist
         """
         # Validate input
@@ -168,14 +168,14 @@ class ItemService:
         # Create item
         item = Item()
         item.item_sheet = item_sheet
-        item.batch_number = dto.item_number.strip()
+        item.item_number = dto.item_number.strip()
         item.quantity = base_quantity
         item.unit_type = unit_type
         item.location = location
         item.expiry_date = dto.expiry_date
         item.label = dto.label.strip() if dto.label else None
         item.notes = dto.notes.strip() if dto.notes else None
-        item.parent_item = None  # Original batch, not an aliquot
+        item.parent_item = None  # Original item, not an aliquot
         item.supplier = supplier
 
         # Save (created_by/last_modified_by set automatically by ModelWithUser)
@@ -185,7 +185,7 @@ class ItemService:
         activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.CREATE,
-                batch_id=item.id,
+                item_id=item.id,
                 quantity=base_quantity,
                 unit_type=unit_type,
                 notes=dto.notes,
@@ -228,7 +228,7 @@ class ItemService:
         activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.RECEIVE,
-                batch_id=item.id,
+                item_id=item.id,
                 quantity=base_quantity,
                 unit_type=item.unit_type,
                 notes=dto.notes,
@@ -281,7 +281,7 @@ class ItemService:
         activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.CONSUME,
-                batch_id=item.id,
+                item_id=item.id,
                 quantity=base_quantity,
                 unit_type=item.unit_type,
                 notes=dto.notes,
@@ -324,7 +324,7 @@ class ItemService:
         activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.MOVE,
-                batch_id=item.id,
+                item_id=item.id,
                 from_location_id=from_location.id,
                 to_location_id=to_location.id,
                 note_id=dto.note_id,
@@ -387,7 +387,7 @@ class ItemService:
         activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.USE,
-                batch_id=item_id,
+                item_id=item_id,
                 notes=dto.notes,
                 note_id=dto.note_id,
             )
@@ -412,13 +412,13 @@ class ItemService:
         item = self.get_item(item_id)
 
         if item.is_discarded():
-            raise BadRequestException(f"Item '{item.batch_number}' is already discarded")
+            raise BadRequestException(f"Item '{item.item_number}' is already discarded")
 
         # Create 'discard' activity entry
         activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.DISCARD,
-                batch_id=item.id,
+                item_id=item.id,
                 quantity=item.quantity,
                 unit_type=item.unit_type,
                 notes=dto.notes or "Item discarded",
@@ -460,10 +460,10 @@ class ItemService:
         # Update item_number if provided
         if dto.item_number is not None:
             self._validate_item_number(dto.item_number)
-            old_item_number = item.batch_number
+            old_item_number = item.item_number
             new_item_number = dto.item_number.strip()
             if old_item_number != new_item_number:
-                item.batch_number = new_item_number
+                item.item_number = new_item_number
                 changes.append(f"item_number: '{old_item_number}' -> '{new_item_number}'")
 
         # Update label if provided
@@ -485,7 +485,7 @@ class ItemService:
         activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.RELABEL,
-                batch_id=item.id,
+                item_id=item.id,
                 notes="; ".join(changes),
                 note_id=dto.note_id,
             )
@@ -550,7 +550,7 @@ class ItemService:
 
         # Check if already discarded
         if item.is_discarded():
-            raise BadRequestException(f"Item '{item.batch_number}' is already discarded")
+            raise BadRequestException(f"Item '{item.item_number}' is already discarded")
 
         # Check for child items (aliquots)
         child_count = (
@@ -561,17 +561,17 @@ class ItemService:
         )
         if child_count > 0:
             raise BadRequestException(
-                f"Cannot delete item '{item.batch_number}' because it has {child_count} "
+                f"Cannot delete item '{item.item_number}' because it has {child_count} "
                 "active child item(s) (aliquots). Delete all child items first."
             )
 
         # Count activities for this item
-        activity_count = Activity.count_by_batch_id(item.id)
+        activity_count = Activity.count_by_item_id(item.id)
 
         # If only 1 activity (the creation 'create'), hard delete
         if activity_count <= 1:
             # Delete associated activities first
-            Activity.delete().where(Activity.batch == item).execute()
+            Activity.delete().where(Activity.item == item).execute()
             # Hard delete the item
             item.delete_instance()
             return DeleteItemResultDTO.DELETED
@@ -579,7 +579,7 @@ class ItemService:
         # Item has activity history
         if not allow_discard:
             raise BadRequestException(
-                f"Cannot delete item '{item.batch_number}' because it has activity history."
+                f"Cannot delete item '{item.item_number}' because it has activity history."
             )
 
         # Soft delete (mark as discarded)
@@ -587,7 +587,7 @@ class ItemService:
         self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.DISCARD,
-                batch_id=item.id,
+                item_id=item.id,
                 quantity=item.quantity,
                 unit_type=item.unit_type,
                 notes=notes if notes else "Item discarded",
@@ -644,7 +644,7 @@ class ItemService:
         if not UnitConverter.is_valid_unit(unit, unit_type):
             valid_units = ", ".join(UnitConverter.get_valid_units(unit_type))
             raise BadRequestException(
-                f"Invalid unit '{unit}' for item '{item.batch_number}' "
+                f"Invalid unit '{unit}' for item '{item.item_number}' "
                 f"(unit type: {unit_type.value}). Valid units: {valid_units}"
             )
 
@@ -656,7 +656,7 @@ class ItemService:
     def reverse_activity(self, activity_id: str) -> None:
         """Reverse an activity: undo its effect on the item and delete the activity record.
 
-        This is called when a materialActivity block is removed from a note.
+        This is called when an item activity block is removed from a note.
         The item state is restored to what it was before the activity.
 
         :param activity_id: The ID of the activity to reverse
@@ -669,32 +669,31 @@ class ItemService:
         if not activity:
             raise BadRequestException(f"Activity with ID '{activity_id}' does not exist")
 
-        item = cast(Item, activity.batch)
+        item = cast(Item, activity.item)
         activity_type = activity.activity_type
 
-        if activity_type == ActivityType.CREATE:
-            self._reverse_create(activity, item)
-        elif activity_type == ActivityType.RECEIVE:
-            self._reverse_receive(activity, item)
-        elif activity_type == ActivityType.CONSUME:
-            self._reverse_consume(activity, item)
-        elif activity_type == ActivityType.MOVE:
-            self._reverse_move(activity, item)
-        elif activity_type == ActivityType.USE:
-            self._reverse_use(activity, item)
-        elif activity_type == ActivityType.DISCARD:
-            self._reverse_discard(activity, item)
-        elif activity_type == ActivityType.ALIQUOT:
-            self._reverse_aliquot(activity, item)
-        elif activity_type == ActivityType.ALIQUOT_CREATED:
+        if activity_type == ActivityType.ALIQUOT_CREATED:
             raise BadRequestException(
                 "Cannot reverse ALIQUOT_CREATED directly. "
                 "Reverse the parent ALIQUOT activity instead."
             )
-        elif activity_type == ActivityType.RELABEL:
-            self._reverse_relabel(activity, item)
-        else:
+
+        reversers = {
+            ActivityType.CREATE: self._reverse_create,
+            ActivityType.RECEIVE: self._reverse_receive,
+            ActivityType.CONSUME: self._reverse_consume,
+            ActivityType.MOVE: self._reverse_move,
+            ActivityType.USE: self._reverse_use,
+            ActivityType.DISCARD: self._reverse_discard,
+            ActivityType.ALIQUOT: self._reverse_aliquot,
+            ActivityType.RELABEL: self._reverse_relabel,
+        }
+
+        reverser = reversers.get(activity_type)
+        if reverser is None:
             raise BadRequestException(f"Unknown activity type: {activity_type}")
+
+        reverser(activity, item)
 
         # Delete the activity record (except for CREATE which deletes the item)
         if activity_type != ActivityType.CREATE:
@@ -719,15 +718,15 @@ class ItemService:
         )
         if child_count > 0:
             raise BadRequestException(
-                f"Cannot reverse CREATE: item '{item.batch_number}' has {child_count} "
+                f"Cannot reverse CREATE: item '{item.item_number}' has {child_count} "
                 "active child item(s) (aliquots). Delete them first."
             )
 
         # Check activity count (should be exactly 1 - the CREATE activity)
-        activity_count = Activity.count_by_batch_id(item.id)
+        activity_count = Activity.count_by_item_id(item.id)
         if activity_count > 1:
             raise BadRequestException(
-                f"Cannot reverse CREATE: item '{item.batch_number}' has additional activities. "
+                f"Cannot reverse CREATE: item '{item.item_number}' has additional activities. "
                 "Reverse those activities first."
             )
 
@@ -748,7 +747,7 @@ class ItemService:
 
         if item.quantity < activity.quantity:
             raise BadRequestException(
-                f"Cannot reverse RECEIVE: item '{item.batch_number}' current quantity "
+                f"Cannot reverse RECEIVE: item '{item.item_number}' current quantity "
                 f"({item.quantity}) is less than the received quantity ({activity.quantity}). "
                 f"The item may have been consumed since this receive."
             )
@@ -798,7 +797,7 @@ class ItemService:
         """
         if not item.is_discarded():
             raise BadRequestException(
-                f"Cannot reverse DISCARD: item '{item.batch_number}' is not discarded"
+                f"Cannot reverse DISCARD: item '{item.item_number}' is not discarded"
             )
 
         item.status = ItemStatus.ACTIVE
@@ -809,7 +808,7 @@ class ItemService:
 
         Original effect:
         - parent.quantity -= source_quantity (recorded in activity.quantity)
-        - child item created (referenced by activity.related_batch)
+        - child item created (referenced by activity.related_item)
         - ALIQUOT_CREATED activity created on child item
 
         Reversal:
@@ -818,7 +817,7 @@ class ItemService:
         - Delete child item
         - parent.quantity += activity.quantity
         """
-        child_item = activity.related_batch
+        child_item = activity.related_item
         if child_item is None:
             raise BadRequestException(
                 "Cannot reverse ALIQUOT activity: related child item not found"
@@ -833,18 +832,17 @@ class ItemService:
         )
         if active_children_count > 0:
             raise BadRequestException(
-                f"Cannot reverse ALIQUOT: child item '{child_item.batch_number}' has "
+                f"Cannot reverse ALIQUOT: child item '{child_item.item_number}' has "
                 f"{active_children_count} active sub-aliquot(s). Delete them first."
             )
 
         # Delete ALIQUOT_CREATED activity on the child item
         Activity.delete().where(
-            (Activity.batch == child_item)
-            & (Activity.activity_type == ActivityType.ALIQUOT_CREATED)
+            (Activity.item == child_item) & (Activity.activity_type == ActivityType.ALIQUOT_CREATED)
         ).execute()
 
         # Delete all activities on the child item (there should only be the ALIQUOT_CREATED)
-        Activity.delete().where(Activity.batch == child_item).execute()
+        Activity.delete().where(Activity.item == child_item).execute()
 
         # Delete child item
         child_item.delete_instance()
@@ -871,7 +869,7 @@ class ItemService:
         item_number_match = re.search(r"item_number: '(.+?)' -> '(.+?)'", activity.notes)
         if item_number_match:
             old_item_number = item_number_match.group(1)
-            item.batch_number = old_item_number
+            item.item_number = old_item_number
 
         # Parse label change
         label_match = re.search(r"label: '(.+?)' -> '(.+?)'", activity.notes)
@@ -895,7 +893,7 @@ class ItemService:
 
         The parent item is decremented by source_quantity, while the aliquot
         is created with aliquot_quantity. These can differ (e.g., dilution,
-        processing loss, material transformation, etc.).
+        processing loss, transformation, etc.).
 
         Example 1: Take 2L from parent to create a 500mL aliquot after dilution.
         Example 2: Take 100mL from a solution to extract 5g of a different compound.
@@ -903,7 +901,7 @@ class ItemService:
         :param dto: DTO containing aliquot data
         :type dto: CreateAliquotDTO
         :return: The created aliquot item and the ALIQUOT activity (on the parent)
-        :rtype: BatchActivityResult
+        :rtype: ItemActivityResult
         :raises BadRequestException: If validation fails, parent doesn't exist,
                                      or insufficient quantity in parent
         """
@@ -917,7 +915,7 @@ class ItemService:
         # Validate parent is active (not discarded)
         if parent_item.is_discarded():
             raise BadRequestException(
-                f"Cannot create aliquot from discarded item '{parent_item.batch_number}'"
+                f"Cannot create aliquot from discarded item '{parent_item.item_number}'"
             )
 
         # Validate parent item sheet is consumable (aliquots only make sense for consumables)
@@ -981,13 +979,13 @@ class ItemService:
         else:
             # Auto-generate item number based on parent
             aliquot_count = Item.select().where(Item.parent_item == parent_item).count()
-            aliquot_item_number = f"{parent_item.batch_number}-A{aliquot_count + 1}"
+            aliquot_item_number = f"{parent_item.item_number}-A{aliquot_count + 1}"
 
         # Create aliquot item with aliquot_quantity (in base units)
         aliquot = Item()
         aliquot.item_sheet = target_item_sheet  # Use target item sheet (may differ from parent)
         aliquot.parent_item = parent_item  # Set parent reference
-        aliquot.batch_number = aliquot_item_number
+        aliquot.item_number = aliquot_item_number
         aliquot.label = dto.label.strip() if dto.label else None
         aliquot.quantity = base_aliquot_quantity  # Aliquot's own quantity in base units
         aliquot.unit_type = aliquot_unit_type  # Use target item sheet's unit_type
@@ -1006,12 +1004,12 @@ class ItemService:
         aliquot_activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.ALIQUOT,
-                batch_id=parent_item.id,
+                item_id=parent_item.id,
                 quantity=base_source_quantity,  # Amount taken from parent (base units)
                 unit_type=parent_unit_type,  # Use parent's unit_type
                 from_location_id=parent_item.location.id,
                 to_location_id=location.id,
-                related_batch_id=aliquot.id,  # Reference to the child aliquot
+                related_item_id=aliquot.id,  # Reference to the child aliquot
                 notes=dto.notes.strip() if dto.notes else None,
                 note_id=dto.note_id,
             )
@@ -1022,11 +1020,11 @@ class ItemService:
         self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.ALIQUOT_CREATED,
-                batch_id=aliquot.id,
+                item_id=aliquot.id,
                 quantity=base_aliquot_quantity,  # Aliquot's quantity (base units)
                 unit_type=aliquot_unit_type,  # Use aliquot's unit_type (from target item sheet)
                 to_location_id=location.id,
-                related_batch_id=parent_item.id,  # Reference to the parent item
+                related_item_id=parent_item.id,  # Reference to the parent item
                 notes=dto.notes.strip() if dto.notes else None,
                 note_id=dto.note_id,
             )

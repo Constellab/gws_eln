@@ -120,14 +120,14 @@ class ItemSheetService:
 
     def delete_item_sheet(self, item_sheet_id: str) -> bool:
         """
-        Delete an item sheet if not referenced by any batches.
+        Delete an item sheet if not referenced by any items.
 
         :param item_sheet_id: The ID of the item sheet to delete
         :type item_sheet_id: str
         :return: True if deletion was successful
         :rtype: bool
         :raises NotFoundException: If item sheet not found
-        :raises BadRequestException: If item sheet is referenced by batches
+        :raises BadRequestException: If item sheet is referenced by items
         """
         # Get existing item sheet
         item_sheet = self.get_item_sheet(item_sheet_id)

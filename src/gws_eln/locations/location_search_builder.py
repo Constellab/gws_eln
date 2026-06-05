@@ -5,7 +5,7 @@ from gws_eln.locations.location import Location
 
 class LocationSearchBuilder(SearchBuilder):
     def __init__(self) -> None:
-        super().__init__(Location, default_orders=[Location.name])
+        super().__init__(Location, default_orders=[Location.name.asc()])
 
     def add_name_filter(self, name: str) -> "LocationSearchBuilder":
         """Filter the search query by location name (case-insensitive contains)"""

@@ -1,22 +1,25 @@
-from gws_core import EnumField, Model, UserDTO, UserGroup
+from gws_core import Model, TypedBooleanField, TypedCharField, TypedEnumField, UserDTO, UserGroup
 from gws_core import User as GwsCoreUser
-from peewee import BooleanField, CharField
 
 from gws_eln.core.eln_db_manager import ElnDbManager
 
 
 class User(Model):
-    email: str = CharField()
-    first_name: str = CharField()
-    last_name: str = CharField()
-    group: UserGroup = EnumField(choices=UserGroup, default=UserGroup.USER)
-    is_active = BooleanField(default=True)
+    email = TypedCharField()
+    first_name = TypedCharField()
+    last_name = TypedCharField()
+    group = TypedEnumField(choices=UserGroup, default=UserGroup.USER)
+    is_active = TypedBooleanField(default=True)
 
-    photo: str = CharField(null=True)
+    photo = TypedCharField(null=True)
 
     def to_dto(self) -> UserDTO:
         return UserDTO(
-            id=self.id, email=self.email, first_name=self.first_name, last_name=self.last_name, photo=self.photo
+            id=self.id,
+            email=self.email,
+            first_name=self.first_name,
+            last_name=self.last_name,
+            photo=self.photo,
         )
 
     @classmethod
@@ -26,7 +29,11 @@ class User(Model):
         :return: Query of real users ordered by first and last name
         :rtype: ModelSelect
         """
-        return list(User.select().where(User.group != UserGroup.SYSUSER).order_by(User.first_name, User.last_name))
+        return list(
+            User.select()
+            .where(User.group != UserGroup.SYSUSER)
+            .order_by(User.first_name, User.last_name)
+        )
 
     @classmethod
     def from_gws_core_user(cls, gws_core_user: GwsCoreUser) -> "User":

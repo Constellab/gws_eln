@@ -1,4 +1,4 @@
-from peewee import CharField, TextField
+from gws_core import NullableTextField, TypedCharField
 
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
@@ -20,10 +20,10 @@ class Location(ModelWithUser):
     """
 
     # Required fields
-    name = CharField(max_length=255, null=False, unique=True, index=True)
+    name = TypedCharField(max_length=255, unique=True, index=True)
 
     # Optional fields
-    description = TextField(null=True)
+    description = NullableTextField()
 
     class Meta:
         table_name = "gws_eln_locations"

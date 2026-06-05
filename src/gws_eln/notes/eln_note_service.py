@@ -30,7 +30,7 @@ from gws_eln.items.item_dto import (
 )
 from gws_eln.items.item_service import ItemService
 from gws_eln.notes.eln_note_dto import AddNoteActivityDTO
-from gws_eln.rich_text.rich_text_block_material_activity import RichTextBlockMaterialActivity
+from gws_eln.rich_text.rich_text_block_material_activity import RichTextBlockItemActivity
 
 
 class ElnNoteService:
@@ -68,15 +68,15 @@ class ElnNoteService:
 
     @ElnDbManager.transaction()
     def add_activity(self, dto: AddNoteActivityDTO) -> Note:
-        """Add a batch activity from a note block.
+        """Add an item activity from a note block.
 
-        Verifies the note exists, builds the appropriate batch action DTO
-        based on the activity type, then delegates to MaterialBatchService.
+        Verifies the note exists, builds the appropriate item action DTO
+        based on the activity type, then delegates to ItemService.
 
         :param dto: DTO containing note_id, note_block_id, activity_type, and activity_data
         :type dto: AddNoteActivityDTO
-        :return: The batch and activity result
-        :rtype: BatchActivityResult
+        :return: The item and activity result
+        :rtype: ItemActivityResult
         :raises BadRequestException: If the activity type is unsupported or data is invalid
         """
         # Verify the note exists
@@ -90,21 +90,21 @@ class ElnNoteService:
                 f"Note block with ID {dto.note_block_id} not found in note {dto.note_id}"
             )
 
-        if block.type != RichTextBlockMaterialActivity.get_typing_name():
+        if block.type != RichTextBlockItemActivity.get_typing_name():
             raise BadRequestException(
-                f"Note block with ID {dto.note_block_id} is not a Material Activity block"
+                f"Note block with ID {dto.note_block_id} is not an Item Activity block"
             )
 
         item_service = ItemService()
         activity_data = dto.activity_data
 
         handler = self._get_activity_handler(dto.activity_type)
-        batch_result = handler(item_service, dto.batch_id, activity_data, dto.note_id)
+        item_result = handler(item_service, dto.item_id, activity_data, dto.note_id)
 
         # if activity was created, set the activity id in the block data
-        activity = batch_result.activity
+        activity = item_result.activity
         if activity:
-            block.set_data(RichTextBlockMaterialActivity(activity_id=activity.id))
+            block.set_data(RichTextBlockItemActivity(activity_id=activity.id))
             rich_text.replace_block_by_id(block.id, block)
         else:
             # if no activity was created, remove the block from the note
@@ -145,8 +145,8 @@ class ElnNoteService:
         note_id: str,
     ) -> ItemActivityResult:
         item_dto = CreateItemDTO(
-            item_sheet_id=activity_data["material_id"],
-            item_number=activity_data["batch_number"],
+            item_sheet_id=activity_data["item_sheet_id"],
+            item_number=activity_data["item_number"],
             quantity=activity_data["quantity"],
             unit=activity_data["unit"],
             location_id=activity_data.get("location_id"),
@@ -235,7 +235,7 @@ class ElnNoteService:
         note_id: str,
     ) -> ItemActivityResult:
         item_dto = RelabelItemDTO(
-            item_number=activity_data.get("batch_number"),
+            item_number=activity_data.get("item_number"),
             label=activity_data.get("label"),
             note_id=note_id,
         )
@@ -253,7 +253,7 @@ class ElnNoteService:
             source_unit=activity_data["source_unit"],
             aliquot_quantity=activity_data["aliquot_quantity"],
             aliquot_unit=activity_data["aliquot_unit"],
-            aliquot_item_number=activity_data.get("aliquot_batch_number"),
+            aliquot_item_number=activity_data.get("aliquot_item_number"),
             label=activity_data.get("label"),
             location_id=activity_data.get("location_id"),
             notes=activity_data.get("notes"),
@@ -266,11 +266,11 @@ class ElnNoteService:
         self,
         activity_id: str,
     ) -> Activity:
-        """Get the material activity block for the given activity ID.
+        """Get the item activity block for the given activity ID.
 
         :param activity_id: The ID of the activity
         :type activity_id: str
-        :return: The material activity block
-        :rtype: RichTextBlockMaterialActivity
+        :return: The item activity block
+        :rtype: RichTextBlockItemActivity
         """
         return ActivityService().get_by_id_and_check(activity_id)
