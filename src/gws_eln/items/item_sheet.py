@@ -30,24 +30,22 @@ class ItemSheet(ModelWithUser):
     """
 
     # Required fields
-    name = TypedCharField(max_length=255, null=False, index=True)
+    name = TypedCharField(max_length=255, index=True)
 
     # Optional fields
-    description = NullableTextField(null=True)
+    description = NullableTextField()
 
     # Default supplier relationship (optional FK to suppliers table)
     # This is to prefill the front form when receiving new batches
     default_supplier = NullableForeignKeyField(
-        Supplier, null=True, backref="item_sheets", on_delete="SET NULL", index=True
+        Supplier, backref="item_sheets", on_delete="SET NULL", index=True
     )
 
     # Behavior flag
-    is_consumable = TypedBooleanField(default=True, null=False, index=True)
+    is_consumable = TypedBooleanField(default=True, index=True)
 
     # Default unit type for this item sheet
-    default_unit_type = TypedEnumField(
-        choices=UnitType, max_length=20, default=UnitType.COUNT, null=False
-    )
+    default_unit_type = TypedEnumField(choices=UnitType, max_length=20, default=UnitType.COUNT)
 
     class Meta:
         table_name = "gws_eln_item_sheets"

@@ -44,30 +44,26 @@ class Item(ModelWithUser):
     """
 
     # Required relationships
-    item_sheet = TypedForeignKeyField(
-        ItemSheet, null=False, backref="items", on_delete="RESTRICT", index=True
-    )
+    item_sheet = TypedForeignKeyField(ItemSheet, backref="items", on_delete="RESTRICT", index=True)
 
-    location = TypedForeignKeyField(
-        Location, null=False, backref="+", on_delete="RESTRICT", index=True
-    )
+    location = TypedForeignKeyField(Location, backref="+", on_delete="RESTRICT", index=True)
 
     # Self-reference for aliquots (parent-child relationship)
     parent_item = NullableForeignKeyField["Item"](
-        "self", null=True, backref="child_items", on_delete="CASCADE", index=True
+        "self", backref="child_items", on_delete="CASCADE", index=True
     )
 
     # Supplier relationship (optional FK to suppliers table)
-    supplier = NullableForeignKeyField(
-        Supplier, null=True, backref="items", on_delete="SET NULL", index=True
-    )
+    supplier = NullableForeignKeyField(Supplier, backref="items", on_delete="SET NULL", index=True)
 
     # Batch identification
-    batch_number = TypedCharField(max_length=100, null=False, index=True)
-    label = NullableCharField(max_length=255, null=True)
+    batch_number = TypedCharField(max_length=100, index=True)
+    label = NullableCharField(
+        max_length=255,
+    )
 
     # Dates
-    expiry_date = NullableDateField(null=True, index=True)
+    expiry_date = NullableDateField(index=True)
 
     # Quantity tracking - stored in base units (L, kg, m, units)
     # DECIMAL(20,12) for high precision
@@ -75,11 +71,11 @@ class Item(ModelWithUser):
     unit_type = TypedEnumField(choices=UnitType, max_length=20)
 
     # Additional information
-    notes = NullableTextField(null=True)
+    notes = NullableTextField()
 
     # Status for soft delete
     status = TypedEnumField(
-        choices=ItemStatus, max_length=20, default=ItemStatus.ACTIVE, null=False, index=True
+        choices=ItemStatus, max_length=20, default=ItemStatus.ACTIVE, index=True
     )
 
     def is_aliquot(self) -> bool:

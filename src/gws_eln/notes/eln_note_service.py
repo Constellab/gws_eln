@@ -17,18 +17,18 @@ from gws_eln.activities.activity import Activity
 from gws_eln.activities.activity_service import ActivityService
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.eln_db_manager import ElnDbManager
-from gws_eln.materials.batch_activity_dto import BatchActivityResult
-from gws_eln.materials.material_batch_dto import (
+from gws_eln.items.item_activity_dto import ItemActivityResult
+from gws_eln.items.item_dto import (
     CreateAliquotDTO,
-    CreateBatchDTO,
+    CreateItemDTO,
     DecrementQuantityDTO,
-    DiscardBatchDTO,
-    MoveBatchDTO,
-    ReceiveBatchDTO,
-    RelabelBatchDTO,
-    UseBatchDTO,
+    DiscardItemDTO,
+    MoveItemDTO,
+    ReceiveItemDTO,
+    RelabelItemDTO,
+    UseItemDTO,
 )
-from gws_eln.materials.material_batch_service import MaterialBatchService
+from gws_eln.items.item_service import ItemService
 from gws_eln.notes.eln_note_dto import AddNoteActivityDTO
 from gws_eln.rich_text.rich_text_block_material_activity import RichTextBlockMaterialActivity
 
@@ -95,11 +95,11 @@ class ElnNoteService:
                 f"Note block with ID {dto.note_block_id} is not a Material Activity block"
             )
 
-        batch_service = MaterialBatchService()
+        item_service = ItemService()
         activity_data = dto.activity_data
 
         handler = self._get_activity_handler(dto.activity_type)
-        batch_result = handler(batch_service, dto.batch_id, activity_data, dto.note_id)
+        batch_result = handler(item_service, dto.batch_id, activity_data, dto.note_id)
 
         # if activity was created, set the activity id in the block data
         activity = batch_result.activity
@@ -139,14 +139,14 @@ class ElnNoteService:
 
     def _handle_create(
         self,
-        batch_service: MaterialBatchService,
-        batch_id: str | None,
+        item_service: ItemService,
+        item_id: str | None,
         activity_data: dict[str, Any],
         note_id: str,
-    ) -> BatchActivityResult:
-        batch_dto = CreateBatchDTO(
-            material_id=activity_data["material_id"],
-            batch_number=activity_data["batch_number"],
+    ) -> ItemActivityResult:
+        item_dto = CreateItemDTO(
+            item_sheet_id=activity_data["material_id"],
+            item_number=activity_data["batch_number"],
             quantity=activity_data["quantity"],
             unit=activity_data["unit"],
             location_id=activity_data.get("location_id"),
@@ -156,112 +156,111 @@ class ElnNoteService:
             notes=activity_data.get("notes"),
             note_id=note_id,
         )
-        return batch_service.create_batch(batch_dto)
+        return item_service.create_item(item_dto)
 
     def _handle_receive(
         self,
-        batch_service: MaterialBatchService,
-        batch_id: str,
+        item_service: ItemService,
+        item_id: str,
         activity_data: dict[str, Any],
         note_id: str,
-    ) -> BatchActivityResult:
-        batch_dto = ReceiveBatchDTO(
+    ) -> ItemActivityResult:
+        item_dto = ReceiveItemDTO(
             quantity=activity_data["quantity"],
             unit=activity_data["unit"],
             notes=activity_data.get("notes"),
             note_id=note_id,
         )
-        return batch_service.receive_batch(batch_id, batch_dto)
+        return item_service.receive_item(item_id, item_dto)
 
     def _handle_consume(
         self,
-        batch_service: MaterialBatchService,
-        batch_id: str,
+        item_service: ItemService,
+        item_id: str,
         activity_data: dict[str, Any],
         note_id: str,
-    ) -> BatchActivityResult:
-        batch_dto = DecrementQuantityDTO(
+    ) -> ItemActivityResult:
+        item_dto = DecrementQuantityDTO(
             quantity=activity_data["quantity"],
             unit=activity_data["unit"],
             notes=activity_data.get("notes"),
             note_id=note_id,
         )
-        return batch_service.consume_quantity(batch_id, batch_dto)
+        return item_service.consume_quantity(item_id, item_dto)
 
     def _handle_move(
         self,
-        batch_service: MaterialBatchService,
-        batch_id: str,
+        item_service: ItemService,
+        item_id: str,
         activity_data: dict[str, Any],
         note_id: str,
-    ) -> BatchActivityResult:
-        batch_dto = MoveBatchDTO(
+    ) -> ItemActivityResult:
+        item_dto = MoveItemDTO(
             to_location_id=activity_data["to_location_id"],
             note_id=note_id,
         )
-        return batch_service.move_batch(batch_id, batch_dto)
+        return item_service.move_item(item_id, item_dto)
 
     def _handle_use(
         self,
-        batch_service: MaterialBatchService,
-        batch_id: str,
+        item_service: ItemService,
+        item_id: str,
         activity_data: dict[str, Any],
         note_id: str,
-    ) -> BatchActivityResult:
-        batch_dto = UseBatchDTO(
+    ) -> ItemActivityResult:
+        item_dto = UseItemDTO(
             notes=activity_data.get("notes"),
             note_id=note_id,
         )
-        return batch_service.use_batch(batch_id, batch_dto)
+        return item_service.use_item(item_id, item_dto)
 
     def _handle_discard(
         self,
-        batch_service: MaterialBatchService,
-        batch_id: str,
+        item_service: ItemService,
+        item_id: str,
         activity_data: dict[str, Any],
         note_id: str,
-    ) -> BatchActivityResult:
-        batch_dto = DiscardBatchDTO(
+    ) -> ItemActivityResult:
+        item_dto = DiscardItemDTO(
             notes=activity_data.get("notes"),
             note_id=note_id,
         )
-        return batch_service.discard_batch(batch_id, batch_dto)
+        return item_service.discard_item(item_id, item_dto)
 
     def _handle_relabel(
         self,
-        batch_service: MaterialBatchService,
-        batch_id: str,
+        item_service: ItemService,
+        item_id: str,
         activity_data: dict[str, Any],
         note_id: str,
-    ) -> BatchActivityResult:
-        batch_dto = RelabelBatchDTO(
-            batch_number=activity_data.get("batch_number"),
+    ) -> ItemActivityResult:
+        item_dto = RelabelItemDTO(
+            item_number=activity_data.get("batch_number"),
             label=activity_data.get("label"),
             note_id=note_id,
         )
-        return batch_service.relabel_batch(batch_id, batch_dto)
+        return item_service.relabel_item(item_id, item_dto)
 
     def _handle_aliquot(
         self,
-        batch_service: MaterialBatchService,
-        batch_id: str,
+        item_service: ItemService,
         activity_data: dict[str, Any],
         note_id: str,
-    ) -> BatchActivityResult:
-        batch_dto = CreateAliquotDTO(
-            parent_batch_id=activity_data["parent_batch_id"],
+    ) -> ItemActivityResult:
+        item_dto = CreateAliquotDTO(
+            parent_item_id=activity_data["parent_item_id"],
             source_quantity=activity_data["source_quantity"],
             source_unit=activity_data["source_unit"],
             aliquot_quantity=activity_data["aliquot_quantity"],
             aliquot_unit=activity_data["aliquot_unit"],
-            aliquot_batch_number=activity_data.get("aliquot_batch_number"),
+            aliquot_item_number=activity_data.get("aliquot_batch_number"),
             label=activity_data.get("label"),
             location_id=activity_data.get("location_id"),
             notes=activity_data.get("notes"),
             supplier_id=activity_data.get("supplier_id"),
             note_id=note_id,
         )
-        return batch_service.create_aliquot(batch_dto)
+        return item_service.create_aliquot(item_dto)
 
     def get_activity(
         self,

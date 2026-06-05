@@ -21,6 +21,6 @@ class ActivitySearchBuilder(SearchBuilder):
         return self
 
     def add_entity_filter(self, entity_id: str) -> "ActivitySearchBuilder":
-        """Filter the search query by entity (material batch) ID"""
-        self.add_expression(Activity.batch == entity_id)
+        """Filter the search query by entity (item) ID"""
+        self.add_expression(Activity.item == entity_id)
         return self

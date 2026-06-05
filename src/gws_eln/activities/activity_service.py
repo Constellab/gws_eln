@@ -2,7 +2,6 @@
 Activity Service for managing Activity entities.
 
 Handles activity logging and history queries for inventory operations.
-Implements Story 7.1 from Epic 7: Activity Service & Audit Log.
 """
 
 from gws_core import BadRequestException, CurrentUserService
@@ -10,8 +9,8 @@ from gws_core import BadRequestException, CurrentUserService
 from gws_eln.activities.activity import Activity
 from gws_eln.activities.activity_dto import CreateActivityDTO
 from gws_eln.activities.activity_type import ActivityType
+from gws_eln.items.item import Item
 from gws_eln.locations.location import Location
-from gws_eln.materials.material_batch import MaterialBatch
 
 
 class ActivityService:
@@ -22,13 +21,13 @@ class ActivityService:
     history queries for audit trail and traceability.
 
     Activity types supported:
-    - RECEIVE: New batch from supplier or additional stock
-    - MOVE: Change location of a batch
-    - CONSUME: Use consumable material (decrements quantity)
-    - USE: Use non-consumable material (reference only)
-    - DISCARD: Remove batch
-    - ALIQUOT: Create child batch from parent
-    - RELABEL: Change label of a batch
+    - RECEIVE: New item from supplier or additional stock
+    - MOVE: Change location of an item
+    - CONSUME: Use consumable item (decrements quantity)
+    - USE: Use non-consumable item (reference only)
+    - DISCARD: Remove item
+    - ALIQUOT: Create child item from parent
+    - RELABEL: Change label of an item
     """
 
     def get_by_id_and_check(self, activity_id: str) -> Activity:
@@ -58,7 +57,7 @@ class ActivityService:
         CurrentUserService.get_and_check_current_user()
 
         # Validate entity exists
-        entity = self._validate_entity_exists(dto.batch_id)
+        entity = self._validate_entity_exists(dto.item_id)
 
         # Validate locations if provided
         from_location = None
@@ -68,39 +67,44 @@ class ActivityService:
         if dto.to_location_id:
             to_location = self._validate_location_exists(dto.to_location_id)
 
+        # Validate related item if provided
+        related_item = None
+        if dto.related_item_id:
+            related_item = self._validate_entity_exists(dto.related_item_id)
+
         # Validate activity-specific requirements
         self._validate_activity_requirements(dto)
 
         # Create activity
         activity = Activity()
         activity.activity_type = dto.activity_type
-        activity.batch = entity
+        activity.item = entity
         activity.quantity = dto.quantity
         activity.unit_type = dto.unit_type
         activity.from_location = from_location
         activity.to_location = to_location
         activity.notes = dto.notes.strip() if dto.notes else None
         activity.note_id = dto.note_id
-        activity.related_batch = dto.related_batch_id
+        activity.related_item = related_item
 
         activity.save()
         return activity
 
-    def get_batch_history(self, batch_id: str) -> list[Activity]:
+    def get_item_history(self, item_id: str) -> list[Activity]:
         """
-        Get all activities for a specific batch ordered by created_at DESC.
+        Get all activities for a specific item ordered by created_at DESC.
 
-        :param batch_id: The ID of the batch
-        :type batch_id: str
-        :return: List of activities for the batch
+        :param item_id: The ID of the item
+        :type item_id: str
+        :return: List of activities for the item
         :rtype: list[Activity]
         """
         CurrentUserService.get_and_check_current_user()
 
-        # Validate batch exists
-        self._validate_entity_exists(batch_id)
+        # Validate item exists
+        self._validate_entity_exists(item_id)
 
-        return Activity.find_by_batch_id(batch_id)
+        return Activity.find_by_item_id(item_id)
 
     def get_note_activities(self, note_id: str) -> list[Activity]:
         """
@@ -150,20 +154,20 @@ class ActivityService:
 
         return list(query.order_by(Activity.created_at.desc()))
 
-    def _validate_entity_exists(self, entity_id: str) -> MaterialBatch:
+    def _validate_entity_exists(self, entity_id: str) -> Item:
         """
-        Validate that a batch entity exists.
+        Validate that an item entity exists.
 
-        :param entity_id: Batch ID to validate
+        :param entity_id: Item ID to validate
         :type entity_id: str
-        :return: The batch if found
-        :rtype: MaterialBatch
-        :raises BadRequestException: If batch doesn't exist
+        :return: The item if found
+        :rtype: Item
+        :raises BadRequestException: If item doesn't exist
         """
-        batch = MaterialBatch.get_by_id(entity_id)
-        if not batch:
-            raise BadRequestException(f"Batch with ID '{entity_id}' does not exist")
-        return batch
+        item = Item.get_by_id(entity_id)
+        if not item:
+            raise BadRequestException(f"Item with ID '{entity_id}' does not exist")
+        return item
 
     def _validate_location_exists(self, location_id: str) -> Location:
         """
@@ -196,8 +200,6 @@ class ActivityService:
         if dto.activity_type == ActivityType.MOVE and not dto.to_location_id:
             raise BadRequestException("Move activity requires a destination location")
 
-        # ALIQUOT requires related_entity_id (the child batch)
-        if dto.activity_type == ActivityType.ALIQUOT and not dto.related_batch_id:
-            raise BadRequestException(
-                "Aliquot activity requires related_entity_id (child batch ID)"
-            )
+        # ALIQUOT requires related_item_id (the child item)
+        if dto.activity_type == ActivityType.ALIQUOT and not dto.related_item_id:
+            raise BadRequestException("Aliquot activity requires related_item_id (child item ID)")

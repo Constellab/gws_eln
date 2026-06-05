@@ -1,13 +1,20 @@
-from gws_core import EnumField
-from peewee import CharField, DecimalField, ForeignKeyField, TextField
+from gws_core import (
+    NullableCharField,
+    NullableDecimalField,
+    NullableEnumField,
+    NullableForeignKeyField,
+    NullableTextField,
+    TypedEnumField,
+    TypedForeignKeyField,
+)
 
 from gws_eln.activities.activity_dto import ActivityDTO
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
 from gws_eln.core.unit_type import UnitType
+from gws_eln.items.item import Item
 from gws_eln.locations.location import Location
-from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.utils.units_converter import UnitConverter
 
 
@@ -18,19 +25,18 @@ class Activity(ModelWithUser):
     Tracks all inventory operations for complete audit trail and traceability.
 
     Activity types:
-    - receive: New batch from supplier
+    - receive: New item from supplier
     - move: Change location
     - consume: Use consumable (decrements quantity)
     - use: Use non-consumable (reference only)
     - discard: Remove
-    - aliquot: Create child batch
+    - aliquot: Create child item
     - relabel: Change label only
 
     Attributes:
         activity_type: Type of activity (required)
-        entity_type: Type of entity being acted upon (always 'material_batch' in MVP)
-        batch: The batch being acted upon (required)
-        related_batch: For lineage - child aliquot ID, related batch ID
+        item: The item being acted upon (required)
+        related_item: For lineage - child aliquot ID, related item ID
         quantity: For quantity-based actions (stored in base units)
         unit_type: Unit type for quantity
         from_location: Source location for move actions
@@ -40,59 +46,55 @@ class Activity(ModelWithUser):
     """
 
     # Activity classification
-    activity_type = EnumField(choices=ActivityType, max_length=20, null=False, index=True)
+    activity_type = TypedEnumField(choices=ActivityType, max_length=20, index=True)
 
     # Entity being acted upon
-    batch = ForeignKeyField(
-        MaterialBatch, null=False, backref="activities", on_delete="CASCADE", index=True
-    )
+    item = TypedForeignKeyField(Item, backref="activities", on_delete="CASCADE", index=True)
 
     # Related entity for aliquot
-    # For ALIQUOT > child batch ID
-    # For ALIQUOT_CREATED > parent batch ID
-    related_batch = ForeignKeyField(
-        MaterialBatch, null=True, backref="+", on_delete="CASCADE", index=True
-    )
+    # For ALIQUOT > child item ID
+    # For ALIQUOT_CREATED > parent item ID
+    related_item = NullableForeignKeyField(Item, backref="+", on_delete="CASCADE", index=True)
 
     # Quantity information (for consume, aliquot actions)
     # Stored in base units (L, kg, m, units)
-    quantity = DecimalField(max_digits=20, decimal_places=12, null=True)
-    unit_type = EnumField(choices=UnitType, max_length=20, null=True)
+    quantity = NullableDecimalField(max_digits=20, decimal_places=12)
+    unit_type = NullableEnumField(choices=UnitType, max_length=20)
 
     # Location tracking (for move actions)
-    from_location = ForeignKeyField(Location, null=True, backref="+", on_delete="SET NULL")
+    from_location = NullableForeignKeyField(Location, backref="+", on_delete="SET NULL")
 
-    to_location = ForeignKeyField(Location, null=True, backref="+", on_delete="SET NULL")
+    to_location = NullableForeignKeyField(Location, backref="+", on_delete="SET NULL")
 
     # Additional information
-    notes = TextField(null=True)
+    notes = NullableTextField()
 
     # Link to Constellab Note (for Note-linked actions)
-    note_id = CharField(max_length=36, null=True)
+    note_id = NullableCharField(max_length=36)
 
     @classmethod
-    def find_by_batch_id(cls, batch_id: str) -> list["Activity"]:
+    def find_by_item_id(cls, item_id: str) -> list["Activity"]:
         """
-        Find all activities for a given batch ID.
+        Find all activities for a given item ID.
 
-        :param batch_id: The ID of the batch
-        :type batch_id: str
-        :return: List of activities for the batch
+        :param item_id: The ID of the item
+        :type item_id: str
+        :return: List of activities for the item
         :rtype: list[Activity]
         """
-        return list(cls.select().where(cls.batch == batch_id).order_by(cls.created_at.desc()))
+        return list(cls.select().where(cls.item == item_id).order_by(cls.created_at.desc()))
 
     @classmethod
-    def count_by_batch_id(cls, batch_id: str) -> int:
+    def count_by_item_id(cls, item_id: str) -> int:
         """
-        Count all activities for a given batch ID.
+        Count all activities for a given item ID.
 
-        :param batch_id: The ID of the batch
-        :type batch_id: str
-        :return: Count of activities for the batch
+        :param item_id: The ID of the item
+        :type item_id: str
+        :return: Count of activities for the item
         :rtype: int
         """
-        return cls.select().where(cls.batch == batch_id).count()
+        return cls.select().where(cls.item == item_id).count()
 
     def get_pretty_quantity(self) -> str | None:
         """Get a human-readable string for the quantity and unit type.
@@ -113,8 +115,8 @@ class Activity(ModelWithUser):
         return ActivityDTO(
             id=self.id,
             activity_type=self.activity_type,
-            batch=self.batch.to_dto(),
-            related_batch=self.related_batch.to_dto() if self.related_batch else None,
+            item=self.item.to_dto(),
+            related_item=self.related_item.to_dto() if self.related_item else None,
             quantity=self.quantity,
             unit_type=self.unit_type,
             pretty_quantity=self.get_pretty_quantity(),

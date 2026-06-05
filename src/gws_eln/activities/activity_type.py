@@ -5,15 +5,15 @@ class ActivityType(Enum):
     """
     Enum representing the types of inventory activities.
 
-    - CREATE: Create a new batch for a material
-    - RECEIVE: New batch received from supplier
-    - MOVE: Change location of a batch
-    - CONSUME: Use consumable material (decrements quantity)
-    - USE: Use non-consumable material (reference only, no decrement)
-    - DISCARD: Remove batch
-    - ALIQUOT: Quantity taken from parent batch to create an aliquot (logged on parent)
-    - ALIQUOT_CREATED: Aliquot created from a parent batch (logged on the new aliquot)
-    - RELABEL: Change label of a batch
+    - CREATE: Create a new item corresponding to an item sheet
+    - RECEIVE: New item received from supplier
+    - MOVE: Change location of an item
+    - CONSUME: Use consumable item (decrements quantity)
+    - USE: Use non-consumable item (reference only, no decrement)
+    - DISCARD: Remove item
+    - ALIQUOT: Quantity taken from parent item to create an aliquot (logged on parent)
+    - ALIQUOT_CREATED: Aliquot created from a parent item (logged on the new aliquot)
+    - RELABEL: Change label of an item
     """
 
     CREATE = "create"
