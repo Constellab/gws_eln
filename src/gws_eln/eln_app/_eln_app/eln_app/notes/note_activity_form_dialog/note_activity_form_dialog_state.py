@@ -1,7 +1,7 @@
 """State management for the note activity form dialog.
 
-This dialog allows adding a batch activity from within a note.
-The user selects a batch, an activity type, and fills in the
+This dialog allows adding a item activity from within a note.
+The user selects a item, an activity type, and fills in the
 type-specific sub-form before submitting.
 """
 
@@ -13,9 +13,9 @@ import reflex as rx
 from gws_core import Note, RichTextDTO
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.unit_type import UnitType
-from gws_eln.materials.material import Material
-from gws_eln.materials.material_batch_dto import MaterialBatchDTO
-from gws_eln.materials.material_dto import MaterialDTO
+from gws_eln.items.item_sheet import ItemSheet
+from gws_eln.items.item_dto import ItemDTO
+from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_eln.notes.eln_note_dto import AddNoteActivityDTO
 from gws_eln.notes.eln_note_service import ElnNoteService
 from gws_eln.utils.units_converter import UnitConverter
@@ -29,7 +29,7 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
     """State for the note activity form dialog.
 
     Two-step form:
-    1. Select a batch and an activity type
+    1. Select a item and an activity type
     2. Fill in the activity-specific sub-form
     """
 
@@ -38,16 +38,16 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
     _note_block_id: str = ""
     _rich_text_content: RichTextDTO | None = None
 
-    # Step 1: batch and activity type selection
-    form_batch: InputSearchResultDTO | None = None
+    # Step 1: item and activity type selection
+    form_item: InputSearchResultDTO | None = None
     form_activity_type: str = ""
 
-    # For CREATE activity: select material instead of batch
-    form_material: InputSearchResultDTO | None = None
-    _material: MaterialDTO | None = None
+    # For CREATE activity: select item_sheet instead of item
+    form_item_sheet: InputSearchResultDTO | None = None
+    _item_sheet: ItemSheetDTO | None = None
 
-    # Resolved batch (loaded after selection)
-    _batch: MaterialBatchDTO | None = None
+    # Resolved item (loaded after selection)
+    _item: ItemDTO | None = None
 
     # Sub-form fields for receive/consume
     form_unit_type: str = UnitType.COUNT.value
@@ -58,15 +58,15 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
     form_location_id: str = ""
 
     # Sub-form fields for relabel
-    form_batch_number: str = ""
+    form_item_number: str = ""
     form_label: str = ""
 
     # Sub-form fields for aliquot
     form_source_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
-    form_aliquot_unit_type: str = UnitType.COUNT.value  # Target material unit type (for aliquot)
+    form_aliquot_unit_type: str = UnitType.COUNT.value  # Target item_sheet unit type (for aliquot)
     form_aliquot_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
-    form_target_material: InputSearchResultDTO | None = (
-        None  # Required target material for the aliquot
+    form_target_item_sheet: InputSearchResultDTO | None = (
+        None  # Required target item_sheet for the aliquot
     )
     form_supplier_id: str = ""
 
@@ -74,37 +74,37 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
 
     # --- Computed properties ---
     @rx.var
-    def batch(self) -> MaterialBatchDTO | None:
-        """Get the parent batch for display."""
-        if self._batch:
-            return self._batch
+    def item(self) -> ItemDTO | None:
+        """Get the parent item for display."""
+        if self._item:
+            return self._item
         return None
 
     @rx.var
     def current_quantity(self) -> str:
-        """Current quantity of selected batch for display."""
-        if self._batch:
-            return self._batch.pretty_quantity
+        """Current quantity of selected item for display."""
+        if self._item:
+            return self._item.pretty_quantity
         return ""
 
     @rx.var
     def current_location_name(self) -> str:
-        """Current location of selected batch for display."""
-        if self._batch and self._batch.location:
-            return self._batch.location.name
+        """Current location of selected item for display."""
+        if self._item and self._item.location:
+            return self._item.location.name
         return ""
 
     @rx.var
     def show_create_form(self) -> bool:
-        """Whether to show the create batch sub-form (requires material to be selected)."""
+        """Whether to show the create item sub-form (requires item_sheet to be selected)."""
         return self.form_activity_type == ActivityType.CREATE.value
 
     @rx.var
-    def show_batch_select(self) -> bool:
-        """Whether to show the batch/material selection field.
+    def show_item_select(self) -> bool:
+        """Whether to show the item/item_sheet selection field.
 
-        For CREATE activity: show material selection
-        For other activities: show batch selection
+        For CREATE activity: show item_sheet selection
+        For other activities: show item selection
         """
 
         return bool(self.form_activity_type) and self.form_activity_type not in [
@@ -167,74 +167,74 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         self._note_id = note_id
         self._note_block_id = note_block_id
         self._rich_text_content = rich_text_content
-        self._batch = None
-        self.form_batch = None
+        self._item = None
+        self.form_item = None
         self.form_activity_type = ""
         self._reset_sub_form_fields()
         self.is_update_mode = False
         self.dialog_opened = True
 
     @rx.event
-    async def set_batch(self, value: dict):
-        """Handle batch selection change. Load batch details for the sub-form."""
+    async def set_item(self, value: dict):
+        """Handle item selection change. Load item details for the sub-form."""
         if not value:
-            self.form_batch = None
-            self._batch = None
+            self.form_item = None
+            self._item = None
             return
-        self.form_batch = InputSearchResultDTO.from_json_object(value, MaterialBatchDTO)
-        self._batch = self.form_batch.object
+        self.form_item = InputSearchResultDTO.from_json_object(value, ItemDTO)
+        self._item = self.form_item.object
         main_state: ReflexMainState
         async with self:
             main_state = await self.get_state(ReflexMainState)
         with await main_state.authenticate_user():
-            self.form_unit_type = self._batch.unit_type.value
+            self.form_unit_type = self._item.unit_type.value
             best_unit = self._get_best_unit_for_quantity(
-                self._batch.quantity, self._batch.unit_type
+                self._item.quantity, self._item.unit_type
             )
             self.form_unit = best_unit
             self.form_source_unit = best_unit
-            # Initialize target material and aliquot unit type from batch's material
-            self.form_target_material = InputSearchResultDTO(
-                id=self._batch.material.id,
-                display_text=self._batch.material.name,
-                object=self._batch.material,
+            # Initialize target item_sheet and aliquot unit type from item's item_sheet
+            self.form_target_item_sheet = InputSearchResultDTO(
+                id=self._item.item_sheet.id,
+                display_text=self._item.item_sheet.name,
+                object=self._item.item_sheet,
             )
-            self.form_aliquot_unit_type = self._batch.unit_type.value
+            self.form_aliquot_unit_type = self._item.unit_type.value
             self.form_aliquot_unit = best_unit
-            if self._batch.location:
-                self.form_location_id = self._batch.location.id
-            self.form_batch_number = self._batch.batch_number
-            self.form_label = self._batch.label or ""
+            if self._item.location:
+                self.form_location_id = self._item.location.id
+            self.form_item_number = self._item.item_number
+            self.form_label = self._item.label or ""
 
     @rx.event
     def set_activity_type(self, value: str):
         """Handle activity type selection change."""
         self.form_activity_type = value
         self._reset_sub_form_fields()
-        # Reset batch/material selection when activity type changes
+        # Reset item/item_sheet selection when activity type changes
         if value == ActivityType.CREATE.value:
-            self.form_batch = None
-            self._batch = None
+            self.form_item = None
+            self._item = None
         else:
-            self.form_material = None
-            self._material = None
+            self.form_item_sheet = None
+            self._item_sheet = None
 
     @rx.event
-    async def set_material(self, value: dict):
-        """Handle material selection change for CREATE activity."""
+    async def set_item_sheet(self, value: dict):
+        """Handle item_sheet selection change for CREATE activity."""
         if not value:
-            self.form_material = None
-            self._material = None
+            self.form_item_sheet = None
+            self._item_sheet = None
             return
-        self.form_material = InputSearchResultDTO.from_json_object(value, MaterialDTO)
-        self._material = self.form_material.object
+        self.form_item_sheet = InputSearchResultDTO.from_json_object(value, ItemSheetDTO)
+        self._item_sheet = self.form_item_sheet.object
         main_state: ReflexMainState
         async with self:
             main_state = await self.get_state(ReflexMainState)
         with await main_state.authenticate_user():
-            material = Material.get_by_id_and_check(self.form_material.id)
-            self.form_unit_type = material.default_unit_type.value
-            self.form_unit = UnitConverter.get_default_unit(material.default_unit_type)
+            item_sheet = ItemSheet.get_by_id_and_check(self.form_item_sheet.id)
+            self.form_unit_type = item_sheet.default_unit_type.value
+            self.form_unit = UnitConverter.get_default_unit(item_sheet.default_unit_type)
 
     @rx.event
     def set_unit(self, value: str):
@@ -262,19 +262,19 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         self.form_supplier_id = value
 
     @rx.event
-    def set_target_material(self, value: dict):
-        """Handle target material selection change for aliquot.
+    def set_target_item_sheet(self, value: dict):
+        """Handle target item_sheet selection change for aliquot.
 
-        Updates the aliquot unit type based on the selected material's default_unit_type.
+        Updates the aliquot unit type based on the selected item_sheet's default_unit_type.
         """
         if not value:
-            self.form_target_material = None
+            self.form_target_item_sheet = None
             return
-        self.form_target_material = InputSearchResultDTO.from_json_object(value, MaterialDTO)
-        material: MaterialDTO = self.form_target_material.object
-        if material:
-            self.form_aliquot_unit_type = material.default_unit_type.value
-            self.form_aliquot_unit = UnitConverter.get_default_unit(material.default_unit_type)
+        self.form_target_item_sheet = InputSearchResultDTO.from_json_object(value, ItemSheetDTO)
+        item_sheet: ItemSheetDTO = self.form_target_item_sheet.object
+        if item_sheet:
+            self.form_aliquot_unit_type = item_sheet.default_unit_type.value
+            self.form_aliquot_unit = UnitConverter.get_default_unit(item_sheet.default_unit_type)
 
     # --- Form submission ---
 
@@ -287,12 +287,12 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         if not self.form_activity_type:
             raise Exception("Please select an activity type")
 
-        # For CREATE activity, require material; for others, require batch
+        # For CREATE activity, require item_sheet; for others, require item
         if self.form_activity_type == ActivityType.CREATE.value:
-            if not self.form_material:
-                raise Exception("Please select a material")
-        elif not self.form_batch:
-            raise Exception("Please select a batch")
+            if not self.form_item_sheet:
+                raise Exception("Please select a item_sheet")
+        elif not self.form_item:
+            raise Exception("Please select a item")
 
         activity_data = self._build_activity_data(form_data)
 
@@ -305,7 +305,7 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
             dto = AddNoteActivityDTO(
                 note_id=self._note_id,
                 note_block_id=self._note_block_id,
-                batch_id=self.form_batch.id if self.form_batch else None,
+                item_id=self.form_item.id if self.form_item else None,
                 activity_type=ActivityType(self.form_activity_type),
                 activity_data=activity_data,
                 rich_text_content=self._rich_text_content,
@@ -326,10 +326,10 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         self._note_id = ""
         self._note_block_id = ""
         self._rich_text_content = None
-        self._batch = None
-        self._material = None
-        self.form_batch = None
-        self.form_material = None
+        self._item = None
+        self._item_sheet = None
+        self.form_item = None
+        self.form_item_sheet = None
         self.form_activity_type = ""
         self._reset_sub_form_fields()
 
@@ -343,9 +343,9 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         """Reset all sub-form fields to defaults."""
         self.form_notes = ""
         self.form_location_id = ""
-        self.form_batch_number = ""
+        self.form_item_number = ""
         self.form_label = ""
-        self.form_target_material = None
+        self.form_target_item_sheet = None
         self.form_aliquot_unit_type = UnitType.COUNT.value
         self.form_supplier_id = ""
 
@@ -396,11 +396,11 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
             data["notes"] = form_data.get("notes", "").strip() or None
 
         elif activity_type == ActivityType.RELABEL.value:
-            batch_number = form_data.get("batch_number", "").strip()
+            item_number = form_data.get("item_number", "").strip()
             label = form_data.get("label", "").strip()
-            if not batch_number:
-                raise Exception("Batch number is required")
-            data["batch_number"] = batch_number
+            if not item_number:
+                raise Exception("Item number is required")
+            data["item_number"] = item_number
             data["label"] = label or None
 
         elif activity_type == ActivityType.ALIQUOT.value:
@@ -409,13 +409,13 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         return data
 
     def _build_create_data(self, form_data: dict) -> dict[str, Any]:
-        """Build activity_data for batch creation."""
-        if not self.form_material:
-            raise Exception("Material is required")
+        """Build activity_data for item creation."""
+        if not self.form_item_sheet:
+            raise Exception("ItemSheet is required")
 
-        batch_number = form_data.get("batch_number", "").strip()
-        if not batch_number:
-            raise Exception("Batch number is required")
+        item_number = form_data.get("item_number", "").strip()
+        if not item_number:
+            raise Exception("Item number is required")
 
         quantity_str = form_data.get("quantity", "").strip()
         if not quantity_str:
@@ -432,8 +432,8 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
             raise Exception("Unit is required")
 
         return {
-            "material_id": self.form_material.id,
-            "batch_number": batch_number,
+            "item_sheet_id": self.form_item_sheet.id,
+            "item_number": item_number,
             "quantity": quantity,
             "unit": self.form_unit,
             "location_id": self.form_location_id or None,
@@ -447,8 +447,8 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         source_qty_str = form_data.get("source_quantity", "").strip()
         aliquot_qty_str = form_data.get("aliquot_quantity", "").strip()
 
-        if not self.form_target_material:
-            raise Exception("Target material is required")
+        if not self.form_target_item_sheet:
+            raise Exception("Target item_sheet is required")
         if not source_qty_str:
             raise Exception("Source quantity is required")
         if not aliquot_qty_str:
@@ -473,13 +473,13 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
             supplier_id = None
 
         return {
-            "parent_batch_id": self.form_batch.id if self.form_batch else None,
-            "target_material_id": self.form_target_material.id,
+            "parent_item_id": self.form_item.id if self.form_item else None,
+            "target_item_sheet_id": self.form_target_item_sheet.id,
             "source_quantity": source_quantity,
             "source_unit": self.form_source_unit,
             "aliquot_quantity": aliquot_quantity,
             "aliquot_unit": self.form_aliquot_unit,
-            "aliquot_batch_number": form_data.get("aliquot_batch_number", "").strip() or None,
+            "aliquot_item_number": form_data.get("aliquot_item_number", "").strip() or None,
             "label": form_data.get("label", "").strip() or None,
             "location_id": self.form_location_id or None,
             "supplier_id": supplier_id,

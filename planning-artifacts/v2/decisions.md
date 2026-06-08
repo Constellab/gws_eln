@@ -166,7 +166,7 @@ flips EXHAUSTED back to ACTIVE automatically.
 - Audit-field pattern, `ModelWithUser`, gws_project structural patterns.
 
 **REBUILD (entity layer + services touching it):**
-- ItemSheet (was Material), Item (was Material_Batch), Reception (new),
+- ItemSheet (was Material), Item (was Material_Batch), Reception (new), <- no new Reception, we use additional Activity columns
   Activity + activity_inputs + activity_outputs (reshaped — §12).
 - All services that operate on those entities.
 

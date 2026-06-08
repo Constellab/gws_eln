@@ -1,0 +1,106 @@
+"""Update item form dialog component."""
+
+import reflex as rx
+from gws_reflex_main import form_dialog_component
+
+from ...suppliers.core.supplier_select_component import supplier_select_component
+from .update_item_form_dialog_state import UpdateItemFormDialogState
+
+
+def _form_content() -> rx.Component:
+    """Form content for updating item metadata."""
+    return rx.vstack(
+        # Item Number (read-only display)
+        rx.vstack(
+            rx.text("Item", size="2", weight="bold"),
+            rx.text(
+                UpdateItemFormDialogState.item_number,
+                size="2",
+                color="gray",
+            ),
+            width="100%",
+            spacing="1",
+        ),
+        # ItemSheet Name (read-only display)
+        rx.vstack(
+            rx.text("ItemSheet", size="2", weight="bold"),
+            rx.text(
+                UpdateItemFormDialogState.item_sheet_name,
+                size="2",
+                color="gray",
+            ),
+            width="100%",
+            spacing="1",
+        ),
+        # Supplier field
+        rx.vstack(
+            rx.text("Supplier", size="2", weight="bold"),
+            supplier_select_component(
+                placeholder="Select a supplier (optional)",
+                additional_option=("No supplier", "__none__"),
+                value=UpdateItemFormDialogState.form_supplier_id,
+                on_change=UpdateItemFormDialogState.set_supplier_id,
+            ),
+            width="100%",
+            spacing="1",
+        ),
+        # Expiry Date field
+        rx.vstack(
+            rx.text("Expiry Date", size="2", weight="bold"),
+            rx.input(
+                placeholder="Select expiry date (optional)",
+                name="expiry_date",
+                type="date",
+                width="100%",
+                value=UpdateItemFormDialogState.form_expiry_date,
+                on_change=UpdateItemFormDialogState.set_expiry_date,
+            ),
+            width="100%",
+            spacing="1",
+        ),
+        # Notes field
+        rx.vstack(
+            rx.text("Notes", size="2", weight="bold"),
+            rx.text_area(
+                placeholder="Enter notes (optional)",
+                name="notes",
+                width="100%",
+                default_value=UpdateItemFormDialogState.form_notes,
+                rows="3",
+            ),
+            width="100%",
+            spacing="1",
+        ),
+        width="100%",
+        spacing="3",
+    )
+
+
+def _dialog() -> rx.Component:
+    """The base dialog component without a trigger.
+
+    :return: The dialog component
+    :rtype: rx.Component
+    """
+    return form_dialog_component(
+        state=UpdateItemFormDialogState,
+        title="Update Item",
+        description="Update item metadata (supplier, expiry date, notes).",
+        form_content=_form_content(),
+        max_width="450px",
+    )
+
+
+def update_item_dialog() -> rx.Component:
+    """Dialog component for updating item metadata.
+
+    This component provides just the dialog (without a trigger button).
+    The dialog is controlled by the UpdateItemFormDialogState.dialog_opened state.
+
+    To open the dialog, call UpdateItemFormDialogState.open_update_dialog(item)
+    with the item to update.
+
+    :return: The update item dialog component
+    :rtype: rx.Component
+    """
+    return _dialog()

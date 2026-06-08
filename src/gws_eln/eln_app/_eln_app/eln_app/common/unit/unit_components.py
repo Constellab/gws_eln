@@ -1,6 +1,10 @@
+from typing import Literal
+
 import reflex as rx
 from gws_eln.core.unit_type import UnitType
 from gws_eln.utils.units_converter import UnitConverter
+
+LiteralSpacing = Literal["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 
 def quantity_unit_input(
@@ -12,13 +16,13 @@ def quantity_unit_input(
     on_quantity_change: rx.EventHandler | None = None,
     on_unit_change: rx.EventHandler | None = None,
     quantity_placeholder: str = "Enter quantity",
-    quantity_label: str = "Quantity",
-    unit_label: str = "Unit",
+    quantity_label: rx.Var[str] | str = "Quantity",
+    unit_label: rx.Var[str] | str = "Unit",
     quantity_required: bool = True,
     disabled: bool = False,
     quantity_width: str = "60%",
     unit_width: str = "40%",
-    spacing: str = "3",
+    spacing: LiteralSpacing = "3",
 ) -> rx.Component:
     """
     Reusable quantity input component with dynamic unit selection.
@@ -124,19 +128,32 @@ def quantity_unit_input(
     if on_quantity_change:
         quantity_props["on_change"] = on_quantity_change
 
-    # Add asterisk to labels if quantity is required
-    display_quantity_label = f"{quantity_label} *" if quantity_required else quantity_label
-    display_unit_label = f"{unit_label} *" if quantity_required else unit_label
+    quantity_label_component = rx.text(quantity_label, size="2", weight="bold")
+    unit_label_component = rx.text(unit_label, size="2", weight="bold")
+
+    if quantity_required:
+        quantity_label_component = rx.hstack(
+            quantity_label_component,
+            rx.text("*", size="2", weight="bold"),
+            spacing="2",
+            align="center",
+        )
+        unit_label_component = rx.hstack(
+            unit_label_component,
+            rx.text("*", size="2", weight="bold"),
+            spacing="2",
+            align="center",
+        )
 
     return rx.hstack(
         rx.vstack(
-            rx.text(display_quantity_label, size="2", weight="bold"),
+            quantity_label_component,
             rx.input(**quantity_props),
             width=quantity_width,
             spacing="1",
         ),
         rx.vstack(
-            rx.text(display_unit_label, size="2", weight="bold"),
+            unit_label_component,
             unit_select,
             width=unit_width,
             spacing="1",

@@ -1,14 +1,14 @@
 import reflex as rx
 from gws_reflex_main import register_gws_reflex_app
 
-from .batches.batch_detail_page import batch_detail_page
-from .batches.batch_detail_state import BatchDetailState
+from .item_sheets.item_sheet_detail_page import item_sheet_detail_page
+from .item_sheets.item_sheet_detail_state import ItemSheetDetailState
+from .item_sheets.item_sheets_list_state import ItemSheetsListState
+from .item_sheets.item_sheets_page import item_sheets_page
+from .items.item_detail_page import item_detail_page
+from .items.item_detail_state import ItemDetailState
 from .locations.locations_list_state import LocationsListState
 from .locations.locations_page import locations_page
-from .materials.material_detail_page import material_detail_page
-from .materials.material_detail_state import MaterialDetailState
-from .materials.materials_list_state import MaterialsListState
-from .materials.materials_page import materials_page
 from .notes.note_detail_page import note_detail_page
 from .notes.note_detail_state import NoteDetailState
 from .notes.notes_list_state import NotesListState
@@ -25,10 +25,10 @@ def notes():
     return notes_page()
 
 
-@rx.page(route="/materials", on_load=[MaterialsListState.on_load])
+@rx.page(route="/item_sheets", on_load=[ItemSheetsListState.on_load])
 def index():
-    """Materials page (home)."""
-    return materials_page()
+    """ItemSheets page (home)."""
+    return item_sheets_page()
 
 
 @rx.page(route="/locations", on_load=[LocationsListState.on_load])
@@ -43,10 +43,10 @@ def suppliers():
     return suppliers_page()
 
 
-@rx.page(route="/materials/[material_id]", on_load=[MaterialDetailState.on_load])
-def material_detail():
-    """Material detail page."""
-    return material_detail_page()
+@rx.page(route="/item_sheets/[item_sheet_id]", on_load=[ItemSheetDetailState.on_load])
+def item_sheet_detail():
+    """ItemSheet detail page."""
+    return item_sheet_detail_page()
 
 
 @rx.page(route="/notes/[note_id]", on_load=[NoteDetailState.on_load])
@@ -55,7 +55,7 @@ def note_detail():
     return note_detail_page()
 
 
-@rx.page(route="/batches/[batch_id]", on_load=[BatchDetailState.on_load])
-def batch_detail():
-    """Batch detail page."""
-    return batch_detail_page()
+@rx.page(route="/items/[item_id]", on_load=[ItemDetailState.on_load])
+def item_detail():
+    """Item detail page."""
+    return item_detail_page()

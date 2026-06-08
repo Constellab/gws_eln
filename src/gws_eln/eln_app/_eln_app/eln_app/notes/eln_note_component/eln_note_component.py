@@ -2,7 +2,7 @@
 
 import reflex as rx
 from gws_eln.core.eln_settings import ELNSettings
-from gws_eln.rich_text.rich_text_block_material_activity import RichTextBlockMaterialActivity
+from gws_eln.rich_text.rich_text_block_item_activity import RichTextBlockItemActivity
 from gws_reflex_main.gws_components import (
     RichTextCustomBlocksConfig,
     rich_text_component,
@@ -30,7 +30,7 @@ def eln_note_component() -> rx.Component:
             custom_style={"height": "100%", "minHeight": "400px", "paddingBottom": "0"},
             custom_tools_config=RichTextCustomBlocksConfig(
                 jsx_file_path=js_asset_path,  # normalizeAssetPath in JSX handles dev/prod
-                custom_blocks={"ActivityBlock": RichTextBlockMaterialActivity},
+                custom_blocks={"ActivityBlock": RichTextBlockItemActivity},
                 config={"apiUrl": ELNSettings.get_eln_api_url()},
             ),
             custom_tools_event=NoteDetailState.on_custom_tool_event,

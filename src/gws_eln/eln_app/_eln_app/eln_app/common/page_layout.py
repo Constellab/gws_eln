@@ -23,9 +23,9 @@ def sidebar_content() -> rx.Component:
             ),
             menu_item_component(
                 "package",
-                "Materials",
-                "/materials",
-                additional_active_route_prefixes=["/materials", "/batches"],
+                "ItemSheets",
+                "/item_sheets",
+                additional_active_route_prefixes=["/item_sheets", "/items"],
             ),
             menu_item_component("map-pin", "Locations", "/locations"),
             menu_item_component("truck", "Suppliers", "/suppliers"),

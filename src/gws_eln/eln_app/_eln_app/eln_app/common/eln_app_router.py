@@ -22,35 +22,35 @@ class ElnAppRouter:
         return f"/notes/{note_id}"
 
     @staticmethod
-    def get_material_list_url() -> str:
-        """Get the URL for the material list page.
+    def get_item_sheet_list_url() -> str:
+        """Get the URL for the item_sheet list page.
 
-        :return: The material list URL
+        :return: The item_sheet list URL
         :rtype: str
         """
-        return "/materials"
+        return "/item_sheets"
 
     @staticmethod
-    def get_material_detail_url(material_id: str) -> str:
-        """Get the URL for the material detail page.
+    def get_item_sheet_detail_url(item_sheet_id: str) -> str:
+        """Get the URL for the item_sheet detail page.
 
-        :param material_id: The ID of the material
-        :type material_id: str
-        :return: The material detail URL
+        :param item_sheet_id: The ID of the item_sheet
+        :type item_sheet_id: str
+        :return: The item_sheet detail URL
         :rtype: str
         """
-        return f"/materials/{material_id}"
+        return f"/item_sheets/{item_sheet_id}"
 
     @staticmethod
-    def get_batch_detail_url(batch_id: str) -> str:
-        """Get the URL for the batch detail page.
+    def get_item_detail_url(item_id: str) -> str:
+        """Get the URL for the item detail page.
 
-        :param batch_id: The ID of the batch
-        :type batch_id: str
-        :return: The batch detail URL
+        :param item_id: The ID of the item
+        :type item_id: str
+        :return: The item detail URL
         :rtype: str
         """
-        return f"/batches/{batch_id}"
+        return f"/items/{item_id}"
 
     @staticmethod
     def get_location_list_url() -> str:

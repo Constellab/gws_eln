@@ -7,8 +7,8 @@ from gws_eln.activities.activity_dto import ActivityDTO
 from gws_eln.activities.activity_type import ActivityType
 from gws_reflex_main import user_with_date_component
 
-from ..batches.core.batch_components import batch_inline_link
 from ..common.eln_app_router import ElnAppRouter
+from ..items.core.item_components import item_inline_link
 from ..locations.core.inline_location_component import inline_location_component
 from .activities_list_state import ALL_FILTER_VALUE, ActivitiesListState
 from .activity_type_component import activity_type_badge
@@ -47,8 +47,20 @@ def _type_specific_description(activity: ActivityDTO) -> rx.Component:
                     align_items="center",
                 ),
             ),
-            (ActivityType.ALIQUOT.value, batch_inline_link(activity.related_batch)),
-            (ActivityType.ALIQUOT_CREATED.value, batch_inline_link(activity.related_batch)),
+            (
+                ActivityType.ALIQUOT.value,
+                rx.cond(
+                    activity.related_item,
+                    item_inline_link(activity.related_item),
+                ),
+            ),
+            (
+                ActivityType.ALIQUOT_CREATED.value,
+                rx.cond(
+                    activity.related_item,
+                    item_inline_link(activity.related_item),
+                ),
+            ),
             rx.fragment(),
         ),
     )
@@ -211,18 +223,18 @@ def _activities_table() -> rx.Component:
     )
 
 
-def activities_list_component(batch_id: rx.Var[str]) -> rx.Component:
-    """Create the activities list component for a specific batch.
+def activities_list_component(item_id: rx.Var[str]) -> rx.Component:
+    """Create the activities list component for a specific item.
 
     This component displays a table of activities with columns for
     type, description, quantity, and user/date.
     Includes a filter for activity type.
 
     The component uses on_mount to trigger activity loading when mounted,
-    and a key based on batch_id to force remount when batch changes.
+    and a key based on item_id to force remount when item changes.
 
-    :param batch_id: The ID of the batch to display activities for
-    :type batch_id: rx.Var[str]
+    :param item_id: The ID of the item to display activities for
+    :type item_id: rx.Var[str]
     :return: The activities list component
     :rtype: rx.Component
     """
@@ -232,8 +244,8 @@ def activities_list_component(batch_id: rx.Var[str]) -> rx.Component:
             _activities_table(),
             width="100%",
             spacing="4",
-            on_mount=ActivitiesListState.fetch_activities_on_mount(batch_id),
+            on_mount=ActivitiesListState.fetch_activities_on_mount(item_id),
         ),
-        key=batch_id,
+        key=item_id,
         width="100%",
     )

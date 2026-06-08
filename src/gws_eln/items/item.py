@@ -22,9 +22,9 @@ from gws_eln.utils.units_converter import UnitConverter
 
 class Item(ModelWithUser):
     """
-    Item entity - represents physical inventory (batches and aliquots).
+    Item entity - represents physical inventory (items and aliquots).
 
-    Handles: received batches, aliquots, instrument instances, sample instances.
+    Handles: received items, aliquots, instrument instances, sample instances.
 
     Key behaviors:
     - parent_item_id NULL = original item/instance

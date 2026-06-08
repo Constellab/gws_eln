@@ -12,7 +12,7 @@ from gws_core import (
 
 from gws_eln.items.item_service import ItemService
 from gws_eln.notes.eln_note_service import ElnNoteService
-from gws_eln.rich_text.rich_text_block_material_activity import RichTextBlockItemActivity
+from gws_eln.rich_text.rich_text_block_item_activity import RichTextBlockItemActivity
 
 
 @event_listener

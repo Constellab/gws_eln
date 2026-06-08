@@ -1,7 +1,7 @@
 """Note activity form dialog component.
 
-Two-step dialog for adding a batch activity from within a note:
-1. Select a batch and an activity type
+Two-step dialog for adding a item activity from within a note:
+1. Select a item and an activity type
 2. Fill in the activity-specific sub-form (reused from existing form sections)
 """
 
@@ -10,7 +10,7 @@ from gws_reflex_main import form_dialog_component
 
 from ...activities.activity_form_sections import (
     aliquot_form_section,
-    create_batch_form_section,
+    create_item_form_section,
     move_form_section,
     receive_consume_form_section,
     relabel_form_section,
@@ -19,20 +19,20 @@ from ...activities.activity_form_sections import (
 from ...activities.activity_type_select_component import (
     activity_type_select_component,
 )
-from ...batches.core.batch_select_component import batch_select_component
+from ...items.core.item_select_component import item_select_component
 from .note_activity_form_dialog_state import NoteActivityFormDialogState
 
 S = NoteActivityFormDialogState
 
 
-def _batch_info_section() -> rx.Component:
-    """Read-only display of selected batch info, shown when a sub-form is active (except for CREATE)."""
+def _item_info_section() -> rx.Component:
+    """Read-only display of selected item info, shown when a sub-form is active (except for CREATE)."""
     return rx.cond(
-        S.show_batch_select & S.batch,
+        S.show_item_select & S.item,
         rx.vstack(
             rx.vstack(
                 rx.text("Current Quantity", size="2", weight="bold"),
-                rx.text(S.batch.pretty_quantity, size="2", color="gray"),
+                rx.text(S.item.pretty_quantity, size="2", color="gray"),
                 width="100%",
                 spacing="1",
             ),
@@ -48,9 +48,9 @@ def _sub_form() -> rx.Component:
     return rx.fragment(
         rx.cond(
             S.show_create_form,
-            create_batch_form_section(
-                form_material=S.form_material,
-                on_material_change=S.set_material,
+            create_item_form_section(
+                form_item_sheet=S.form_item_sheet,
+                on_item_sheet_change=S.set_item_sheet,
                 form_unit_type=S.form_unit_type,
                 form_unit=S.form_unit,
                 on_unit_change=S.set_unit,
@@ -95,7 +95,7 @@ def _sub_form() -> rx.Component:
         rx.cond(
             S.show_relabel_form,
             relabel_form_section(
-                form_batch_number=S.form_batch_number,
+                form_item_number=S.form_item_number,
                 form_label=S.form_label,
             ),
         ),
@@ -113,12 +113,12 @@ def _sub_form() -> rx.Component:
                 form_supplier_id=S.form_supplier_id,
                 on_supplier_change=S.set_supplier_id,
                 form_notes=S.form_notes,
-                form_target_material=S.form_target_material,
-                on_target_material_change=S.set_target_material,
-                form_parent_batch=S.form_batch,
-                parent_batch=S.batch,
-                on_parent_batch_change=S.set_batch,
-                batch_select_disabled=False,
+                form_target_item_sheet=S.form_target_item_sheet,
+                on_target_item_sheet_change=S.set_target_item_sheet,
+                form_parent_item=S.form_item,
+                parent_item=S.item,
+                on_parent_item_change=S.set_item,
+                item_select_disabled=False,
             ),
         ),
     )
@@ -138,20 +138,20 @@ def _form_content() -> rx.Component:
             spacing="1",
         ),
         rx.cond(
-            S.show_batch_select,
-            # For other activities: show batch selector
+            S.show_item_select,
+            # For other activities: show item selector
             rx.vstack(
-                batch_select_component(
-                    placeholder="Select a batch...",
-                    selected_item=S.form_batch,
-                    item_selected=S.set_batch,
+                item_select_component(
+                    placeholder="Select a item...",
+                    selected_item=S.form_item,
+                    item_selected=S.set_item,
                 ),
                 width="100%",
                 spacing="1",
             ),
         ),
-        # Batch info + sub-form (shown after both selections)
-        _batch_info_section(),
+        # Item info + sub-form (shown after both selections)
+        _item_info_section(),
         _sub_form(),
         width="100%",
         spacing="3",
@@ -162,15 +162,15 @@ def _dialog() -> rx.Component:
     """The dialog component."""
     return form_dialog_component(
         state=NoteActivityFormDialogState,
-        title="Add Batch Activity",
-        description="Select a batch and an activity to record from this note.",
+        title="Add Item Activity",
+        description="Select a item and an activity to record from this note.",
         form_content=_form_content(),
         max_width="500px",
     )
 
 
 def note_activity_form_dialog() -> rx.Component:
-    """Dialog component for adding a batch activity from a note.
+    """Dialog component for adding a item activity from a note.
 
     This component provides the dialog (without a trigger button).
     The dialog is controlled by NoteActivityFormDialogState.dialog_opened.

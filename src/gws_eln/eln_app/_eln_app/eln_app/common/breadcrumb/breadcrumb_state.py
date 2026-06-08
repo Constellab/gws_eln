@@ -3,10 +3,10 @@
 from dataclasses import dataclass
 
 import reflex as rx
-from gws_eln.materials.material import Material
-from gws_eln.materials.material_batch import MaterialBatch
-from gws_eln.materials.material_batch_service import MaterialBatchService
-from gws_eln.materials.material_service import MaterialService
+from gws_eln.items.item_sheet import ItemSheet
+from gws_eln.items.item import Item
+from gws_eln.items.item_service import ItemService
+from gws_eln.items.item_sheet_service import ItemSheetService
 from gws_reflex_main import ReflexMainState
 
 from ..eln_app_router import ElnAppRouter
@@ -43,66 +43,66 @@ class BreadcrumbState(rx.State):
         :return: List of breadcrumb items
         :rtype: list[BreadcrumbItem]
         """
-        # Start with base breadcrumb - Materials list
-        items = [BreadcrumbItem(label="Materials", url=ElnAppRouter.get_material_list_url())]
+        # Start with base breadcrumb - ItemSheets list
+        items = [BreadcrumbItem(label="ItemSheets", url=ElnAppRouter.get_item_sheet_list_url())]
 
-        # Check if we're on a material detail page
-        material_id = self.material_id
-        if material_id:
-            material = await self._get_material(material_id)
-            if material:
+        # Check if we're on a item_sheet detail page
+        item_sheet_id = self.item_sheet_id
+        if item_sheet_id:
+            item_sheet = await self._get_item_sheet(item_sheet_id)
+            if item_sheet:
                 items.append(
                     BreadcrumbItem(
-                        label=material.name,
-                        url=ElnAppRouter.get_material_detail_url(material.id),
+                        label=item_sheet.name,
+                        url=ElnAppRouter.get_item_sheet_detail_url(item_sheet.id),
                     )
                 )
             return items
 
-        # Check if we're on a batch detail page
-        batch_id = self.batch_id
-        if batch_id:
-            items.extend(await self._build_breadcrumbs_for_batch(batch_id))
+        # Check if we're on a item detail page
+        item_id = self.item_id
+        if item_id:
+            items.extend(await self._build_breadcrumbs_for_item(item_id))
             return items
 
         return items
 
-    async def _get_material(self, material_id: str) -> Material | None:
-        """Get a material by ID.
+    async def _get_item_sheet(self, item_sheet_id: str) -> ItemSheet | None:
+        """Get a item_sheet by ID.
 
-        :param material_id: The ID of the material
-        :type material_id: str
-        :return: The material or None if not found
-        :rtype: Material | None
+        :param item_sheet_id: The ID of the item_sheet
+        :type item_sheet_id: str
+        :return: The item_sheet or None if not found
+        :rtype: ItemSheet | None
         """
         main_state = await self.get_state(ReflexMainState)
         with await main_state.authenticate_user():
-            material_service = MaterialService()
-            return material_service.get_material(material_id)
+            item_sheet_service = ItemSheetService()
+            return item_sheet_service.get_item_sheet(item_sheet_id)
 
-    async def _build_breadcrumbs_for_batch(self, batch_id: str) -> list[BreadcrumbItem]:
-        """Build breadcrumb items for a batch page.
+    async def _build_breadcrumbs_for_item(self, item_id: str) -> list[BreadcrumbItem]:
+        """Build breadcrumb items for a item page.
 
-        This includes the material and all parent batches in the hierarchy.
+        This includes the item_sheet and all parent items in the hierarchy.
 
-        :param batch_id: The ID of the batch
-        :type batch_id: str
-        :return: List of breadcrumb items for the batch hierarchy
+        :param item_id: The ID of the item
+        :type item_id: str
+        :return: List of breadcrumb items for the item hierarchy
         :rtype: list[BreadcrumbItem]
         """
-        batch: MaterialBatch
+        item: Item
         main_state = await self.get_state(ReflexMainState)
         with await main_state.authenticate_user():
-            batch_service = MaterialBatchService()
-            batch = batch_service.get_batch(batch_id)
+            item_service = ItemService()
+            item = item_service.get_item(item_id)
 
         return [
             BreadcrumbItem(
-                label=batch.material.name,
-                url=ElnAppRouter.get_material_detail_url(batch.material.id),
+                label=item.item_sheet.name,
+                url=ElnAppRouter.get_item_sheet_detail_url(item.item_sheet.id),
             ),
             BreadcrumbItem(
-                label=batch.batch_number,
-                url=ElnAppRouter.get_batch_detail_url(batch.id),
+                label=item.item_number,
+                url=ElnAppRouter.get_item_detail_url(item.id),
             ),
         ]

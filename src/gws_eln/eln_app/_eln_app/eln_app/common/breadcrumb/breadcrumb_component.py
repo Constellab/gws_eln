@@ -9,7 +9,7 @@ def breadcrumb_component(breadcrumbs: list[BreadcrumbItem]) -> rx.Component:
     """Create the breadcrumb navigation component.
 
     This component displays a clickable breadcrumb trail showing the hierarchy
-    of the current page: Materials > [MATERIAL_NAME] > [BATCH_NUMBER] > [ALIQUOT_NUMBER]
+    of the current page: ItemSheets > [ITEM_SHEET_NAME] > [ITEM_NUMBER] > [ALIQUOT_NUMBER]
 
     :param breadcrumbs: The list of breadcrumb items to display
     :type breadcrumbs: list[BreadcrumbItem]

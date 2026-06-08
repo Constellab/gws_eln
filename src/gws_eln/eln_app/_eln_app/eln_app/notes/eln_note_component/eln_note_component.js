@@ -82,7 +82,7 @@ export function getCustomTools(customToolsConfig, authenticationInfo, customTool
       batchLink.className = 'ab-batch-link';
       batchLink.textContent = activity.batch?.batch_number || 'Unknown batch';
       if (activity.batch?.id) {
-        batchLink.href = `/batches/${activity.batch.id}`;
+        batchLink.href = `/items/${activity.batch.id}`;
       }
       title.appendChild(batchLink);
 

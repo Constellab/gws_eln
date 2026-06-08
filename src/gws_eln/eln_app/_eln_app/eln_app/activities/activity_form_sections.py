@@ -1,16 +1,16 @@
-"""Reusable form sections for batch activity dialogs.
+"""Reusable form sections for item activity dialogs.
 
 Each function returns the editable form fields for a specific activity type.
 These are used by both the standalone form dialogs and the note activity dialog.
 """
 
 import reflex as rx
-from gws_eln.materials.material_batch_dto import MaterialBatchDTO
+from gws_eln.items.item_dto import ItemDTO
 
-from ..batches.core.batch_select_component import batch_select_component
+from ..items.core.item_select_component import item_select_component
 from ..common.unit.unit_components import quantity_unit_input
 from ..locations.core.location_select_component import location_select_component
-from ..materials.core.material_select_component import material_select_component
+from ..item_sheets.core.item_sheet_select_component import item_sheet_select_component
 from ..suppliers.core.supplier_select_component import supplier_select_component
 
 
@@ -86,19 +86,19 @@ def use_discard_form_section(
 
 
 def relabel_form_section(
-    form_batch_number: rx.Var[str],
+    form_item_number: rx.Var[str],
     form_label: rx.Var[str],
 ) -> rx.Component:
-    """Form section for relabel operation: new batch number + new label."""
+    """Form section for relabel operation: new item number + new label."""
     return rx.fragment(
         rx.vstack(
-            rx.text("New Batch Number*", size="2", weight="bold"),
+            rx.text("New Item Number*", size="2", weight="bold"),
             rx.input(
-                placeholder="Enter new batch number",
-                name="batch_number",
+                placeholder="Enter new item number",
+                name="item_number",
                 required=True,
                 width="100%",
-                default_value=form_batch_number,
+                default_value=form_item_number,
             ),
             width="100%",
             spacing="1",
@@ -117,9 +117,9 @@ def relabel_form_section(
     )
 
 
-def create_batch_form_section(
-    form_material: rx.Var,
-    on_material_change: rx.EventHandler,
+def create_item_form_section(
+    form_item_sheet: rx.Var,
+    on_item_sheet_change: rx.EventHandler,
     form_unit_type: rx.Var[str],
     form_unit: rx.Var[str],
     on_unit_change: rx.EventHandler,
@@ -129,22 +129,22 @@ def create_batch_form_section(
     on_supplier_change: rx.EventHandler,
     form_notes: rx.Var[str],
 ) -> rx.Component:
-    """Form section for creating a new batch: batch number, quantity, unit, location, supplier, label, notes."""
+    """Form section for creating a new item: item number, quantity, unit, location, supplier, label, notes."""
     return rx.vstack(
-        material_select_component(
-            placeholder="Search a material...",
-            selected_item=form_material,
-            item_selected=on_material_change,
+        item_sheet_select_component(
+            placeholder="Search an item sheet...",
+            selected_item=form_item_sheet,
+            item_selected=on_item_sheet_change,
         ),
         rx.cond(
-            form_material,
+            form_item_sheet,
             rx.fragment(
-                # Batch Number (required)
+                # Item Number (required)
                 rx.vstack(
-                    rx.text("Batch Number*", size="2", weight="bold"),
+                    rx.text("Item Number*", size="2", weight="bold"),
                     rx.input(
-                        placeholder="Enter batch number",
-                        name="batch_number",
+                        placeholder="Enter item number",
+                        name="item_number",
                         required=True,
                         width="100%",
                     ),
@@ -244,12 +244,12 @@ def aliquot_form_section(
     form_supplier_id: rx.Var[str],
     on_supplier_change: rx.EventHandler,
     form_notes: rx.Var[str],
-    form_target_material: rx.Var,
-    on_target_material_change: rx.EventHandler,
-    parent_batch: MaterialBatchDTO | None = None,
-    form_parent_batch: rx.Var | None = None,
-    on_parent_batch_change: rx.EventHandler | None = None,
-    batch_select_disabled: bool = True,
+    form_target_item_sheet: rx.Var,
+    on_target_item_sheet_change: rx.EventHandler,
+    parent_item: ItemDTO | None = None,
+    form_parent_item: rx.Var | None = None,
+    on_parent_item_change: rx.EventHandler | None = None,
+    item_select_disabled: bool = True,
 ) -> rx.Component:
     """Form section for aliquot creation with two steps: source extraction and new aliquot details.
 
@@ -264,45 +264,52 @@ def aliquot_form_section(
     :param form_supplier_id: Supplier ID value
     :param on_supplier_change: Handler for supplier change
     :param form_notes: Notes value
-    :param form_target_material: Target material value
-    :param on_target_material_change: Handler for target material change
-    :param parent_batch_number: Parent batch number (for display)
+    :param form_target_item_sheet: Target item sheet value
+    :param on_target_item_sheet_change: Handler for target item sheet change
+    :param parent_item: Parent item (for display)
     :param parent_available_quantity: Parent available quantity (for display)
-    :param form_parent_batch: Parent batch selection value (for batch_select_component)
-    :param on_parent_batch_change: Handler for parent batch selection change
-    :param batch_select_disabled: Whether the batch selection is disabled (default True)
+    :param form_parent_item: Parent item selection value (for item_select_component)
+    :param on_parent_item_change: Handler for parent item selection change
+    :param item_select_disabled: Whether the item selection is disabled (default True)
     """
     parent_section = rx.fragment(
         rx.box(
             rx.vstack(
                 _step_header(1, "Source"),
                 rx.text(
-                    "Select how much to extract from the parent batch",
+                    "Select how much to extract from the parent item",
                     size="1",
                     color="gray",
                 ),
                 rx.hstack(
                     rx.cond(
-                        batch_select_disabled,
+                        item_select_disabled,
                         rx.vstack(
-                            rx.text("Batch Number", size="2", weight="medium", color="gray"),
-                            rx.cond(parent_batch, rx.text(parent_batch.batch_number, size="2")),
+                            rx.text("Item Number", size="2", weight="medium", color="gray"),
+                            rx.text(parent_item.item_number, size="2")
+                            if parent_item
+                            else rx.fragment(),
                             spacing="1",
                             width="60%",
                         ),
                         rx.box(
-                            batch_select_component(
-                                placeholder="Select a batch...",
-                                selected_item=form_parent_batch,
-                                item_selected=on_parent_batch_change,
-                                disabled=batch_select_disabled,
+                            item_select_component(
+                                placeholder="Select an item...",
+                                selected_item=form_parent_item,
+                                item_selected=on_parent_item_change,
+                                disabled=item_select_disabled,
                             ),
                             width="60%",
                         ),
                     ),
                     rx.vstack(
                         rx.text("Available", size="2", weight="medium", color="gray"),
-                        rx.cond(parent_batch, rx.text(parent_batch.pretty_quantity, size="2")),
+                        rx.cond(
+                            parent_item,
+                            rx.text(parent_item.pretty_quantity, size="2")
+                            if parent_item
+                            else rx.fragment(),
+                        ),
                         spacing="1",
                         width="40%",
                     ),
@@ -337,35 +344,35 @@ def aliquot_form_section(
             rx.vstack(
                 _step_header(2, "New Aliquot"),
                 rx.text(
-                    "Configure the new aliquot batch",
+                    "Configure the new aliquot item",
                     size="1",
                     color="gray",
                 ),
-                # Target material selection (required)
+                # Target item sheet selection (required)
                 rx.vstack(
-                    material_select_component(
-                        placeholder="Search target material...",
-                        selected_item=form_target_material,
-                        item_selected=on_target_material_change,
+                    item_sheet_select_component(
+                        placeholder="Search target item sheet...",
+                        selected_item=form_target_item_sheet,
+                        item_selected=on_target_item_sheet_change,
                     ),
                     rx.text(
-                        "The material type for the new aliquot",
+                        "The item sheet type for the new aliquot",
                         size="1",
                         color="gray",
                     ),
                     width="100%",
                     spacing="1",
                 ),
-                # Aliquot batch number (optional)
+                # Aliquot item number (optional)
                 rx.vstack(
-                    rx.text("Batch Number", size="2", weight="bold"),
+                    rx.text("Item Number", size="2", weight="bold"),
                     rx.input(
                         placeholder="Auto-generated if empty",
-                        name="aliquot_batch_number",
+                        name="aliquot_item_number",
                         width="100%",
                     ),
                     rx.text(
-                        "Leave empty to auto-generate based on parent batch",
+                        "Leave empty to auto-generate based on parent item",
                         size="1",
                         color="gray",
                     ),

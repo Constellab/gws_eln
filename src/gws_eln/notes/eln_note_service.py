@@ -30,7 +30,7 @@ from gws_eln.items.item_dto import (
 )
 from gws_eln.items.item_service import ItemService
 from gws_eln.notes.eln_note_dto import AddNoteActivityDTO
-from gws_eln.rich_text.rich_text_block_material_activity import RichTextBlockItemActivity
+from gws_eln.rich_text.rich_text_block_item_activity import RichTextBlockItemActivity
 
 
 class ElnNoteService:

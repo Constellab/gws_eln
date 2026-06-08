@@ -49,6 +49,7 @@ class LocationsListState(rx.State):
         finally:
             self.is_loading = False
 
+    @rx.event
     async def on_load(self):
         """Event handler called when the page loads."""
         await self.load_locations()
