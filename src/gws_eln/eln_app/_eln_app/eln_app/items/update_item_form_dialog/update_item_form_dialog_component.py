@@ -3,6 +3,7 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
+from ...common.unit.concentration_unit_components import concentration_unit_select
 from ...suppliers.core.supplier_select_component import supplier_select_component
 from .update_item_form_dialog_state import UpdateItemFormDialogState
 
@@ -43,6 +44,35 @@ def _form_content() -> rx.Component:
             ),
             width="100%",
             spacing="1",
+        ),
+        # Concentration value + unit (optional, recorded verbatim)
+        rx.hstack(
+            rx.vstack(
+                rx.text("Concentration", size="2", weight="bold"),
+                rx.input(
+                    placeholder="Enter concentration (optional)",
+                    name="concentration",
+                    type="number",
+                    min="0",
+                    step="any",
+                    width="100%",
+                    default_value=UpdateItemFormDialogState.form_concentration,
+                ),
+                width="60%",
+                spacing="1",
+            ),
+            rx.vstack(
+                rx.text("Unit", size="2", weight="bold"),
+                concentration_unit_select(
+                    name="concentration_unit",
+                    value=UpdateItemFormDialogState.form_concentration_unit,
+                    on_change=UpdateItemFormDialogState.set_concentration_unit,
+                ),
+                width="40%",
+                spacing="1",
+            ),
+            width="100%",
+            spacing="3",
         ),
         # Expiry Date field
         rx.vstack(
@@ -85,7 +115,7 @@ def _dialog() -> rx.Component:
     return form_dialog_component(
         state=UpdateItemFormDialogState,
         title="Update Item",
-        description="Update item metadata (supplier, expiry date, notes).",
+        description="Update item metadata.",
         form_content=_form_content(),
         max_width="450px",
     )

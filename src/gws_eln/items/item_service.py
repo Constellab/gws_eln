@@ -6,6 +6,7 @@ Implements Story 5.1 from Epic 5: Service Layer - Items.
 """
 
 import re
+from decimal import Decimal
 from typing import cast
 
 from gws_core import BadRequestException, CurrentUserService
@@ -13,6 +14,7 @@ from gws_eln.activities.activity import Activity
 from gws_eln.activities.activity_dto import CreateActivityDTO
 from gws_eln.activities.activity_service import ActivityService
 from gws_eln.activities.activity_type import ActivityType
+from gws_eln.core.concentration_unit import CONCENTRATION_UNITS, is_valid_concentration_unit
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.items.item import Item
 from gws_eln.items.item_activity_dto import ItemActivityResult
@@ -156,6 +158,9 @@ class ItemService:
                 f"(unit type: {unit_type.value}). Valid units: {valid_units}"
             )
 
+        # Validate concentration (value + unit) if provided
+        self._validate_concentration(dto.concentration, dto.concentration_unit)
+
         # Validate/get location (default to "labo" if not provided)
         location = LocationService().get_or_default_location(dto.location_id)
 
@@ -171,6 +176,8 @@ class ItemService:
         item.item_number = dto.item_number.strip()
         item.quantity = base_quantity
         item.unit_type = unit_type
+        item.concentration = dto.concentration
+        item.concentration_unit = dto.concentration_unit or None
         item.location = location
         item.expiry_date = dto.expiry_date
         item.label = dto.label.strip() if dto.label else None
@@ -352,6 +359,11 @@ class ItemService:
 
         # Update notes if provided (can be set to empty string to clear)
         item.notes = dto.notes.strip() if dto.notes else None
+
+        # Update concentration (value + unit, None clears them)
+        self._validate_concentration(dto.concentration, dto.concentration_unit)
+        item.concentration = dto.concentration
+        item.concentration_unit = dto.concentration_unit or None
 
         if dto.supplier_id is not None:
             item.supplier = SupplierService().get_supplier(dto.supplier_id)
@@ -611,6 +623,56 @@ class ItemService:
         """
         if not item_number or len(item_number.strip()) == 0:
             raise BadRequestException("Item number is required")
+
+    def _validate_concentration(
+        self, concentration: Decimal | None, concentration_unit: str | None
+    ) -> None:
+        """
+        Validate the concentration value and its unit.
+
+        Concentration is optional: both the value and the unit may be omitted
+        (None). No conversion is performed for the concentration.
+
+        Rules:
+        - The value, if provided, must be strictly positive.
+        - The unit, if provided, must be one of the recordable concentration units.
+        - The value and the unit go together: either both are provided, or neither.
+
+        :param concentration: Concentration value to validate (or None)
+        :type concentration: Decimal | None
+        :param concentration_unit: Concentration unit to validate (or None/empty)
+        :type concentration_unit: str | None
+        :raises BadRequestException: If the value is not positive, the unit is not
+                                     in the recordable list, or only one of the two
+                                     is provided
+        """
+        # Normalize empty unit string to None ("no concentration unit")
+        unit = concentration_unit or None
+
+        # Both omitted: nothing to validate
+        if concentration is None and unit is None:
+            return
+
+        # Value and unit must be provided together
+        if concentration is None:
+            raise BadRequestException(
+                "A concentration value is required when a concentration unit is provided."
+            )
+        if unit is None:
+            raise BadRequestException(
+                "A concentration unit is required when a concentration value is provided."
+            )
+
+        # Value must be strictly positive
+        if concentration <= 0:
+            raise BadRequestException(f"Concentration must be positive, got: {concentration}")
+
+        # Unit must be in the recordable list
+        if not is_valid_concentration_unit(unit):
+            valid_units = ", ".join(CONCENTRATION_UNITS)
+            raise BadRequestException(
+                f"Invalid concentration unit '{unit}'. Valid units: {valid_units}"
+            )
 
     def _validate_item_sheet_exists(self, item_sheet_id: str) -> ItemSheet:
         """

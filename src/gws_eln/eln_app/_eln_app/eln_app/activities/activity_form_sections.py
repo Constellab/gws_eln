@@ -7,10 +7,10 @@ These are used by both the standalone form dialogs and the note activity dialog.
 import reflex as rx
 from gws_eln.items.item_dto import ItemDTO
 
-from ..items.core.item_select_component import item_select_component
 from ..common.unit.unit_components import quantity_unit_input
-from ..locations.core.location_select_component import location_select_component
 from ..item_sheets.core.item_sheet_select_component import item_sheet_select_component
+from ..items.core.item_select_component import item_select_component
+from ..locations.core.location_select_component import location_select_component
 from ..suppliers.core.supplier_select_component import supplier_select_component
 
 
@@ -286,9 +286,11 @@ def aliquot_form_section(
                         item_select_disabled,
                         rx.vstack(
                             rx.text("Item Number", size="2", weight="medium", color="gray"),
-                            rx.text(parent_item.item_number, size="2")
-                            if parent_item
-                            else rx.fragment(),
+                            rx.cond(
+                                parent_item,
+                                rx.text(parent_item.item_number, size="2"),
+                                rx.fragment(),
+                            ),
                             spacing="1",
                             width="60%",
                         ),
@@ -306,9 +308,7 @@ def aliquot_form_section(
                         rx.text("Available", size="2", weight="medium", color="gray"),
                         rx.cond(
                             parent_item,
-                            rx.text(parent_item.pretty_quantity, size="2")
-                            if parent_item
-                            else rx.fragment(),
+                            rx.text(parent_item.pretty_quantity, size="2"),
                         ),
                         spacing="1",
                         width="40%",

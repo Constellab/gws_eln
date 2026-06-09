@@ -1,6 +1,7 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
+from ...common.unit.concentration_unit_components import concentration_unit_select
 from ...common.unit.unit_components import quantity_unit_input
 from ...locations.core.location_select_component import (
     location_select_component,
@@ -42,6 +43,34 @@ def _form_content() -> rx.Component:
             unit_type=ItemFormDialogState.form_unit_type,
             unit_value=ItemFormDialogState.form_unit,
             on_unit_change=ItemFormDialogState.set_unit,
+        ),
+        # Concentration value + unit (optional, recorded verbatim)
+        rx.hstack(
+            rx.vstack(
+                rx.text("Concentration", size="2", weight="bold"),
+                rx.input(
+                    placeholder="Enter concentration (optional)",
+                    name="concentration",
+                    type="number",
+                    min="0",
+                    step="any",
+                    width="100%",
+                ),
+                width="60%",
+                spacing="1",
+            ),
+            rx.vstack(
+                rx.text("Unit", size="2", weight="bold"),
+                concentration_unit_select(
+                    name="concentration_unit",
+                    value=ItemFormDialogState.form_concentration_unit,
+                    on_change=ItemFormDialogState.set_concentration_unit,
+                ),
+                width="40%",
+                spacing="1",
+            ),
+            width="100%",
+            spacing="3",
         ),
         # Location field
         rx.vstack(

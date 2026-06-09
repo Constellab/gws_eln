@@ -26,6 +26,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
     # Constant for "no supplier" option
     NO_SUPPLIER_VALUE: str = "__none__"
 
+    # Constant for "no concentration unit" option
+    NO_CONCENTRATION_VALUE: str = "__none__"
+
     # ItemSheet for which we're creating a item (required input)
     _item_sheet: ItemSheetDTO | None = None
 
@@ -33,6 +36,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
     form_item_number: str = ""
     form_unit_type: str = UnitType.COUNT.value
     form_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
+    form_concentration_unit: str = "__none__"
     form_location_id: str = ""
     form_supplier_id: str = "__none__"
     form_expiry_date: str = ""
@@ -71,6 +75,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         self.form_notes = ""
         self.form_expiry_date = ""
         self.form_location_id = ""
+        self.form_concentration_unit = self.NO_CONCENTRATION_VALUE
 
         # Set unit type and default unit from item_sheet
         self.form_unit_type = self._item_sheet.default_unit_type.value
@@ -104,20 +109,27 @@ class ItemFormDialogState(FormDialogState, rx.State):
         self.form_unit = value
 
     @rx.event
+    def set_concentration_unit(self, value: str):
+        """Handle concentration unit selection change."""
+        self.form_concentration_unit = value
+
+    @rx.event
     def set_expiry_date(self, value: str):
         """Handle expiry date change."""
         self.form_expiry_date = value
 
     def _validate_form_data(
         self, form_data: dict
-    ) -> tuple[str, Decimal, str, str, str | None, date | None, str | None, str | None]:
+    ) -> tuple[
+        str, Decimal, str, Decimal | None, str, str | None, date | None, str | None, str | None
+    ]:
         """Validate and parse form data.
 
         Args:
             form_data: Dictionary containing form fields
 
         Returns:
-            Tuple of (item_number, quantity, unit, location_id,
+            Tuple of (item_number, quantity, unit, concentration, location_id,
                      supplier_id, expiry_date, label, notes) if validation succeeds
 
         Raises:
@@ -126,6 +138,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         # Get values from form data
         item_number = form_data.get("item_number", "").strip()
         quantity_str = form_data.get("quantity", "").strip()
+        concentration_str = form_data.get("concentration", "").strip()
         label = form_data.get("label", "").strip() or None
         notes = form_data.get("notes", "").strip() or None
 
@@ -160,6 +173,16 @@ class ItemFormDialogState(FormDialogState, rx.State):
         except (ValueError, ArithmeticError):
             raise Exception("Invalid quantity value")
 
+        # Concentration is optional. Empty string means "no concentration".
+        concentration: Decimal | None = None
+        if concentration_str:
+            try:
+                concentration = Decimal(concentration_str)
+            except (ValueError, ArithmeticError):
+                raise Exception("Invalid concentration value")
+            if concentration <= 0:
+                raise Exception("Concentration must be positive")
+
         if not location_id:
             raise Exception("Location is required")
 
@@ -170,6 +193,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
             item_number,
             quantity,
             unit,
+            concentration,
             location_id,
             supplier_id,
             expiry_date,
@@ -194,6 +218,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
             item_number,
             quantity,
             unit,
+            concentration,
             location_id,
             supplier_id,
             expiry_date,
@@ -205,6 +230,14 @@ class ItemFormDialogState(FormDialogState, rx.State):
         async with self:
             main_state = await self.get_state(ReflexMainState)
 
+        # Concentration unit (optional). "__none__" means no unit.
+        concentration_unit = (
+            self.form_concentration_unit
+            if self.form_concentration_unit
+            and self.form_concentration_unit != self.NO_CONCENTRATION_VALUE
+            else None
+        )
+
         # Create the item
         item: Item
         with await main_state.authenticate_user():
@@ -214,6 +247,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
                 item_number=item_number,
                 quantity=quantity,
                 unit=unit,
+                concentration=concentration,
+                concentration_unit=concentration_unit,
                 location_id=location_id,
                 supplier_id=supplier_id,
                 expiry_date=expiry_date,
@@ -238,6 +273,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         self.form_item_number = ""
         self.form_unit_type = UnitType.COUNT.value
         self.form_unit = UnitConverter.get_default_unit(UnitType.COUNT)
+        self.form_concentration_unit = self.NO_CONCENTRATION_VALUE
         self.form_location_id = ""
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_expiry_date = ""

@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Coroutine
 from datetime import date
+from decimal import Decimal
 from typing import Any
 
 import reflex as rx
@@ -19,6 +20,8 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
     The item must be provided when opening the dialog.
     """
 
+    NO_CONCENTRATION_VALUE = "__none__"
+
     # Item being updated (required input)
     _item: ItemDTO | None = None
 
@@ -26,6 +29,8 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
     form_notes: str = ""
     form_expiry_date: str = ""
     form_supplier_id: str = ""
+    form_concentration: str = ""
+    form_concentration_unit: str = ""
 
     _callback_after_close: FormDialogCloseCallback | None = None
 
@@ -57,6 +62,11 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
         self.form_notes = item.notes or ""
         self.form_expiry_date = item.expiry_date.isoformat() if item.expiry_date else ""
         self.form_supplier_id = item.supplier.id if item.supplier else "__none__"
+        # Decimal -> input string, stripping trailing zeros and avoiding scientific notation
+        self.form_concentration = (
+            f"{item.concentration.normalize():f}" if item.concentration is not None else ""
+        )
+        self.form_concentration_unit = item.concentration_unit or "__none__"
 
         # Set to update mode
         self.is_update_mode = True
@@ -73,6 +83,11 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
     def set_expiry_date(self, value: str):
         """Handle expiry date change."""
         self.form_expiry_date = value
+
+    @rx.event
+    def set_concentration_unit(self, value: str):
+        """Handle concentration unit selection change."""
+        self.form_concentration_unit = value
 
     def _validate_form_data(self, form_data: dict) -> UpdateItemDTO:
         """Validate and parse form data.
@@ -100,10 +115,30 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
         # Get supplier_id from state
         supplier_id = self.form_supplier_id if self.form_supplier_id != "__none__" else None
 
+        # Concentration value (optional). Empty string means "no concentration".
+        concentration_str = form_data.get("concentration", "").strip()
+        concentration: Decimal | None = None
+        if concentration_str:
+            try:
+                concentration = Decimal(concentration_str)
+            except (ValueError, ArithmeticError) as exc:
+                raise Exception("Invalid concentration value") from exc
+            if concentration <= 0:
+                raise Exception("Concentration must be positive")
+
+        # Concentration unit (optional). "__none__" means no unit.
+        concentration_unit = (
+            self.form_concentration_unit
+            if self.form_concentration_unit != self.NO_CONCENTRATION_VALUE
+            else None
+        )
+
         return UpdateItemDTO(
             notes=notes,
             expiry_date=expiry_date,
             supplier_id=supplier_id,
+            concentration=concentration,
+            concentration_unit=concentration_unit,
         )
 
     async def _create(self, form_data: dict):
@@ -146,6 +181,8 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
         self.form_notes = ""
         self.form_expiry_date = ""
         self.form_supplier_id = ""
+        self.form_concentration = ""
+        self.form_concentration_unit = self.NO_CONCENTRATION_VALUE
         self.is_update_mode = False
 
     def set_callback_after_close(self, callback: FormDialogCloseCallback | None):

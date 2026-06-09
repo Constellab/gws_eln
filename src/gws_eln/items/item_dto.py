@@ -30,6 +30,8 @@ class CreateItemDTO(BaseModelDTO):
     item_number: str
     quantity: Decimal
     unit: str  # Exact unit (e.g., 'mL', 'g', 'kg') - converted to base unit for storage
+    concentration: Decimal | None = None
+    concentration_unit: str | None = None
     location_id: str | None = None  # Default to "labo" if None
     supplier_id: str | None = None
     expiry_date: date | None = None
@@ -89,6 +91,8 @@ class UpdateItemDTO(BaseModelDTO):
     notes: str | None = None
     expiry_date: date | None = None
     supplier_id: str | None = None
+    concentration: Decimal | None = None
+    concentration_unit: str | None = None  # Recorded verbatim, no conversion (e.g. 'mM', 'ng/µL')
     note_id: str | None = None  # Link to Constellab Note
 
 
@@ -173,6 +177,8 @@ class ItemDTO(ItemSimpleDTO):
     quantity: Decimal
     unit_type: UnitType
     pretty_quantity: str  # Pre-formatted quantity string for display
+    concentration: Decimal | None
+    concentration_unit: str | None
     item_sheet: ItemSheetDTO
     location: LocationDTO
     parent_item: ItemSimpleDTO | None

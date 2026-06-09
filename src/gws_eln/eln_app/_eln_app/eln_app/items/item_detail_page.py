@@ -121,6 +121,17 @@ def _details_sidebar() -> rx.Component:
             # Quantity
             rx.text("Quantity", size="2", color="gray", weight="medium"),
             rx.text(ItemDetailState.item.pretty_quantity, size="2"),
+            # Concentration unit
+            rx.cond(
+                ItemDetailState.item.concentration,
+                rx.fragment(
+                    rx.text("Concentration", size="2", color="gray", weight="medium"),
+                    rx.text(
+                        f"{ItemDetailState.item.concentration} {ItemDetailState.item.concentration_unit}",
+                        size="2",
+                    ),
+                ),
+            ),
             # Expiry Date
             rx.text("Expiry Date", size="2", color="gray", weight="medium"),
             rx.box(expiry_date_badge(ItemDetailState.item.expiry_date)),

@@ -2,6 +2,7 @@ from gws_core import (
     BadRequestException,
     NullableCharField,
     NullableDateField,
+    NullableDecimalField,
     NullableForeignKeyField,
     NullableTextField,
     TypedCharField,
@@ -69,6 +70,10 @@ class Item(ModelWithUser):
     # DECIMAL(20,12) for high precision
     quantity = TypedDecimalField(max_digits=20, decimal_places=12)
     unit_type = TypedEnumField(choices=UnitType, max_length=20)
+
+    # Concentration tracking. Optional.
+    concentration = NullableDecimalField(max_digits=20, decimal_places=12)
+    concentration_unit = NullableCharField(max_length=20)
 
     # Additional information
     notes = NullableTextField()
@@ -196,6 +201,8 @@ class Item(ModelWithUser):
             quantity=self.quantity,
             pretty_quantity=self.get_pretty_quantity(),
             unit_type=self.unit_type,
+            concentration=self.concentration,
+            concentration_unit=self.concentration_unit,
             notes=self.notes,
             status=self.status,
             created_at=self.created_at,
