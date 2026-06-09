@@ -13,9 +13,6 @@ from ..item_sheets.core.item_sheet_components import (
 )
 from ..locations.core.inline_location_component import inline_location_component
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
-from .aliquot_form_dialog.aliquot_form_dialog_component import (
-    aliquot_form_dialog,
-)
 from .core.item_actions_menu import item_actions_menu
 from .core.item_components import expiry_date_badge, item_inline_link, status_badge
 from .delete_item_form_dialog.delete_item_form_dialog_component import (
@@ -220,7 +217,6 @@ def _actions_menu() -> rx.Component:
         item=ItemDetailState.item,
         on_receive=ItemDetailState.open_receive_dialog,
         on_consume=ItemDetailState.open_consume_dialog,
-        on_aliquot=ItemDetailState.open_aliquot_dialog,
         on_move=ItemDetailState.open_move_dialog,
         on_update=ItemDetailState.open_update_dialog,
         on_relabel=ItemDetailState.open_relabel_dialog,
@@ -315,5 +311,4 @@ def item_detail_page() -> rx.Component:
         update_item_dialog(),
         relabel_item_dialog(),
         delete_item_dialog(),
-        aliquot_form_dialog(),
     )

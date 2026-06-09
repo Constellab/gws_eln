@@ -10,7 +10,6 @@ def item_actions_menu(
     item: ItemDTO,
     on_receive: rx.EventHandler | Callable,
     on_consume: rx.EventHandler | Callable,
-    on_aliquot: rx.EventHandler | Callable,
     on_move: rx.EventHandler | Callable,
     on_update: rx.EventHandler | Callable,
     on_relabel: rx.EventHandler | Callable,
@@ -25,8 +24,6 @@ def item_actions_menu(
     :type on_receive: rx.EventHandler | Callable
     :param on_consume: Event handler for consume stock action
     :type on_consume: rx.EventHandler | Callable
-    :param on_aliquot: Event handler for create aliquot action
-    :type on_aliquot: rx.EventHandler | Callable
     :param on_move: Event handler for move item action
     :type on_move: rx.EventHandler | Callable
     :param on_update: Event handler for update item action
@@ -63,15 +60,6 @@ def item_actions_menu(
                 rx.icon("flame", size=16),
                 "Consume Stock",
                 on_click=_wrap_click(on_consume),
-            ),
-            # Create Aliquot - only shown for consumable item_sheets
-            rx.cond(
-                item.item_sheet.is_consumable,
-                rx.menu.item(
-                    rx.icon("split", size=16),
-                    "Create Aliquot",
-                    on_click=_wrap_click(on_aliquot),
-                ),
             ),
             rx.menu.separator(),
             rx.menu.item(

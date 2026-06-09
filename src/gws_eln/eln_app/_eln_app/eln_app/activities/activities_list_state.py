@@ -59,15 +59,8 @@ class ActivitiesListState(rx.State):
             search_builder.add_entity_filter(self._item_id)
 
             if self.filter_activity_type and self.filter_activity_type != ALL_FILTER_VALUE:
-                if self.filter_activity_type == ActivityType.ALIQUOT.value:
-                    activity_types = [
-                        ActivityType.ALIQUOT,
-                        ActivityType.ALIQUOT_CREATED,
-                    ]
-                    search_builder.add_activity_types_filter(activity_types)
-                else:
-                    activity_type = ActivityType(self.filter_activity_type)
-                    search_builder.add_activity_type_filter(activity_type)
+                activity_type = ActivityType(self.filter_activity_type)
+                search_builder.add_activity_type_filter(activity_type)
 
             activities = search_builder.search_all()
 

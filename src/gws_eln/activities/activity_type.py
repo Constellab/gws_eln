@@ -5,23 +5,25 @@ class ActivityType(Enum):
     """
     Enum representing the types of inventory activities.
 
-    - CREATE: Create a new item corresponding to an item sheet
     - RECEIVE: New item received from supplier
-    - MOVE: Change location of an item
     - CONSUME: Use consumable item (decrements quantity)
     - USE: Use non-consumable item (reference only, no decrement)
-    - DISCARD: Remove item
-    - ALIQUOT: Quantity taken from parent item to create an aliquot (logged on parent)
-    - ALIQUOT_CREATED: Aliquot created from a parent item (logged on the new aliquot)
+    - MOVE: Change location of an item
     - RELABEL: Change label of an item
+    - DISCARD: Remove item
+    - SPLIT: Split an item into multiple items
+    - COMBINE: Combine multiple items into one
+    - DILUTE: Dilute an item (change quantity and concentration)
+    - CONCENTRATE: Concentrate an item (change quantity and concentration)
     """
 
-    CREATE = "create"
     RECEIVE = "receive"
-    MOVE = "move"
     CONSUME = "consume"
     USE = "use"
-    DISCARD = "discard"
-    ALIQUOT = "aliquot"
-    ALIQUOT_CREATED = "aliquot_created"
+    MOVE = "move"
     RELABEL = "relabel"
+    DISCARD = "discard"
+    SPLIT = "split"
+    COMBINE = "combine"
+    DILUTE = "dilute"
+    CONCENTRATE = "concentrate"

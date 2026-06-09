@@ -2,14 +2,16 @@ import reflex as rx
 from gws_eln.activities.activity_type import ActivityType
 
 ACTIVITY_TYPE_OPTIONS = [
-    (ActivityType.CREATE.value, "Create"),
     (ActivityType.RECEIVE.value, "Receive"),
-    (ActivityType.MOVE.value, "Move"),
     (ActivityType.CONSUME.value, "Consume"),
     (ActivityType.USE.value, "Use"),
-    (ActivityType.DISCARD.value, "Discard"),
-    (ActivityType.ALIQUOT.value, "Aliquot"),
+    (ActivityType.MOVE.value, "Move"),
     (ActivityType.RELABEL.value, "Relabel"),
+    (ActivityType.DISCARD.value, "Discard"),
+    (ActivityType.SPLIT.value, "Split"),
+    (ActivityType.COMBINE.value, "Combine"),
+    (ActivityType.DILUTE.value, "Dilute"),
+    (ActivityType.CONCENTRATE.value, "Concentrate"),
 ]
 
 

@@ -8,7 +8,6 @@ from gws_eln.activities.activity_type import ActivityType
 from gws_reflex_main import user_with_date_component
 
 from ..common.eln_app_router import ElnAppRouter
-from ..items.core.item_components import item_inline_link
 from ..locations.core.inline_location_component import inline_location_component
 from .activities_list_state import ALL_FILTER_VALUE, ActivitiesListState
 from .activity_type_component import activity_type_badge
@@ -47,20 +46,6 @@ def _type_specific_description(activity: ActivityDTO) -> rx.Component:
                     align_items="center",
                 ),
             ),
-            (
-                ActivityType.ALIQUOT.value,
-                rx.cond(
-                    activity.related_item,
-                    item_inline_link(activity.related_item),
-                ),
-            ),
-            (
-                ActivityType.ALIQUOT_CREATED.value,
-                rx.cond(
-                    activity.related_item,
-                    item_inline_link(activity.related_item),
-                ),
-            ),
             rx.fragment(),
         ),
     )
@@ -69,8 +54,7 @@ def _type_specific_description(activity: ActivityDTO) -> rx.Component:
 def _activity_description(activity: ActivityDTO) -> rx.Component:
     """Create a description component based on activity type.
 
-    Shows type-specific description (for RECEIVE, MOVE, ALIQUOT, ALIQUOT_CREATED)
-    and always shows notes if present.
+    Shows type-specific description (for RECEIVE, MOVE) and always shows notes if present.
 
     :param activity: The activity DTO
     :type activity: ActivityDTO

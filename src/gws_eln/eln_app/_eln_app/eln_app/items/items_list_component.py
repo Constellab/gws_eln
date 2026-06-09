@@ -8,7 +8,6 @@ from ..locations.core.inline_location_component import inline_location_component
 from ..locations.core.location_select_component import location_select_component
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from ..suppliers.core.supplier_select_component import supplier_select_component
-from .aliquot_form_dialog.aliquot_form_dialog_component import aliquot_form_dialog
 from .item_event_form_dialog.item_event_form_dialog_component import (
     item_event_form_dialog,
 )
@@ -116,7 +115,6 @@ def _row(item: ItemDTO) -> rx.Component:
                 item=item,
                 on_receive=lambda: ItemsListState.open_receive_dialog(item),
                 on_consume=lambda: ItemsListState.open_consume_dialog(item),
-                on_aliquot=lambda: ItemsListState.open_aliquot_dialog(item),
                 on_move=lambda: ItemsListState.open_move_dialog(item),
                 on_update=lambda: ItemsListState.open_update_dialog(item),
                 on_relabel=lambda: ItemsListState.open_relabel_dialog(item),
@@ -234,7 +232,6 @@ def items_list_component(item_sheet_id: rx.Var[str]) -> rx.Component:
             update_item_dialog(),
             relabel_item_dialog(),
             delete_item_dialog(),
-            aliquot_form_dialog(),
             width="100%",
             spacing="4",
             on_mount=ItemsListState.fetch_items_on_mount(item_sheet_id),

@@ -19,12 +19,6 @@ def activity_type_badge(activity_type: ActivityType) -> rx.Component:
         rx.match(
             activity_type,
             (
-                ActivityType.CREATE.value,
-                rx.badge(
-                    rx.icon("package-plus", size=12), "Created", color_scheme="green", size="1"
-                ),
-            ),
-            (
                 ActivityType.RECEIVE.value,
                 rx.badge(
                     rx.icon("package-plus", size=12), "Received", color_scheme="green", size="1"
@@ -50,19 +44,6 @@ def activity_type_badge(activity_type: ActivityType) -> rx.Component:
             (
                 ActivityType.DISCARD.value,
                 rx.badge(rx.icon("trash-2", size=12), "Discarded", color_scheme="red", size="1"),
-            ),
-            (
-                ActivityType.ALIQUOT.value,
-                rx.badge(rx.icon("split", size=12), "Aliquot", color_scheme="cyan", size="1"),
-            ),
-            (
-                ActivityType.ALIQUOT_CREATED.value,
-                rx.badge(
-                    rx.icon("arrow-down-to-dot", size=12),
-                    "Aliquot creation",
-                    color_scheme="teal",
-                    size="1",
-                ),
             ),
             (
                 ActivityType.RELABEL.value,

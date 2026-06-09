@@ -19,7 +19,6 @@ from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.items.item_activity_dto import ItemActivityResult
 from gws_eln.items.item_dto import (
-    CreateAliquotDTO,
     CreateItemDTO,
     DecrementQuantityDTO,
     DiscardItemDTO,
@@ -121,14 +120,12 @@ class ElnNoteService:
         :raises BadRequestException: If the activity type is unsupported
         """
         handlers = {
-            ActivityType.CREATE: self._handle_create,
             ActivityType.RECEIVE: self._handle_receive,
             ActivityType.CONSUME: self._handle_consume,
             ActivityType.MOVE: self._handle_move,
             ActivityType.USE: self._handle_use,
             ActivityType.DISCARD: self._handle_discard,
             ActivityType.RELABEL: self._handle_relabel,
-            ActivityType.ALIQUOT: self._handle_aliquot,
         }
         handler = handlers.get(activity_type)
         if handler is None:
@@ -137,41 +134,42 @@ class ElnNoteService:
             )
         return handler
 
-    def _handle_create(
+    def _handle_receive(
         self,
         item_service: ItemService,
         item_id: str | None,
         activity_data: dict[str, Any],
         note_id: str,
     ) -> ItemActivityResult:
-        item_dto = CreateItemDTO(
-            item_sheet_id=activity_data["item_sheet_id"],
-            item_number=activity_data["item_number"],
-            quantity=activity_data["quantity"],
-            unit=activity_data["unit"],
-            location_id=activity_data.get("location_id"),
-            supplier_id=activity_data.get("supplier_id"),
-            expiry_date=activity_data.get("expiry_date"),
-            label=activity_data.get("label"),
-            notes=activity_data.get("notes"),
-            note_id=note_id,
-        )
-        return item_service.create_item(item_dto)
+        """Handle a RECEIVE activity.
 
-    def _handle_receive(
-        self,
-        item_service: ItemService,
-        item_id: str,
-        activity_data: dict[str, Any],
-        note_id: str,
-    ) -> ItemActivityResult:
-        item_dto = ReceiveItemDTO(
+        RECEIVE is the single way an item enters the inventory:
+        - new item (an ``item_sheet_id`` is provided, no existing item) → create the item;
+        - existing item (an ``item_id`` is targeted) → increment its quantity.
+        Both log a RECEIVE activity.
+        """
+        if activity_data.get("item_sheet_id"):
+            create_dto = CreateItemDTO(
+                item_sheet_id=activity_data["item_sheet_id"],
+                item_number=activity_data.get("item_number"),
+                quantity=activity_data["quantity"],
+                unit=activity_data["unit"],
+                location_id=activity_data.get("location_id"),
+                supplier_id=activity_data.get("supplier_id"),
+                expiry_date=activity_data.get("expiry_date"),
+                label=activity_data.get("label"),
+                notes=activity_data.get("notes"),
+                note_id=note_id,
+            )
+            return item_service.create_item(create_dto)
+
+        receive_dto = ReceiveItemDTO(
             quantity=activity_data["quantity"],
             unit=activity_data["unit"],
             notes=activity_data.get("notes"),
             note_id=note_id,
         )
-        return item_service.receive_item(item_id, item_dto)
+        return item_service.receive_item(item_id, receive_dto)
 
     def _handle_consume(
         self,
@@ -240,27 +238,6 @@ class ElnNoteService:
             note_id=note_id,
         )
         return item_service.relabel_item(item_id, item_dto)
-
-    def _handle_aliquot(
-        self,
-        item_service: ItemService,
-        activity_data: dict[str, Any],
-        note_id: str,
-    ) -> ItemActivityResult:
-        item_dto = CreateAliquotDTO(
-            parent_item_id=activity_data["parent_item_id"],
-            source_quantity=activity_data["source_quantity"],
-            source_unit=activity_data["source_unit"],
-            aliquot_quantity=activity_data["aliquot_quantity"],
-            aliquot_unit=activity_data["aliquot_unit"],
-            aliquot_item_number=activity_data.get("aliquot_item_number"),
-            label=activity_data.get("label"),
-            location_id=activity_data.get("location_id"),
-            notes=activity_data.get("notes"),
-            supplier_id=activity_data.get("supplier_id"),
-            note_id=note_id,
-        )
-        return item_service.create_aliquot(item_dto)
 
     def get_activity(
         self,

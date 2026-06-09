@@ -125,44 +125,6 @@ class DeleteItemResultDTO(Enum):
     DISCARDED = "discarded"
 
 
-class CreateAliquotDTO(BaseModelDTO):
-    """DTO for creating an aliquot from a parent item.
-
-    Aliquots are derived samples that can either inherit item_sheet_id from
-    the parent item or be assigned a different target item sheet (e.g., for
-    transformations like extracting a compound from a solution).
-
-    The parent's quantity will be decremented by source_quantity.
-
-    Example 1 (same item sheet): Take 2L from parent (source_quantity=2, source_unit='L')
-    to create a 500mL aliquot (aliquot_quantity=500, aliquot_unit='mL').
-
-    Example 2 (different item sheet): Take 100mL from a solution to create 5g of
-    extracted compound (target_item_sheet_id points to the compound item sheet).
-
-    Note: source_unit must be compatible with the parent item's unit_type.
-    aliquot_unit must be compatible with the target item sheet's unit_type
-    (or parent's unit_type if no target item sheet is specified).
-    """
-
-    parent_item_id: str
-    # Optional target item sheet for the aliquot (if None, inherit from parent)
-    target_item_sheet_id: str | None = None
-    # Amount to take from parent item (decrements parent)
-    source_quantity: Decimal
-    source_unit: str  # Exact unit (e.g., 'mL', 'L', 'g') - converted to base unit for storage
-    # Amount for the new aliquot (can differ from source due to dilution, processing, etc.)
-    aliquot_quantity: Decimal
-    aliquot_unit: str  # Exact unit (e.g., 'mL', 'L', 'g') - converted to base unit for storage
-    # Optional custom item number for the aliquot (auto-generated if not provided)
-    aliquot_item_number: str | None = None
-    label: str | None = None
-    location_id: str | None = None  # Default to parent's location if None
-    notes: str | None = None
-    supplier_id: str | None = None  # Default to None
-    note_id: str | None = None  # Link to Constellab Note
-
-
 class ItemSimpleDTO(BaseModelDTO):
     """Simple DTO for item with minimal fields."""
 

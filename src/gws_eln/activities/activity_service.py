@@ -26,7 +26,6 @@ class ActivityService:
     - CONSUME: Use consumable item (decrements quantity)
     - USE: Use non-consumable item (reference only)
     - DISCARD: Remove item
-    - ALIQUOT: Create child item from parent
     - RELABEL: Change label of an item
     """
 
@@ -199,7 +198,3 @@ class ActivityService:
         # MOVE requires to_location
         if dto.activity_type == ActivityType.MOVE and not dto.to_location_id:
             raise BadRequestException("Move activity requires a destination location")
-
-        # ALIQUOT requires related_item_id (the child item)
-        if dto.activity_type == ActivityType.ALIQUOT and not dto.related_item_id:
-            raise BadRequestException("Aliquot activity requires related_item_id (child item ID)")

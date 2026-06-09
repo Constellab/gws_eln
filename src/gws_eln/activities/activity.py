@@ -25,18 +25,21 @@ class Activity(ModelWithUser):
     Tracks all inventory operations for complete audit trail and traceability.
 
     Activity types:
-    - receive: New item from supplier
-    - move: Change location
-    - consume: Use consumable (decrements quantity)
-    - use: Use non-consumable (reference only)
-    - discard: Remove
-    - aliquot: Create child item
-    - relabel: Change label only
+    - receive: New item received from supplier
+    - consume: Use consumable item (decrements quantity)
+    - use: Use non-consumable item (reference only, no decrement)
+    - move: Change location of an item
+    - relabel: Change label of an item
+    - discard: Remove item
+    - split: Split an item into multiple items
+    - combine: Combine multiple items into one
+    - dilute: Dilute an item (change quantity and concentration)
+    - concentrate: Concentrate an item (change quantity and concentration)
 
     Attributes:
         activity_type: Type of activity (required)
         item: The item being acted upon (required)
-        related_item: For lineage - child aliquot ID, related item ID
+        related_item: For lineage - related item ID (for split/combine)
         quantity: For quantity-based actions (stored in base units)
         unit_type: Unit type for quantity
         from_location: Source location for move actions
@@ -51,12 +54,10 @@ class Activity(ModelWithUser):
     # Entity being acted upon
     item = TypedForeignKeyField(Item, backref="activities", on_delete="CASCADE", index=True)
 
-    # Related entity for aliquot
-    # For ALIQUOT > child item ID
-    # For ALIQUOT_CREATED > parent item ID
+    # Related entity for lineage (for split/combine operations)
     related_item = NullableForeignKeyField(Item, backref="+", on_delete="CASCADE", index=True)
 
-    # Quantity information (for consume, aliquot actions)
+    # Quantity information (for consume and quantity-based actions)
     # Stored in base units (L, kg, m, units)
     quantity = NullableDecimalField(max_digits=20, decimal_places=12)
     unit_type = NullableEnumField(choices=UnitType, max_length=20)

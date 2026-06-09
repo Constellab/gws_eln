@@ -8,9 +8,6 @@ from gws_reflex_main import ReflexMainState
 
 from ..activities.activities_list_state import ActivitiesListState
 from ..common.eln_app_router import ElnAppRouter
-from .aliquot_form_dialog.aliquot_form_dialog_state import (
-    AliquotFormDialogState,
-)
 from .item_event_form_dialog.item_event_form_dialog_state import (
     ItemEventFormDialogState,
     ItemEventType,
@@ -174,12 +171,3 @@ class ItemDetailState(rx.State):
         dialog_state = await self.get_state(DeleteItemFormDialogState)
         dialog_state.set_callback_after_close(self._on_item_delete_success)
         await dialog_state.open_delete_dialog(self.item)
-
-    @rx.event
-    async def open_aliquot_dialog(self):
-        """Open the aliquot creation dialog for the current item."""
-        if not self.item:
-            return
-        dialog_state = await self.get_state(AliquotFormDialogState)
-        dialog_state.set_callback_after_close(self._on_item_event_success)
-        dialog_state.open_dialog(self.item)

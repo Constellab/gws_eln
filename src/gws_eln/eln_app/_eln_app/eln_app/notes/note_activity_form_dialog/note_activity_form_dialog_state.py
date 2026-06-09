@@ -1,8 +1,9 @@
 """State management for the note activity form dialog.
 
 This dialog allows adding a item activity from within a note.
-The user selects a item, an activity type, and fills in the
-type-specific sub-form before submitting.
+The user selects an activity type and (depending on it) either an existing item
+or an item sheet (to receive a brand-new item), then fills in the type-specific
+sub-form before submitting.
 """
 
 from collections.abc import Callable, Coroutine
@@ -29,8 +30,12 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
     """State for the note activity form dialog.
 
     Two-step form:
-    1. Select a item and an activity type
+    1. Select an activity type and (existing item or item sheet)
     2. Fill in the activity-specific sub-form
+
+    RECEIVE creates a brand-new item from a selected item sheet (the only way to
+    bring an item into the inventory). The other activity types operate on an
+    existing selected item.
     """
 
     # Note context (set when opening the dialog)
@@ -42,32 +47,29 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
     form_item: InputSearchResultDTO | None = None
     form_activity_type: str = ""
 
-    # For CREATE activity: select item_sheet instead of item
+    # For RECEIVE: receive into an existing item ("existing") or create a new one ("new")
+    form_receive_mode: str = "existing"
+
+    # For RECEIVE "new": select an item_sheet to create a new item
     form_item_sheet: InputSearchResultDTO | None = None
     _item_sheet: ItemSheetDTO | None = None
 
     # Resolved item (loaded after selection)
     _item: ItemDTO | None = None
 
-    # Sub-form fields for receive/consume
+    # Sub-form fields for receive (create) / consume
     form_unit_type: str = UnitType.COUNT.value
     form_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
     form_notes: str = ""
 
-    # Sub-form fields for move
+    # Sub-form fields for move / create
     form_location_id: str = ""
 
     # Sub-form fields for relabel
     form_item_number: str = ""
     form_label: str = ""
 
-    # Sub-form fields for aliquot
-    form_source_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
-    form_aliquot_unit_type: str = UnitType.COUNT.value  # Target item_sheet unit type (for aliquot)
-    form_aliquot_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
-    form_target_item_sheet: InputSearchResultDTO | None = (
-        None  # Required target item_sheet for the aliquot
-    )
+    # Sub-form field for receive (create): supplier (optional)
     form_supplier_id: str = ""
 
     _callback_after_close: NoteActivityCallback | None = None
@@ -95,30 +97,45 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         return ""
 
     @rx.var
+    def show_receive_mode_toggle(self) -> bool:
+        """Whether to show the RECEIVE mode toggle (existing item vs new item)."""
+        return self.form_activity_type == ActivityType.RECEIVE.value
+
+    @rx.var
     def show_create_form(self) -> bool:
-        """Whether to show the create item sub-form (requires item_sheet to be selected)."""
-        return self.form_activity_type == ActivityType.CREATE.value
+        """Whether to show the create-new-item form (RECEIVE 'new')."""
+        return (
+            self.form_activity_type == ActivityType.RECEIVE.value
+            and self.form_receive_mode == "new"
+        )
 
     @rx.var
     def show_item_select(self) -> bool:
-        """Whether to show the item/item_sheet selection field.
+        """Whether to show the existing-item selection field.
 
-        For CREATE activity: show item_sheet selection
-        For other activities: show item selection
+        Shown for activities operating on an existing item, including RECEIVE
+        into an existing item (increment).
         """
-
-        return bool(self.form_activity_type) and self.form_activity_type not in [
-            ActivityType.CREATE.value,
-            ActivityType.ALIQUOT.value,
-        ]
+        receive_existing = (
+            self.form_activity_type == ActivityType.RECEIVE.value
+            and self.form_receive_mode == "existing"
+        )
+        return receive_existing or self.form_activity_type in (
+            ActivityType.CONSUME.value,
+            ActivityType.MOVE.value,
+            ActivityType.USE.value,
+            ActivityType.DISCARD.value,
+            ActivityType.RELABEL.value,
+        )
 
     @rx.var
     def show_receive_consume_form(self) -> bool:
-        """Whether to show the receive/consume sub-form."""
-        return self.form_activity_type in (
-            ActivityType.RECEIVE.value,
-            ActivityType.CONSUME.value,
+        """Whether to show the quantity sub-form (RECEIVE into existing, or CONSUME)."""
+        receive_existing = (
+            self.form_activity_type == ActivityType.RECEIVE.value
+            and self.form_receive_mode == "existing"
         )
+        return receive_existing or self.form_activity_type == ActivityType.CONSUME.value
 
     @rx.var
     def show_move_form(self) -> bool:
@@ -139,17 +156,12 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         return self.form_activity_type == ActivityType.RELABEL.value
 
     @rx.var
-    def show_aliquot_form(self) -> bool:
-        """Whether to show the aliquot sub-form."""
-        return self.form_activity_type == ActivityType.ALIQUOT.value
-
-    @rx.var
     def quantity_label(self) -> str:
         """Label for the quantity field based on activity type."""
-        if self.form_activity_type == ActivityType.RECEIVE.value:
-            return "Quantity to Receive"
         if self.form_activity_type == ActivityType.CONSUME.value:
             return "Quantity to Consume"
+        if self.form_activity_type == ActivityType.RECEIVE.value:
+            return "Quantity to Receive"
         return "Quantity"
 
     # --- Event handlers ---
@@ -192,15 +204,6 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
                 self._item.quantity, self._item.unit_type
             )
             self.form_unit = best_unit
-            self.form_source_unit = best_unit
-            # Initialize target item_sheet and aliquot unit type from item's item_sheet
-            self.form_target_item_sheet = InputSearchResultDTO(
-                id=self._item.item_sheet.id,
-                display_text=self._item.item_sheet.name,
-                object=self._item.item_sheet,
-            )
-            self.form_aliquot_unit_type = self._item.unit_type.value
-            self.form_aliquot_unit = best_unit
             if self._item.location:
                 self.form_location_id = self._item.location.id
             self.form_item_number = self._item.item_number
@@ -211,17 +214,26 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         """Handle activity type selection change."""
         self.form_activity_type = value
         self._reset_sub_form_fields()
-        # Reset item/item_sheet selection when activity type changes
-        if value == ActivityType.CREATE.value:
-            self.form_item = None
-            self._item = None
-        else:
-            self.form_item_sheet = None
-            self._item_sheet = None
+        # Reset item / item_sheet selection when activity type changes
+        self.form_item = None
+        self._item = None
+        self.form_item_sheet = None
+        self._item_sheet = None
+
+    @rx.event
+    def set_receive_mode(self, value: str | list[str]):
+        """Handle RECEIVE mode change (existing item vs new item)."""
+        # segmented_control passes str | list[str]; normalize to a single value
+        self.form_receive_mode = value if isinstance(value, str) else (value[0] if value else "existing")
+        # Reset both selections when switching mode
+        self.form_item = None
+        self._item = None
+        self.form_item_sheet = None
+        self._item_sheet = None
 
     @rx.event
     async def set_item_sheet(self, value: dict):
-        """Handle item_sheet selection change for CREATE activity."""
+        """Handle item_sheet selection change for RECEIVE (new item)."""
         if not value:
             self.form_item_sheet = None
             self._item_sheet = None
@@ -243,38 +255,13 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
 
     @rx.event
     def set_location_id(self, value: str):
-        """Handle location selection change for move."""
+        """Handle location selection change for move / create."""
         self.form_location_id = value
 
     @rx.event
-    def set_source_unit(self, value: str):
-        """Handle source unit selection change for aliquot."""
-        self.form_source_unit = value
-
-    @rx.event
-    def set_aliquot_unit(self, value: str):
-        """Handle aliquot unit selection change for aliquot."""
-        self.form_aliquot_unit = value
-
-    @rx.event
     def set_supplier_id(self, value: str):
-        """Handle supplier selection change for aliquot."""
+        """Handle supplier selection change for receive (create)."""
         self.form_supplier_id = value
-
-    @rx.event
-    def set_target_item_sheet(self, value: dict):
-        """Handle target item_sheet selection change for aliquot.
-
-        Updates the aliquot unit type based on the selected item_sheet's default_unit_type.
-        """
-        if not value:
-            self.form_target_item_sheet = None
-            return
-        self.form_target_item_sheet = InputSearchResultDTO.from_json_object(value, ItemSheetDTO)
-        item_sheet: ItemSheetDTO = self.form_target_item_sheet.object
-        if item_sheet:
-            self.form_aliquot_unit_type = item_sheet.default_unit_type.value
-            self.form_aliquot_unit = UnitConverter.get_default_unit(item_sheet.default_unit_type)
 
     # --- Form submission ---
 
@@ -287,10 +274,14 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         if not self.form_activity_type:
             raise Exception("Please select an activity type")
 
-        # For CREATE activity, require item_sheet; for others, require item
-        if self.form_activity_type == ActivityType.CREATE.value:
+        # RECEIVE "new" requires an item_sheet; everything else requires an existing item
+        is_receive_new = (
+            self.form_activity_type == ActivityType.RECEIVE.value
+            and self.form_receive_mode == "new"
+        )
+        if is_receive_new:
             if not self.form_item_sheet:
-                raise Exception("Please select a item_sheet")
+                raise Exception("Please select an item sheet")
         elif not self.form_item:
             raise Exception("Please select a item")
 
@@ -345,9 +336,8 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         self.form_location_id = ""
         self.form_item_number = ""
         self.form_label = ""
-        self.form_target_item_sheet = None
-        self.form_aliquot_unit_type = UnitType.COUNT.value
         self.form_supplier_id = ""
+        self.form_receive_mode = "existing"
 
     def _get_best_unit_for_quantity(self, quantity: Decimal, unit_type: UnitType) -> str:
         """Select a readable unit for the given quantity."""
@@ -368,24 +358,15 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
         activity_type = self.form_activity_type
         data: dict[str, Any] = {}
 
-        if activity_type == ActivityType.CREATE.value:
-            data = self._build_create_data(form_data)
+        if activity_type == ActivityType.RECEIVE.value:
+            if self.form_receive_mode == "new":
+                data = self._build_create_data(form_data)
+            else:
+                # Receive into an existing item: increment its quantity
+                data = self._build_quantity_data(form_data)
 
-        elif activity_type in (ActivityType.RECEIVE.value, ActivityType.CONSUME.value):
-            quantity_str = form_data.get("quantity", "").strip()
-            if not quantity_str:
-                raise Exception("Quantity is required")
-            try:
-                quantity = Decimal(quantity_str)
-                if quantity <= 0:
-                    raise Exception("Quantity must be positive")
-            except (ValueError, ArithmeticError):
-                raise Exception("Invalid quantity value")
-            if not self.form_unit:
-                raise Exception("Unit is required")
-            data["quantity"] = quantity
-            data["unit"] = self.form_unit
-            data["notes"] = form_data.get("notes", "").strip() or None
+        elif activity_type == ActivityType.CONSUME.value:
+            data = self._build_quantity_data(form_data)
 
         elif activity_type == ActivityType.MOVE.value:
             if not self.form_location_id:
@@ -403,15 +384,31 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
             data["item_number"] = item_number
             data["label"] = label or None
 
-        elif activity_type == ActivityType.ALIQUOT.value:
-            data = self._build_aliquot_data(form_data)
-
         return data
 
+    def _build_quantity_data(self, form_data: dict) -> dict[str, Any]:
+        """Build activity_data for quantity-based actions (RECEIVE into existing, CONSUME)."""
+        quantity_str = form_data.get("quantity", "").strip()
+        if not quantity_str:
+            raise Exception("Quantity is required")
+        try:
+            quantity = Decimal(quantity_str)
+            if quantity <= 0:
+                raise Exception("Quantity must be positive")
+        except (ValueError, ArithmeticError):
+            raise Exception("Invalid quantity value")
+        if not self.form_unit:
+            raise Exception("Unit is required")
+        return {
+            "quantity": quantity,
+            "unit": self.form_unit,
+            "notes": form_data.get("notes", "").strip() or None,
+        }
+
     def _build_create_data(self, form_data: dict) -> dict[str, Any]:
-        """Build activity_data for item creation."""
+        """Build activity_data for receiving a new item (RECEIVE)."""
         if not self.form_item_sheet:
-            raise Exception("ItemSheet is required")
+            raise Exception("Item sheet is required")
 
         item_number = form_data.get("item_number", "").strip()
         if not item_number:
@@ -439,49 +436,5 @@ class NoteActivityFormDialogState(FormDialogState, rx.State):
             "location_id": self.form_location_id or None,
             "supplier_id": self.form_supplier_id or None,
             "label": form_data.get("label", "").strip() or None,
-            "notes": form_data.get("notes", "").strip() or None,
-        }
-
-    def _build_aliquot_data(self, form_data: dict) -> dict[str, Any]:
-        """Build activity_data for aliquot creation."""
-        source_qty_str = form_data.get("source_quantity", "").strip()
-        aliquot_qty_str = form_data.get("aliquot_quantity", "").strip()
-
-        if not self.form_target_item_sheet:
-            raise Exception("Target item_sheet is required")
-        if not source_qty_str:
-            raise Exception("Source quantity is required")
-        if not aliquot_qty_str:
-            raise Exception("Aliquot quantity is required")
-
-        try:
-            source_quantity = Decimal(source_qty_str)
-            if source_quantity <= 0:
-                raise Exception("Source quantity must be positive")
-        except (ValueError, ArithmeticError):
-            raise Exception("Invalid source quantity value")
-
-        try:
-            aliquot_quantity = Decimal(aliquot_qty_str)
-            if aliquot_quantity <= 0:
-                raise Exception("Aliquot quantity must be positive")
-        except (ValueError, ArithmeticError):
-            raise Exception("Invalid aliquot quantity value")
-
-        supplier_id = self.form_supplier_id if self.form_supplier_id else None
-        if supplier_id == "__none__":
-            supplier_id = None
-
-        return {
-            "parent_item_id": self.form_item.id if self.form_item else None,
-            "target_item_sheet_id": self.form_target_item_sheet.id,
-            "source_quantity": source_quantity,
-            "source_unit": self.form_source_unit,
-            "aliquot_quantity": aliquot_quantity,
-            "aliquot_unit": self.form_aliquot_unit,
-            "aliquot_item_number": form_data.get("aliquot_item_number", "").strip() or None,
-            "label": form_data.get("label", "").strip() or None,
-            "location_id": self.form_location_id or None,
-            "supplier_id": supplier_id,
             "notes": form_data.get("notes", "").strip() or None,
         }

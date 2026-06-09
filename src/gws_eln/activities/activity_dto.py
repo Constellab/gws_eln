@@ -25,7 +25,7 @@ class CreateActivityDTO(BaseModelDTO):
     to_location_id: str | None = None
     notes: str | None = None
     note_id: str | None = None  # Link to Constellab Note
-    related_item_id: str | None = None  # For aliquot: child item ID
+    related_item_id: str | None = None  # For lineage: related item ID
 
 
 class ActivityDTO(ModelDTO):

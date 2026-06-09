@@ -9,7 +9,6 @@ import reflex as rx
 from gws_reflex_main import form_dialog_component
 
 from ...activities.activity_form_sections import (
-    aliquot_form_section,
     create_item_form_section,
     move_form_section,
     receive_consume_form_section,
@@ -26,7 +25,7 @@ S = NoteActivityFormDialogState
 
 
 def _item_info_section() -> rx.Component:
-    """Read-only display of selected item info, shown when a sub-form is active (except for CREATE)."""
+    """Read-only display of selected item info, shown when an existing item is selected."""
     return rx.cond(
         S.show_item_select & S.item,
         rx.vstack(
@@ -99,28 +98,6 @@ def _sub_form() -> rx.Component:
                 form_label=S.form_label,
             ),
         ),
-        rx.cond(
-            S.show_aliquot_form,
-            aliquot_form_section(
-                form_unit_type=S.form_unit_type,
-                form_source_unit=S.form_source_unit,
-                on_source_unit_change=S.set_source_unit,
-                form_aliquot_unit_type=S.form_aliquot_unit_type,
-                form_aliquot_unit=S.form_aliquot_unit,
-                on_aliquot_unit_change=S.set_aliquot_unit,
-                form_location_id=S.form_location_id,
-                on_location_change=S.set_location_id,
-                form_supplier_id=S.form_supplier_id,
-                on_supplier_change=S.set_supplier_id,
-                form_notes=S.form_notes,
-                form_target_item_sheet=S.form_target_item_sheet,
-                on_target_item_sheet_change=S.set_target_item_sheet,
-                form_parent_item=S.form_item,
-                parent_item=S.item,
-                on_parent_item_change=S.set_item,
-                item_select_disabled=False,
-            ),
-        ),
     )
 
 
@@ -136,6 +113,21 @@ def _form_content() -> rx.Component:
             ),
             width="100%",
             spacing="1",
+        ),
+        # For RECEIVE: choose between an existing item (restock) and a new item
+        rx.cond(
+            S.show_receive_mode_toggle,
+            rx.vstack(
+                rx.segmented_control.root(
+                    rx.segmented_control.item("Existing item", value="existing"),
+                    rx.segmented_control.item("New item", value="new"),
+                    value=S.form_receive_mode,
+                    on_change=S.set_receive_mode,
+                    width="100%",
+                ),
+                width="100%",
+                spacing="1",
+            ),
         ),
         rx.cond(
             S.show_item_select,

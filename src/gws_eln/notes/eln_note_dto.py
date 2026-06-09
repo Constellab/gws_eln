@@ -12,7 +12,7 @@ class AddNoteActivityDTO(BaseModelDTO):
 
     note_id: str
     note_block_id: str
-    item_id: str | None = None  # None for CREATE activity (creates a new item)
+    item_id: str | None = None  # None when RECEIVE creates a new item (from an item sheet)
     activity_type: ActivityType
     activity_data: dict[str, Any]
     rich_text_content: RichTextDTO

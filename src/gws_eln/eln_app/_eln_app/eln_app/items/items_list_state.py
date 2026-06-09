@@ -10,7 +10,6 @@ from gws_eln.items.item_dto import DeleteItemResultDTO, ItemDTO
 from gws_eln.items.item_search_builder import ItemSearchBuilder
 from gws_reflex_main import ReflexMainState
 
-from .aliquot_form_dialog.aliquot_form_dialog_state import AliquotFormDialogState
 from .item_event_form_dialog.item_event_form_dialog_state import (
     ItemEventFormDialogState,
     ItemEventType,
@@ -248,17 +247,6 @@ class ItemsListState(rx.State):
         dialog_state = await self.get_state(ItemEventFormDialogState)
         dialog_state.set_callback_after_close(self._reload_items)
         dialog_state.open_dialog_for_event(item, ItemEventType.CONSUME)
-
-    @rx.event
-    async def open_aliquot_dialog(self, item: ItemDTO):
-        """Open the aliquot creation dialog for a item.
-
-        :param item: The item to create aliquot from
-        :type item: ItemDTO
-        """
-        dialog_state = await self.get_state(AliquotFormDialogState)
-        dialog_state.set_callback_after_close(self._reload_items)
-        dialog_state.open_dialog(item)
 
     @rx.event
     async def open_move_dialog(self, item: ItemDTO):
