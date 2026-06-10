@@ -9,7 +9,12 @@ from decimal import Decimal
 
 from gws_core import BadRequestException, CurrentUserService
 from gws_eln.activities.activity import Activity
-from gws_eln.activities.activity_dto import CreateActivityDTO
+from gws_eln.activities.activity_dto import (
+    CreateActivityDTO,
+    CreateActivityInputDTO,
+    CreateActivityOutputDTO,
+)
+from gws_eln.activities.activity_input_role import ActivityInputRole
 from gws_eln.activities.activity_service import ActivityService
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.concentration_unit import CONCENTRATION_UNITS, is_valid_concentration_unit
@@ -195,6 +200,13 @@ class ItemService:
                 unit_type=unit_type,
                 notes=dto.notes,
                 note_id=dto.note_id,
+                outputs=[
+                    CreateActivityOutputDTO(
+                        item_id=item.id,
+                        quantity=base_quantity,
+                        unit_type=unit_type,
+                    )
+                ],
             )
         )
 
@@ -238,6 +250,13 @@ class ItemService:
                 unit_type=item.unit_type,
                 notes=dto.notes,
                 note_id=dto.note_id,
+                outputs=[
+                    CreateActivityOutputDTO(
+                        item_id=item.id,
+                        quantity=base_quantity,
+                        unit_type=item.unit_type,
+                    )
+                ],
             )
         )
 
@@ -291,6 +310,14 @@ class ItemService:
                 unit_type=item.unit_type,
                 notes=dto.notes,
                 note_id=dto.note_id,
+                inputs=[
+                    CreateActivityInputDTO(
+                        item_id=item.id,
+                        role=ActivityInputRole.INGREDIENT,
+                        quantity_contributed=base_quantity,
+                        unit_type=item.unit_type,
+                    )
+                ],
             )
         )
 
@@ -333,6 +360,12 @@ class ItemService:
                 from_location_id=from_location.id,
                 to_location_id=to_location.id,
                 note_id=dto.note_id,
+                inputs=[
+                    CreateActivityInputDTO(
+                        item_id=item.id,
+                        role=ActivityInputRole.INGREDIENT,
+                    )
+                ],
             )
         )
 
@@ -400,6 +433,12 @@ class ItemService:
                 item_id=item_id,
                 notes=dto.notes,
                 note_id=dto.note_id,
+                inputs=[
+                    CreateActivityInputDTO(
+                        item_id=item_id,
+                        role=ActivityInputRole.INSTRUMENT,
+                    )
+                ],
             )
         )
 
@@ -433,6 +472,14 @@ class ItemService:
                 unit_type=item.unit_type,
                 notes=dto.notes or "Item discarded",
                 note_id=dto.note_id,
+                inputs=[
+                    CreateActivityInputDTO(
+                        item_id=item.id,
+                        role=ActivityInputRole.INGREDIENT,
+                        quantity_contributed=item.quantity,
+                        unit_type=item.unit_type,
+                    )
+                ],
             )
         )
 
@@ -498,6 +545,12 @@ class ItemService:
                 item_id=item.id,
                 notes="; ".join(changes),
                 note_id=dto.note_id,
+                inputs=[
+                    CreateActivityInputDTO(
+                        item_id=item.id,
+                        role=ActivityInputRole.INGREDIENT,
+                    )
+                ],
             )
         )
 
@@ -602,6 +655,14 @@ class ItemService:
                 unit_type=item.unit_type,
                 notes=notes if notes else "Item discarded",
                 note_id=note_id,
+                inputs=[
+                    CreateActivityInputDTO(
+                        item_id=item.id,
+                        role=ActivityInputRole.INGREDIENT,
+                        quantity_contributed=item.quantity,
+                        unit_type=item.unit_type,
+                    )
+                ],
             )
         )
 

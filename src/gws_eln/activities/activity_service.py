@@ -7,7 +7,14 @@ Handles activity logging and history queries for inventory operations.
 from gws_core import BadRequestException, CurrentUserService
 
 from gws_eln.activities.activity import Activity
-from gws_eln.activities.activity_dto import CreateActivityDTO
+from gws_eln.activities.activity_dto import (
+    CreateActivityDTO,
+    CreateActivityInputDTO,
+    CreateActivityOutputDTO,
+)
+from gws_eln.activities.activity_input import ActivityInput
+from gws_eln.activities.activity_input_role import ActivityInputRole
+from gws_eln.activities.activity_output import ActivityOutput
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.items.item import Item
 from gws_eln.locations.location import Location
@@ -87,7 +94,77 @@ class ActivityService:
         activity.related_item = related_item
 
         activity.save()
+
+        # Create the structured lineage rows (items taken from / created)
+        for input_dto in dto.inputs:
+            self._create_activity_input(activity, input_dto)
+        for output_dto in dto.outputs:
+            self._create_activity_output(activity, output_dto)
+
         return activity
+
+    def _create_activity_input(
+        self, activity: Activity, input_dto: CreateActivityInputDTO
+    ) -> ActivityInput:
+        """
+        Create an ActivityInput row linking an item the activity took from.
+
+        :param activity: The parent activity
+        :type activity: Activity
+        :param input_dto: DTO describing the input item, role and contribution
+        :type input_dto: CreateActivityInputDTO
+        :return: The created activity input
+        :rtype: ActivityInput
+        :raises BadRequestException: If the input item doesn't exist, is discarded,
+                                     or an INSTRUMENT input references a consumable item
+        """
+        item = self._validate_entity_exists(input_dto.item_id)
+
+        # An activity input (either role) cannot reference a discarded item
+        if item.is_discarded():
+            raise BadRequestException(
+                f"Cannot use discarded item '{item.item_number}' as an activity input"
+            )
+
+        # INSTRUMENT inputs must reference a non-consumable item
+        if input_dto.role == ActivityInputRole.INSTRUMENT and item.is_consumable():
+            raise BadRequestException(
+                f"Item '{item.item_number}' is consumable and cannot be used as an "
+                "INSTRUMENT input. Use a CONSUME activity with a quantity instead."
+            )
+
+        activity_input = ActivityInput()
+        activity_input.activity = activity
+        activity_input.item = item
+        activity_input.role = input_dto.role
+        activity_input.quantity_contributed = input_dto.quantity_contributed
+        activity_input.unit_type = input_dto.unit_type
+        activity_input.save()
+        return activity_input
+
+    def _create_activity_output(
+        self, activity: Activity, output_dto: CreateActivityOutputDTO
+    ) -> ActivityOutput:
+        """
+        Create an ActivityOutput row linking a new item the activity created.
+
+        :param activity: The parent activity
+        :type activity: Activity
+        :param output_dto: DTO describing the created item and its quantity snapshot
+        :type output_dto: CreateActivityOutputDTO
+        :return: The created activity output
+        :rtype: ActivityOutput
+        :raises BadRequestException: If the output item doesn't exist
+        """
+        item = self._validate_entity_exists(output_dto.item_id)
+
+        activity_output = ActivityOutput()
+        activity_output.activity = activity
+        activity_output.item = item
+        activity_output.quantity = output_dto.quantity
+        activity_output.unit_type = output_dto.unit_type
+        activity_output.save()
+        return activity_output
 
     def get_item_history(self, item_id: str) -> list[Activity]:
         """

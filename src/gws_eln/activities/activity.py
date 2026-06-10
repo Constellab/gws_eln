@@ -125,6 +125,8 @@ class Activity(ModelWithUser):
             to_location=self.to_location.to_dto() if self.to_location else None,
             notes=self.notes,
             note_id=self.note_id,
+            inputs=[activity_input.to_dto() for activity_input in self.inputs],
+            outputs=[activity_output.to_dto() for activity_output in self.outputs],
             created_at=self.created_at,
             last_modified_at=self.last_modified_at,
             created_by=self.created_by.to_dto(),
