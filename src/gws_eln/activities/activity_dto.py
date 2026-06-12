@@ -84,5 +84,6 @@ class ActivityDTO(ModelDTO):
     note_id: str | None
     inputs: list[ActivityInputDTO]
     outputs: list[ActivityOutputDTO]
+    quantity_color: str = ""  # CSS color token for pretty_quantity ("" = default)
     created_by: UserDTO
     last_modified_by: UserDTO

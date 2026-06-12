@@ -31,3 +31,37 @@ class ItemActivityResult:
         return ItemActivityResponseDTO(
             item=self.item.to_dto(), activity=self.activity.to_dto() if self.activity else None
         )
+
+
+class TransformResponseDTO(BaseModelDTO):
+    """Response DTO for a transform (split/combine) that creates one activity,
+    mutates 1..N input items and creates 1..N output items.
+
+    Returned by endpoints so the frontend can re-fetch the whole affected set
+    (mutated inputs + new outputs) without extra round-trips.
+    """
+
+    activity: ActivityDTO
+    inputs: list[ItemDTO]
+    outputs: list[ItemDTO]
+
+
+@dataclass
+class TransformResult:
+    """Result of a transform operation (split/combine).
+
+    Holds the single created activity, the mutated source items (`inputs`)
+    and the newly created items (`outputs`), so callers can access any of
+    them without re-querying.
+    """
+
+    activity: Activity
+    inputs: list[Item]
+    outputs: list[Item]
+
+    def to_dto(self) -> TransformResponseDTO:
+        return TransformResponseDTO(
+            activity=self.activity.to_dto(),
+            inputs=[item.to_dto() for item in self.inputs],
+            outputs=[item.to_dto() for item in self.outputs],
+        )

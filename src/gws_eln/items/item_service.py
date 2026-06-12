@@ -20,8 +20,9 @@ from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.concentration_unit import CONCENTRATION_UNITS, is_valid_concentration_unit
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.items.item import Item
-from gws_eln.items.item_activity_dto import ItemActivityResult
+from gws_eln.items.item_activity_dto import ItemActivityResult, TransformResult
 from gws_eln.items.item_dto import (
+    CombineItemDTO,
     CreateItemDTO,
     DecrementQuantityDTO,
     DeleteItemResultDTO,
@@ -30,6 +31,7 @@ from gws_eln.items.item_dto import (
     MoveItemDTO,
     ReceiveItemDTO,
     RelabelItemDTO,
+    SplitItemDTO,
     UpdateItemDTO,
     UseItemDTO,
 )
@@ -40,6 +42,9 @@ from gws_eln.locations.location_service import LocationService
 from gws_eln.suppliers.supplier_service import SupplierService
 from gws_eln.utils.units_converter import UnitConverter
 from gws_eln.utils.validators import QuantityValidator
+
+# A combine merges several items, so it needs at least this many ingredient inputs.
+MIN_COMBINE_INGREDIENTS = 2
 
 
 class ItemService:
@@ -555,6 +560,260 @@ class ItemService:
         )
 
         return ItemActivityResult(item=item, activity=activity)
+
+    @ElnDbManager.transaction()
+    def split_item(self, item_id: str, dto: SplitItemDTO) -> TransformResult:
+        """
+        Split one source item into 1..N new output items.
+
+        The source quantity is reduced in place by the sum of the output
+        quantities (the leftover stays in the source item). Each output is
+        a brand new item that inherits the source's item sheet, unit_type and
+        concentration; only quantity/location/label/expiry are per-output.
+        A single SPLIT activity records the source as one INGREDIENT input and
+        every created item as an output, capturing the lineage.
+
+        :param item_id: The ID of the source item to split
+        :type item_id: str
+        :param dto: DTO containing the output items to create
+        :type dto: SplitItemDTO
+        :return: The mutated source item and the created output items + activity
+        :rtype: TransformResult
+        :raises NotFoundException: If the source item not found
+        :raises BadRequestException: If validation fails (no outputs, discarded
+                                     or non-consumable source, bad unit, or
+                                     insufficient quantity)
+        """
+        # Get and guard the source item
+        source = self.get_item(item_id)
+
+        if source.is_discarded():
+            raise BadRequestException(f"Cannot split discarded item '{source.item_number}'")
+
+        if not source.is_consumable():
+            raise BadRequestException(
+                f"Cannot split non-consumable item sheet '{source.item_sheet.name}'. "
+                "Splitting reduces quantity, which only applies to consumable items."
+            )
+
+        if not dto.outputs:
+            raise BadRequestException("Split requires at least one output item")
+
+        unit_type = source.unit_type
+
+        # Validate every output and convert its quantity to base units, while
+        # accumulating the total amount drawn from the source.
+        total_base_quantity = Decimal(0)
+        prepared_outputs = []
+        for output_dto in dto.outputs:
+            self._validate_item_number(output_dto.item_number)
+            validated_quantity = QuantityValidator.validate_quantity(output_dto.quantity)
+            base_quantity = self._validate_and_convert_quantity(
+                source, validated_quantity, output_dto.unit
+            )
+            total_base_quantity += base_quantity
+            prepared_outputs.append((output_dto, base_quantity))
+
+        # Cannot draw more than the source holds (no negative stock)
+        source.validate_sufficient_quantity(total_base_quantity)
+
+        # Reduce the source in place
+        source.quantity = source.quantity - total_base_quantity
+        source.save()
+
+        # Create the new output items
+        output_items = []
+        activity_outputs = []
+        for output_dto, base_quantity in prepared_outputs:
+            if output_dto.location_id:
+                location = Location.get_by_id_and_check(output_dto.location_id)
+            else:
+                location = source.location
+
+            item = Item()
+            item.item_sheet = source.item_sheet
+            item.item_number = output_dto.item_number.strip()
+            item.quantity = base_quantity
+            item.unit_type = unit_type
+            # Concentration is intensive: children inherit it unchanged
+            item.concentration = source.concentration
+            item.concentration_unit = source.concentration_unit
+            item.location = location
+            item.expiry_date = (
+                output_dto.expiry_date if output_dto.expiry_date is not None else source.expiry_date
+            )
+            item.label = output_dto.label.strip() if output_dto.label else None
+            item.notes = output_dto.notes.strip() if output_dto.notes else None
+            # Single parent: a split child has exactly one source item
+            item.parent_item = source
+            item.supplier = source.supplier
+            item.save()
+
+            output_items.append(item)
+            activity_outputs.append(
+                CreateActivityOutputDTO(
+                    item_id=item.id,
+                    quantity=base_quantity,
+                    unit_type=unit_type,
+                )
+            )
+
+        # One split activity: 1 ingredient input (source) -> N outputs
+        activity = self._activity_service.log_activity(
+            CreateActivityDTO(
+                activity_type=ActivityType.SPLIT,
+                item_id=source.id,
+                quantity=total_base_quantity,
+                unit_type=unit_type,
+                notes=dto.notes,
+                note_id=dto.note_id,
+                inputs=[
+                    CreateActivityInputDTO(
+                        item_id=source.id,
+                        role=ActivityInputRole.INGREDIENT,
+                        quantity_contributed=total_base_quantity,
+                        unit_type=unit_type,
+                    )
+                ],
+                outputs=activity_outputs,
+            )
+        )
+
+        return TransformResult(activity=activity, inputs=[source], outputs=output_items)
+
+    @ElnDbManager.transaction()
+    def combine_items(self, dto: CombineItemDTO) -> TransformResult:
+        """
+        Combine 2..N ingredient items into one new output item.
+
+        Each ingredient is reduced in place by its contribution (bounded by the
+        non-negative stock check); inputs may be of any dimension. A
+        brand new output item is created on the caller-provided output item
+        sheet - its dimension/quantity come from the sheet + user input,
+        never from summing the inputs. The output concentration is
+        user-entered or null. Optional instrument inputs (non-consumable)
+        are recorded for traceability. A single combine activity records every
+        ingredient as an ingredient input and the new item as the sole output.
+
+        :param dto: DTO describing the ingredient inputs and the output item
+        :type dto: CombineItemDTO
+        :return: The mutated ingredient items and the created output + activity
+        :rtype: TransformResult
+        :raises NotFoundException: If an input item or the output sheet not found
+        :raises BadRequestException: If validation fails (<2 ingredients, a
+                                     discarded or non-consumable ingredient, bad
+                                     unit, or insufficient quantity)
+        """
+        # Combine needs at least two ingredients to merge
+        if len(dto.inputs) < MIN_COMBINE_INGREDIENTS:
+            raise BadRequestException(
+                f"Combine requires at least {MIN_COMBINE_INGREDIENTS} ingredient inputs"
+            )
+
+        # Validate the output item definition up front
+        self._validate_item_number(dto.output_item_number)
+        output_sheet = self._validate_item_sheet_exists(dto.output_item_sheet_id)
+        output_unit_type = output_sheet.default_unit_type
+
+        if not UnitConverter.is_valid_unit(dto.output_unit, output_unit_type):
+            valid_units = ", ".join(UnitConverter.get_valid_units(output_unit_type))
+            raise BadRequestException(
+                f"Invalid unit '{dto.output_unit}' for output item sheet "
+                f"'{output_sheet.name}' (unit type: {output_unit_type.value}). "
+                f"Valid units: {valid_units}"
+            )
+
+        validated_output_quantity = QuantityValidator.validate_quantity(dto.output_quantity)
+        output_base_quantity = UnitConverter.to_base_unit(
+            validated_output_quantity, dto.output_unit, output_unit_type
+        )
+
+        self._validate_concentration(dto.output_concentration, dto.output_concentration_unit)
+
+        # Resolve and reduce each ingredient in place
+        mutated_inputs = []
+        activity_inputs = []
+        for input_dto in dto.inputs:
+            item = self.get_item(input_dto.item_id)
+
+            if item.is_discarded():
+                raise BadRequestException(f"Cannot combine discarded item '{item.item_number}'")
+
+            if not item.is_consumable():
+                raise BadRequestException(
+                    f"Cannot draw from non-consumable item sheet '{item.item_sheet.name}'. "
+                    "Combine ingredients must be consumable. Record an instrument via "
+                    "instrument_item_ids instead."
+                )
+
+            validated_quantity = QuantityValidator.validate_quantity(input_dto.quantity)
+            base_quantity = self._validate_and_convert_quantity(
+                item, validated_quantity, input_dto.unit
+            )
+            item.validate_sufficient_quantity(base_quantity)
+
+            item.quantity = item.quantity - base_quantity
+            item.save()
+
+            mutated_inputs.append(item)
+            activity_inputs.append(
+                CreateActivityInputDTO(
+                    item_id=item.id,
+                    role=ActivityInputRole.INGREDIENT,
+                    quantity_contributed=base_quantity,
+                    unit_type=item.unit_type,
+                )
+            )
+
+        # Optional instrument inputs (non-consumable; validated by ActivityService)
+        for instrument_id in dto.instrument_item_ids:
+            activity_inputs.append(
+                CreateActivityInputDTO(
+                    item_id=instrument_id,
+                    role=ActivityInputRole.INSTRUMENT,
+                )
+            )
+
+        # Create the new output item.
+        # No parent_item: combine has many parents, which a single FK cannot hold -
+        # the multi-parent lineage lives entirely in the activity inputs/outputs.
+        location = LocationService().get_or_default_location(dto.output_location_id)
+        output = Item()
+        output.item_sheet = output_sheet
+        output.item_number = dto.output_item_number.strip()
+        output.quantity = output_base_quantity
+        output.unit_type = output_unit_type
+        output.concentration = dto.output_concentration
+        output.concentration_unit = dto.output_concentration_unit or None
+        output.location = location
+        output.expiry_date = dto.output_expiry_date
+        output.label = dto.output_label.strip() if dto.output_label else None
+        output.notes = dto.notes.strip() if dto.notes else None
+        output.parent_item = None
+        output.supplier = None
+        output.save()
+
+        # One combine activity: N ingredient inputs (+ optional INSTRUMENTs) -> 1 output
+        activity = self._activity_service.log_activity(
+            CreateActivityDTO(
+                activity_type=ActivityType.COMBINE,
+                item_id=output.id,
+                quantity=output_base_quantity,
+                unit_type=output_unit_type,
+                notes=dto.notes,
+                note_id=dto.note_id,
+                inputs=activity_inputs,
+                outputs=[
+                    CreateActivityOutputDTO(
+                        item_id=output.id,
+                        quantity=output_base_quantity,
+                        unit_type=output_unit_type,
+                    )
+                ],
+            )
+        )
+
+        return TransformResult(activity=activity, inputs=mutated_inputs, outputs=[output])
 
     def cancel_creation(self, item_id: str) -> None:
         """

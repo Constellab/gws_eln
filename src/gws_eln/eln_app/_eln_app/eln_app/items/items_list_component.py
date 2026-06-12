@@ -8,22 +8,28 @@ from ..locations.core.inline_location_component import inline_location_component
 from ..locations.core.location_select_component import location_select_component
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from ..suppliers.core.supplier_select_component import supplier_select_component
-from .item_event_form_dialog.item_event_form_dialog_component import (
-    item_event_form_dialog,
+from .combine_item_form_dialog.combine_item_form_dialog_component import (
+    combine_item_dialog,
 )
-from .items_list_state import ALL_FILTER_VALUE, ItemsListState
 from .core.item_actions_menu import item_actions_menu
-from .core.item_components import item_inline, expiry_date_badge, status_badge
+from .core.item_components import expiry_date_badge, item_inline, status_badge
 from .core.item_status_select_component import item_status_select_component
 from .delete_item_form_dialog.delete_item_form_dialog_component import (
     delete_item_dialog,
 )
+from .item_event_form_dialog.item_event_form_dialog_component import (
+    item_event_form_dialog,
+)
 from .item_form_dialog.item_form_dialog_component import (
     create_item_dialog,
 )
+from .items_list_state import ALL_FILTER_VALUE, ItemsListState
 from .move_item_form_dialog.move_item_form_dialog_component import move_item_dialog
 from .relabel_item_form_dialog.relabel_item_form_dialog_component import (
     relabel_item_dialog,
+)
+from .split_item_form_dialog.split_item_form_dialog_component import (
+    split_item_dialog,
 )
 from .update_item_form_dialog.update_item_form_dialog_component import (
     update_item_dialog,
@@ -118,6 +124,8 @@ def _row(item: ItemDTO) -> rx.Component:
                 on_move=lambda: ItemsListState.open_move_dialog(item),
                 on_update=lambda: ItemsListState.open_update_dialog(item),
                 on_relabel=lambda: ItemsListState.open_relabel_dialog(item),
+                on_split=lambda: ItemsListState.open_split_dialog(item),
+                on_combine=lambda: ItemsListState.open_combine_dialog(item),
                 on_delete=lambda: ItemsListState.open_delete_dialog(item),
                 stop_propagation=True,
             ),
@@ -231,6 +239,8 @@ def items_list_component(item_sheet_id: rx.Var[str]) -> rx.Component:
             move_item_dialog(),
             update_item_dialog(),
             relabel_item_dialog(),
+            split_item_dialog(),
+            combine_item_dialog(),
             delete_item_dialog(),
             width="100%",
             spacing="4",

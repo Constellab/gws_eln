@@ -49,11 +49,15 @@ class ActivityInput(ModelWithUser):
     def get_pretty_quantity(self) -> str | None:
         """Get a human-readable string for the contributed quantity and unit type.
 
-        :return: Pretty quantity string (e.g. "5.0 L") or None if no quantity
+        An input is a withdrawal, so the sign is intrinsically negative
+        (e.g. "-5 mL"). Null when the input carries no quantity (INSTRUMENT,
+        move/relabel).
+
+        :return: Signed pretty quantity string (e.g. "-5.0 L") or None if no quantity
         :rtype: str | None
         """
         if self.quantity_contributed is not None and self.unit_type is not None:
-            return UnitConverter.format_value(self.quantity_contributed, self.unit_type)
+            return f"-{UnitConverter.format_value(self.quantity_contributed, self.unit_type)}"
         return None
 
     def to_dto(self) -> ActivityInputDTO:

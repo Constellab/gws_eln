@@ -43,11 +43,14 @@ class ActivityOutput(ModelWithUser):
     def get_pretty_quantity(self) -> str | None:
         """Get a human-readable string for the output quantity and unit type.
 
-        :return: Pretty quantity string (e.g. "5.0 L") or None if no quantity
+        An output is an addition, so the sign is intrinsically positive
+        (e.g. "+10 mL"). Null when the output carries no quantity.
+
+        :return: Signed pretty quantity string (e.g. "+5.0 L") or None if no quantity
         :rtype: str | None
         """
         if self.quantity is not None and self.unit_type is not None:
-            return UnitConverter.format_value(self.quantity, self.unit_type)
+            return f"+{UnitConverter.format_value(self.quantity, self.unit_type)}"
         return None
 
     def to_dto(self) -> ActivityOutputDTO:

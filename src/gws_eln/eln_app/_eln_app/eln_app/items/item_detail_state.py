@@ -8,18 +8,24 @@ from gws_reflex_main import ReflexMainState
 
 from ..activities.activities_list_state import ActivitiesListState
 from ..common.eln_app_router import ElnAppRouter
-from .item_event_form_dialog.item_event_form_dialog_state import (
-    ItemEventFormDialogState,
-    ItemEventType,
+from .combine_item_form_dialog.combine_item_form_dialog_state import (
+    CombineItemFormDialogState,
 )
 from .delete_item_form_dialog.delete_item_form_dialog_state import (
     DeleteItemFormDialogState,
+)
+from .item_event_form_dialog.item_event_form_dialog_state import (
+    ItemEventFormDialogState,
+    ItemEventType,
 )
 from .move_item_form_dialog.move_item_form_dialog_state import (
     MoveItemFormDialogState,
 )
 from .relabel_item_form_dialog.relabel_item_form_dialog_state import (
     RelabelItemFormDialogState,
+)
+from .split_item_form_dialog.split_item_form_dialog_state import (
+    SplitItemFormDialogState,
 )
 from .update_item_form_dialog.update_item_form_dialog_state import (
     UpdateItemFormDialogState,
@@ -118,6 +124,24 @@ class ItemDetailState(rx.State):
         dialog_state = await self.get_state(MoveItemFormDialogState)
         dialog_state.set_callback_after_close(self._on_item_event_success)
         await dialog_state.open_move_dialog(self.item)
+
+    @rx.event
+    async def open_split_dialog(self):
+        """Open the split item dialog for the current item."""
+        if not self.item:
+            return
+        dialog_state = await self.get_state(SplitItemFormDialogState)
+        dialog_state.set_callback_after_close(self._on_item_event_success)
+        dialog_state.open_split_dialog(self.item)
+
+    @rx.event
+    async def open_combine_dialog(self):
+        """Open the combine items dialog seeded with the current item."""
+        if not self.item:
+            return
+        dialog_state = await self.get_state(CombineItemFormDialogState)
+        dialog_state.set_callback_after_close(self._on_item_event_success)
+        dialog_state.open_combine_dialog(self.item)
 
     async def _on_item_update_success(self, updated_item: ItemDTO):
         """Callback invoked when update_item completes successfully.

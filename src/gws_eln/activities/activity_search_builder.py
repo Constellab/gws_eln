@@ -1,6 +1,8 @@
 from gws_core import SearchBuilder
 
 from gws_eln.activities.activity import Activity
+from gws_eln.activities.activity_input import ActivityInput
+from gws_eln.activities.activity_output import ActivityOutput
 from gws_eln.activities.activity_type import ActivityType
 
 
@@ -21,6 +23,25 @@ class ActivitySearchBuilder(SearchBuilder):
         return self
 
     def add_entity_filter(self, entity_id: str) -> "ActivitySearchBuilder":
-        """Filter the search query by entity (item) ID"""
-        self.add_expression(Activity.item == entity_id)
+        """Filter the search query to every activity that references the item.
+
+        An item appears in an activity in three ways, all of which belong to its
+        history: as the activity's subject (``Activity.item``), as an input it was
+        taken from (an ``ActivityInput`` row), or as an output it was created by
+        (an ``ActivityOutput`` row). For transforms like combine, the ingredients
+        are only recorded as inputs, so a subject-only filter would hide the
+        combine from each ingredient's timeline.
+        """
+        activity_ids_as_input = ActivityInput.select(ActivityInput.activity).where(
+            ActivityInput.item == entity_id
+        )
+        activity_ids_as_output = ActivityOutput.select(ActivityOutput.activity).where(
+            ActivityOutput.item == entity_id
+        )
+
+        self.add_expression(
+            (Activity.item == entity_id)
+            | (Activity.id.in_(activity_ids_as_input))
+            | (Activity.id.in_(activity_ids_as_output))
+        )
         return self

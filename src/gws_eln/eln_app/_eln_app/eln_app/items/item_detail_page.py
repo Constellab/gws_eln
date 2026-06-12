@@ -13,6 +13,9 @@ from ..item_sheets.core.item_sheet_components import (
 )
 from ..locations.core.inline_location_component import inline_location_component
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
+from .combine_item_form_dialog.combine_item_form_dialog_component import (
+    combine_item_dialog,
+)
 from .core.item_actions_menu import item_actions_menu
 from .core.item_components import expiry_date_badge, item_inline_link, status_badge
 from .delete_item_form_dialog.delete_item_form_dialog_component import (
@@ -27,6 +30,9 @@ from .move_item_form_dialog.move_item_form_dialog_component import (
 )
 from .relabel_item_form_dialog.relabel_item_form_dialog_component import (
     relabel_item_dialog,
+)
+from .split_item_form_dialog.split_item_form_dialog_component import (
+    split_item_dialog,
 )
 from .update_item_form_dialog.update_item_form_dialog_component import (
     update_item_dialog,
@@ -220,6 +226,8 @@ def _actions_menu() -> rx.Component:
         on_move=ItemDetailState.open_move_dialog,
         on_update=ItemDetailState.open_update_dialog,
         on_relabel=ItemDetailState.open_relabel_dialog,
+        on_split=ItemDetailState.open_split_dialog,
+        on_combine=ItemDetailState.open_combine_dialog,
         on_delete=ItemDetailState.open_delete_dialog,
     )
 
@@ -310,5 +318,7 @@ def item_detail_page() -> rx.Component:
         move_item_dialog(),
         update_item_dialog(),
         relabel_item_dialog(),
+        split_item_dialog(),
+        combine_item_dialog(),
         delete_item_dialog(),
     )

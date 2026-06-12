@@ -113,7 +113,9 @@ def _row(activity: ActivityDTO) -> rx.Component:
             rx.box(activity_type_badge(activity.activity_type), width="fit-content"),
         ),
         rx.table.cell(_activity_description(activity)),
-        rx.table.cell(activity.pretty_quantity),
+        rx.table.cell(
+            rx.text(activity.pretty_quantity, color=activity.quantity_color, weight="medium"),
+        ),
         rx.table.cell(
             rx.cond(
                 activity.note_id,

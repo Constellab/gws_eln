@@ -14,6 +14,8 @@ def item_actions_menu(
     on_update: rx.EventHandler | Callable,
     on_relabel: rx.EventHandler | Callable,
     on_delete: rx.EventHandler | Callable,
+    on_split: rx.EventHandler | Callable | None = None,
+    on_combine: rx.EventHandler | Callable | None = None,
     stop_propagation: bool = False,
 ) -> rx.Component:
     """Create the actions menu for a item.
@@ -32,6 +34,12 @@ def item_actions_menu(
     :type on_relabel: rx.EventHandler | Callable
     :param on_delete: Event handler for delete item action
     :type on_delete: rx.EventHandler | Callable
+    :param on_split: Event handler for split item action. The Split entry is
+                     only shown when this handler is provided.
+    :type on_split: rx.EventHandler | Callable | None
+    :param on_combine: Event handler for combine item action. The Combine entry
+                       is only shown when this handler is provided.
+    :type on_combine: rx.EventHandler | Callable | None
     :param stop_propagation: Whether to stop event propagation (useful in table rows)
     :type stop_propagation: bool
     :return: The actions menu component
@@ -41,6 +49,48 @@ def item_actions_menu(
     def _wrap_click(handler: rx.EventHandler | Callable) -> rx.EventHandler | Callable | list:
         """Wrap click handler with stop_propagation if needed."""
         return [rx.stop_propagation, handler] if stop_propagation else handler
+
+    # Consume and Split reduce a quantity, so they are only meaningful for
+    # consumable items. They are hidden for non-consumable items (instruments).
+    is_consumable = item.item_sheet.is_consumable
+
+    consume_menu_item = rx.cond(
+        is_consumable,
+        rx.menu.item(
+            rx.icon("flame", size=16),
+            "Consume Stock",
+            on_click=_wrap_click(on_consume),
+        ),
+        rx.fragment(),
+    )
+
+    # The Split entry is only shown when an on_split handler is provided AND the
+    # item is consumable.
+    split_menu_item = rx.fragment()
+    if on_split is not None:
+        split_menu_item = rx.cond(
+            is_consumable,
+            rx.menu.item(
+                rx.icon("split", size=16),
+                "Split Item",
+                on_click=_wrap_click(on_split),
+            ),
+            rx.fragment(),
+        )
+
+    # The Combine entry is only shown when an on_combine handler is provided AND
+    # the item is consumable (combine draws from consumable ingredients).
+    combine_menu_item = rx.fragment()
+    if on_combine is not None:
+        combine_menu_item = rx.cond(
+            is_consumable,
+            rx.menu.item(
+                rx.icon("git-merge", size=16),
+                "Combine Items",
+                on_click=_wrap_click(on_combine),
+            ),
+            rx.fragment(),
+        )
 
     return rx.menu.root(
         rx.menu.trigger(
@@ -56,11 +106,7 @@ def item_actions_menu(
                 "Receive Stock",
                 on_click=_wrap_click(on_receive),
             ),
-            rx.menu.item(
-                rx.icon("flame", size=16),
-                "Consume Stock",
-                on_click=_wrap_click(on_consume),
-            ),
+            consume_menu_item,
             rx.menu.separator(),
             rx.menu.item(
                 rx.icon("arrow-right-from-line", size=16),
@@ -77,6 +123,8 @@ def item_actions_menu(
                 "Relabel Item",
                 on_click=_wrap_click(on_relabel),
             ),
+            split_menu_item,
+            combine_menu_item,
             rx.menu.separator(),
             rx.menu.item(
                 rx.icon("trash-2", size=16),

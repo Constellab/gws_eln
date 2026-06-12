@@ -1,7 +1,10 @@
 """State for the activities list component."""
 
+from typing import cast
+
 import reflex as rx
 from gws_core import Logger
+from gws_eln.activities.activity import Activity
 from gws_eln.activities.activity_dto import ActivityDTO
 from gws_eln.activities.activity_search_builder import ActivitySearchBuilder
 from gws_eln.activities.activity_type import ActivityType
@@ -62,12 +65,62 @@ class ActivitiesListState(rx.State):
                 activity_type = ActivityType(self.filter_activity_type)
                 search_builder.add_activity_type_filter(activity_type)
 
-            activities = search_builder.search_all()
+            activities = cast(list[Activity], search_builder.search_all())
 
-            self._activities = [activity.to_dto() for activity in activities]
+            dtos = []
+            for activity in activities:
+                dto = activity.to_dto()
+                # Show the quantity from the current item's perspective (already
+                # signed) instead of the activity subject's quantity.
+                current_item_pretty_quantity = self._get_current_item_pretty_quantity(dto)
+                dto.pretty_quantity = current_item_pretty_quantity
+                dto.quantity_color = self._quantity_color(current_item_pretty_quantity)
+                dtos.append(dto)
+            self._activities = dtos
 
         finally:
             self.is_loading = False
+
+    def _get_current_item_pretty_quantity(self, dto: ActivityDTO) -> str:
+        """Signed pretty quantity of the current item's entry in this activity.
+
+        Returns the matching input's quantity ("-") in priority,
+        else the matching output's ("+"), else "" (no quantity to show, e.g.
+        move/relabel/use). For activities where the item is not the subject
+        (combine ingredient, split child) this differs from the subject's
+        quantity. Inputs before outputs is unambiguous: an item is never both an
+        input and an output of the same activity.
+
+        :param dto: The activity DTO (its inputs/outputs are already materialized)
+        :return: The item's signed pretty quantity, or "" if none
+        """
+        return (
+            next(
+                (
+                    i.pretty_quantity
+                    for i in dto.inputs
+                    if i.item.id == self._item_id and i.pretty_quantity
+                ),
+                None,
+            )
+            or next(
+                (
+                    o.pretty_quantity
+                    for o in dto.outputs
+                    if o.item.id == self._item_id and o.pretty_quantity
+                ),
+                None,
+            )
+            or ""
+        )
+
+    def _quantity_color(self, signed_quantity: str) -> str:
+        """CSS color token for a signed quantity ("-" red, "+" green, "" default)."""
+        if signed_quantity.startswith("-"):
+            return "var(--red-11)"
+        if signed_quantity.startswith("+"):
+            return "var(--green-11)"
+        return ""
 
     @rx.event(background=True)
     async def fetch_activities_on_mount(self, item_id: str):

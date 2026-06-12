@@ -118,6 +118,72 @@ class RelabelItemDTO(BaseModelDTO):
     note_id: str | None = None  # Link to Constellab Note
 
 
+class SplitOutputDTO(BaseModelDTO):
+    """DTO for one output item produced by a split.
+
+    The output inherits the source item's item sheet, unit_type and
+    concentration; only the fields below are user-entered per output.
+    The quantity unit is validated against the source item's unit type.
+    """
+
+    item_number: str
+    quantity: Decimal
+    unit: str  # Exact unit (e.g., 'mL', 'g') - validated against the source's unit type
+    location_id: str | None = None  # Defaults to the source item's location if None
+    label: str | None = None
+    expiry_date: date | None = None  # Defaults to the source item's expiry_date if None
+    notes: str | None = None
+
+
+class SplitItemDTO(BaseModelDTO):
+    """DTO for splitting one source item into 1..N new output items.
+
+    The source quantity is reduced in place by the sum of the output
+    quantities; the leftover stays in the source item. Each output is a
+    new item that inherits the source's sheet/unit_type/concentration.
+    """
+
+    outputs: list[SplitOutputDTO]
+    notes: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
+
+
+class CombineInputDTO(BaseModelDTO):
+    """DTO for one ingredient consumed by a combine.
+
+    The given quantity is drawn from the item (reduced in place), bounded by
+    the non-negative stock check. Inputs may be of any dimension.
+    """
+
+    item_id: str
+    quantity: Decimal
+    unit: str  # Exact unit - validated against this input item's own unit type
+
+
+class CombineItemDTO(BaseModelDTO):
+    """DTO for combining 2..N ingredient items into one new output item.
+
+    Each ingredient is reduced in place by its contribution; a brand new output
+    item is created on the caller-provided `output_item_sheet_id`. The
+    output concentration is user-entered or null - never computed.
+    Optional instrument inputs (non-consumable) can be recorded alongside.
+    """
+
+    inputs: list[CombineInputDTO]
+    output_item_sheet_id: str
+    output_item_number: str
+    output_quantity: Decimal
+    output_unit: str  # Validated against the output item sheet's default unit type
+    instrument_item_ids: list[str] = []  # Optional instrument inputs (non-consumable)
+    output_location_id: str | None = None  # Default to "labo" if None
+    output_label: str | None = None
+    output_expiry_date: date | None = None
+    output_concentration: Decimal | None = None
+    output_concentration_unit: str | None = None
+    notes: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
+
+
 class DeleteItemResultDTO(Enum):
     """Enum for delete item operation results."""
 
