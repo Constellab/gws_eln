@@ -184,6 +184,60 @@ class CombineItemDTO(BaseModelDTO):
     note_id: str | None = None  # Link to Constellab Note
 
 
+class ConcentrateItemDTO(BaseModelDTO):
+    """DTO for concentrating one source item into a new, more concentrated item.
+
+    The source is reduced in place by `quantity_contributed`; a brand new output
+    item is created on the source's own sheet at the user-entered (higher)
+    concentration. Concentration is store-only - the activity records the
+    initial/final concentration + dilution factor as audit.
+    """
+
+    quantity_contributed: Decimal  # Amount drawn from the source (reduces it)
+    unit: str  # Validated against the source item's unit type
+    output_item_number: str
+    output_quantity: Decimal
+    output_unit: str  # Validated against the source item's unit type (same sheet)
+    output_concentration: Decimal | None = None
+    output_concentration_unit: str | None = None
+    dilution_factor: Decimal | None = None  # Store-only audit
+    output_location_id: str | None = None  # Defaults to the source's location if None
+    output_label: str | None = None
+    output_expiry_date: date | None = None  # Defaults to the source's expiry_date if None
+    notes: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
+
+
+class DiluteItemDTO(BaseModelDTO):
+    """DTO for diluting one target item with a diluent into a new, less
+    concentrated item.
+
+    BOTH the target (acted on) and the diluent are reduced in place. A brand new
+    output item is created on the target's own sheet at the user-entered
+    concentration; its quantity is user-entered, never computed by summing
+    target+diluent. The diluent may be of any dimension. Concentration
+    is store-only - the activity records initial/final concentration + dilution
+    factor as audit.
+    """
+
+    quantity_contributed: Decimal  # Amount drawn from the target (reduces it)
+    unit: str  # Validated against the target item's unit type
+    diluent_item_id: str
+    diluent_quantity_contributed: Decimal  # Amount drawn from the diluent (reduces it)
+    diluent_unit: str  # Validated against the diluent item's own unit type (any dimension)
+    output_item_number: str
+    output_quantity: Decimal
+    output_unit: str  # Validated against the target item's unit type (same sheet)
+    output_concentration: Decimal | None = None
+    output_concentration_unit: str | None = None
+    dilution_factor: Decimal | None = None  # Store-only audit
+    output_location_id: str | None = None  # Defaults to the target's location if None
+    output_label: str | None = None
+    output_expiry_date: date | None = None  # Defaults to the target's expiry_date if None
+    notes: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
+
+
 class DeleteItemResultDTO(Enum):
     """Enum for delete item operation results."""
 

@@ -73,6 +73,12 @@ class Activity(ModelWithUser):
     # Link to Constellab Note (for Note-linked actions)
     note_id = NullableCharField(max_length=36)
 
+    # Concentration audit (dilute / concentrate only) - store-only, not derivable.
+    initial_concentration = NullableDecimalField(max_digits=20, decimal_places=12)
+    final_concentration = NullableDecimalField(max_digits=20, decimal_places=12)
+    concentration_unit = NullableCharField(max_length=20)
+    dilution_factor = NullableDecimalField(max_digits=20, decimal_places=12)
+
     @classmethod
     def find_by_item_id(cls, item_id: str) -> list["Activity"]:
         """
@@ -125,6 +131,10 @@ class Activity(ModelWithUser):
             to_location=self.to_location.to_dto() if self.to_location else None,
             notes=self.notes,
             note_id=self.note_id,
+            initial_concentration=self.initial_concentration,
+            final_concentration=self.final_concentration,
+            concentration_unit=self.concentration_unit,
+            dilution_factor=self.dilution_factor,
             inputs=[activity_input.to_dto() for activity_input in self.inputs],
             outputs=[activity_output.to_dto() for activity_output in self.outputs],
             created_at=self.created_at,

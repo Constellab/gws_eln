@@ -92,6 +92,10 @@ class ActivityService:
         activity.notes = dto.notes.strip() if dto.notes else None
         activity.note_id = dto.note_id
         activity.related_item = related_item
+        activity.initial_concentration = dto.initial_concentration
+        activity.final_concentration = dto.final_concentration
+        activity.concentration_unit = dto.concentration_unit or None
+        activity.dilution_factor = dto.dilution_factor
 
         activity.save()
 

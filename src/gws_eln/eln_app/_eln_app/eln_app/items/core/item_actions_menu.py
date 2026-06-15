@@ -1,21 +1,38 @@
 """Item actions menu component."""
 
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import reflex as rx
 from gws_eln.items.item_dto import ItemDTO
 
+EventHandlerOrCallable = rx.EventHandler | Callable
+
+
+@dataclass
+class ItemTransformActions:
+    """Optional consumable-only transform handlers for the item actions menu.
+
+    Each entry is only shown when its handler is provided AND the item is
+    consumable (these transforms all reduce a quantity, so they make no sense
+    for non-consumable items / instruments).
+    """
+
+    on_split: EventHandlerOrCallable | None = None
+    on_combine: EventHandlerOrCallable | None = None
+    on_concentrate: EventHandlerOrCallable | None = None
+    on_dilute: EventHandlerOrCallable | None = None
+
 
 def item_actions_menu(
     item: ItemDTO,
-    on_receive: rx.EventHandler | Callable,
-    on_consume: rx.EventHandler | Callable,
-    on_move: rx.EventHandler | Callable,
-    on_update: rx.EventHandler | Callable,
-    on_relabel: rx.EventHandler | Callable,
-    on_delete: rx.EventHandler | Callable,
-    on_split: rx.EventHandler | Callable | None = None,
-    on_combine: rx.EventHandler | Callable | None = None,
+    on_receive: EventHandlerOrCallable,
+    on_consume: EventHandlerOrCallable,
+    on_move: EventHandlerOrCallable,
+    on_update: EventHandlerOrCallable,
+    on_relabel: EventHandlerOrCallable,
+    on_delete: EventHandlerOrCallable,
+    transforms: ItemTransformActions | None = None,
     stop_propagation: bool = False,
 ) -> rx.Component:
     """Create the actions menu for a item.
@@ -23,74 +40,50 @@ def item_actions_menu(
     :param item: The item DTO to determine which actions to show
     :type item: ItemDTO
     :param on_receive: Event handler for receive stock action
-    :type on_receive: rx.EventHandler | Callable
-    :param on_consume: Event handler for consume stock action
-    :type on_consume: rx.EventHandler | Callable
+    :param on_consume: Event handler for consume stock action (consumable only)
     :param on_move: Event handler for move item action
-    :type on_move: rx.EventHandler | Callable
     :param on_update: Event handler for update item action
-    :type on_update: rx.EventHandler | Callable
     :param on_relabel: Event handler for relabel item action
-    :type on_relabel: rx.EventHandler | Callable
     :param on_delete: Event handler for delete item action
-    :type on_delete: rx.EventHandler | Callable
-    :param on_split: Event handler for split item action. The Split entry is
-                     only shown when this handler is provided.
-    :type on_split: rx.EventHandler | Callable | None
-    :param on_combine: Event handler for combine item action. The Combine entry
-                       is only shown when this handler is provided.
-    :type on_combine: rx.EventHandler | Callable | None
+    :param transforms: Optional consumable-only transform handlers (split,
+                       combine, concentrate, dilute). Each entry is shown only
+                       when its handler is provided and the item is consumable.
+    :type transforms: ItemTransformActions | None
     :param stop_propagation: Whether to stop event propagation (useful in table rows)
     :type stop_propagation: bool
     :return: The actions menu component
     :rtype: rx.Component
     """
+    transforms = transforms or ItemTransformActions()
 
-    def _wrap_click(handler: rx.EventHandler | Callable) -> rx.EventHandler | Callable | list:
+    def _wrap_click(handler: EventHandlerOrCallable) -> EventHandlerOrCallable | list:
         """Wrap click handler with stop_propagation if needed."""
         return [rx.stop_propagation, handler] if stop_propagation else handler
 
-    # Consume and Split reduce a quantity, so they are only meaningful for
-    # consumable items. They are hidden for non-consumable items (instruments).
+    # Consume and the transforms reduce a quantity, so they are only meaningful
+    # for consumable items. They are hidden for non-consumable items (instruments).
     is_consumable = item.item_sheet.is_consumable
 
-    consume_menu_item = rx.cond(
-        is_consumable,
-        rx.menu.item(
-            rx.icon("flame", size=16),
-            "Consume Stock",
-            on_click=_wrap_click(on_consume),
-        ),
-        rx.fragment(),
-    )
-
-    # The Split entry is only shown when an on_split handler is provided AND the
-    # item is consumable.
-    split_menu_item = rx.fragment()
-    if on_split is not None:
-        split_menu_item = rx.cond(
+    def _consumable_item(handler: EventHandlerOrCallable, icon: str, label: str) -> rx.Component:
+        """A menu entry shown only when the item is consumable."""
+        return rx.cond(
             is_consumable,
-            rx.menu.item(
-                rx.icon("split", size=16),
-                "Split Item",
-                on_click=_wrap_click(on_split),
-            ),
+            rx.menu.item(rx.icon(icon, size=16), label, on_click=_wrap_click(handler)),
             rx.fragment(),
         )
 
-    # The Combine entry is only shown when an on_combine handler is provided AND
-    # the item is consumable (combine draws from consumable ingredients).
-    combine_menu_item = rx.fragment()
-    if on_combine is not None:
-        combine_menu_item = rx.cond(
-            is_consumable,
-            rx.menu.item(
-                rx.icon("git-merge", size=16),
-                "Combine Items",
-                on_click=_wrap_click(on_combine),
-            ),
-            rx.fragment(),
-        )
+    # Optional transform entries (shown only when their handler is provided)
+    transform_specs = [
+        (transforms.on_split, "split", "Split Item"),
+        (transforms.on_combine, "git-merge", "Combine Items"),
+        (transforms.on_concentrate, "shrink", "Concentrate Item"),
+        (transforms.on_dilute, "droplets", "Dilute Item"),
+    ]
+    transform_items = [
+        _consumable_item(handler, icon, label)
+        for handler, icon, label in transform_specs
+        if handler is not None
+    ]
 
     return rx.menu.root(
         rx.menu.trigger(
@@ -106,7 +99,7 @@ def item_actions_menu(
                 "Receive Stock",
                 on_click=_wrap_click(on_receive),
             ),
-            consume_menu_item,
+            _consumable_item(on_consume, "flame", "Consume Stock"),
             rx.menu.separator(),
             rx.menu.item(
                 rx.icon("arrow-right-from-line", size=16),
@@ -123,8 +116,7 @@ def item_actions_menu(
                 "Relabel Item",
                 on_click=_wrap_click(on_relabel),
             ),
-            split_menu_item,
-            combine_menu_item,
+            *transform_items,
             rx.menu.separator(),
             rx.menu.item(
                 rx.icon("trash-2", size=16),

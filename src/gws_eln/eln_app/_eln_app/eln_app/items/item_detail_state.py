@@ -11,8 +11,14 @@ from ..common.eln_app_router import ElnAppRouter
 from .combine_item_form_dialog.combine_item_form_dialog_state import (
     CombineItemFormDialogState,
 )
+from .concentrate_item_form_dialog.concentrate_item_form_dialog_state import (
+    ConcentrateItemFormDialogState,
+)
 from .delete_item_form_dialog.delete_item_form_dialog_state import (
     DeleteItemFormDialogState,
+)
+from .dilute_item_form_dialog.dilute_item_form_dialog_state import (
+    DiluteItemFormDialogState,
 )
 from .item_event_form_dialog.item_event_form_dialog_state import (
     ItemEventFormDialogState,
@@ -142,6 +148,24 @@ class ItemDetailState(rx.State):
         dialog_state = await self.get_state(CombineItemFormDialogState)
         dialog_state.set_callback_after_close(self._on_item_event_success)
         dialog_state.open_combine_dialog(self.item)
+
+    @rx.event
+    async def open_concentrate_dialog(self):
+        """Open the concentrate item dialog for the current item."""
+        if not self.item:
+            return
+        dialog_state = await self.get_state(ConcentrateItemFormDialogState)
+        dialog_state.set_callback_after_close(self._on_item_event_success)
+        dialog_state.open_concentrate_dialog(self.item)
+
+    @rx.event
+    async def open_dilute_dialog(self):
+        """Open the dilute item dialog for the current item."""
+        if not self.item:
+            return
+        dialog_state = await self.get_state(DiluteItemFormDialogState)
+        dialog_state.set_callback_after_close(self._on_item_event_success)
+        dialog_state.open_dilute_dialog(self.item)
 
     async def _on_item_update_success(self, updated_item: ItemDTO):
         """Callback invoked when update_item completes successfully.

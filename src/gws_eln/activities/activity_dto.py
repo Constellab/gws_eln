@@ -45,6 +45,12 @@ class CreateActivityDTO(BaseModelDTO):
     note_id: str | None = None  # Link to Constellab Note
     related_item_id: str | None = None  # For lineage: related item ID
 
+    # Concentration audit (dilute / concentrate only)
+    initial_concentration: Decimal | None = None
+    final_concentration: Decimal | None = None
+    concentration_unit: str | None = None
+    dilution_factor: Decimal | None = None
+
     # Structured lineage: items the activity took from / created
     inputs: list[CreateActivityInputDTO] = []
     outputs: list[CreateActivityOutputDTO] = []
@@ -82,6 +88,10 @@ class ActivityDTO(ModelDTO):
     to_location: LocationDTO | None
     notes: str | None
     note_id: str | None
+    initial_concentration: Decimal | None
+    final_concentration: Decimal | None
+    concentration_unit: str | None
+    dilution_factor: Decimal | None
     inputs: list[ActivityInputDTO]
     outputs: list[ActivityOutputDTO]
     quantity_color: str = ""  # CSS color token for pretty_quantity ("" = default)

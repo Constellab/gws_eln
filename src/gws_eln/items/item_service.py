@@ -23,9 +23,11 @@ from gws_eln.items.item import Item
 from gws_eln.items.item_activity_dto import ItemActivityResult, TransformResult
 from gws_eln.items.item_dto import (
     CombineItemDTO,
+    ConcentrateItemDTO,
     CreateItemDTO,
     DecrementQuantityDTO,
     DeleteItemResultDTO,
+    DiluteItemDTO,
     DiscardItemDTO,
     HierarchyObjectDTO,
     MoveItemDTO,
@@ -814,6 +816,254 @@ class ItemService:
         )
 
         return TransformResult(activity=activity, inputs=mutated_inputs, outputs=[output])
+
+    def _create_concentration_output(
+        self,
+        reference_item: Item,
+        output_item_number: str,
+        output_quantity: Decimal,
+        output_unit: str,
+        concentration: Decimal | None,
+        concentration_unit: str | None,
+        location_id: str | None,
+        label: str | None,
+        expiry_date,
+    ) -> tuple[Item, Decimal]:
+        """Create the new output item of a dilute/concentrate.
+
+        The output lives on the reference item's own sheet (same substance, new
+        concentration - concentration is identity-defining). Its quantity is
+        user-entered (never computed). Returns the saved item and its base quantity.
+        """
+        self._validate_item_number(output_item_number)
+        self._validate_concentration(concentration, concentration_unit)
+
+        validated_quantity = QuantityValidator.validate_quantity(output_quantity)
+        output_base_quantity = self._validate_and_convert_quantity(
+            reference_item, validated_quantity, output_unit
+        )
+
+        if location_id:
+            location = Location.get_by_id_and_check(location_id)
+        else:
+            location = reference_item.location
+
+        output = Item()
+        output.item_sheet = reference_item.item_sheet
+        output.item_number = output_item_number.strip()
+        output.quantity = output_base_quantity
+        output.unit_type = reference_item.unit_type
+        output.concentration = concentration
+        output.concentration_unit = concentration_unit or None
+        output.location = location
+        output.expiry_date = expiry_date if expiry_date is not None else reference_item.expiry_date
+        output.label = label.strip() if label else None
+        output.notes = None
+        # Single parent: the primary source (target). Full lineage lives in the
+        # activity inputs/outputs (the diluent is recorded as a second input).
+        output.parent_item = reference_item
+        output.supplier = reference_item.supplier
+        output.save()
+
+        return output, output_base_quantity
+
+    @ElnDbManager.transaction()
+    def concentrate_item(self, item_id: str, dto: ConcentrateItemDTO) -> TransformResult:
+        """
+        Concentrate a source item into a new, more concentrated item.
+
+        The source is reduced in place by its contribution; a brand new output
+        item is created on the source's own sheet at the user-entered (higher)
+        concentration. The CONCENTRATE activity records the source as one
+        INGREDIENT input, the new item as the output, and the initial/final
+        concentration + dilution factor as store-only audit.
+
+        :param item_id: The ID of the source item to concentrate
+        :type item_id: str
+        :param dto: DTO describing the draw from the source and the output item
+        :type dto: ConcentrateItemDTO
+        :return: The mutated source and the created output + activity
+        :rtype: TransformResult
+        :raises NotFoundException: If the source item not found
+        :raises BadRequestException: If validation fails (discarded/non-consumable
+                                     source, bad unit, or insufficient quantity)
+        """
+        source = self.get_item(item_id)
+
+        if source.is_discarded():
+            raise BadRequestException(f"Cannot concentrate discarded item '{source.item_number}'")
+
+        if not source.is_consumable():
+            raise BadRequestException(
+                f"Cannot concentrate non-consumable item sheet '{source.item_sheet.name}'."
+            )
+
+        # Reduce the source by the drawn amount
+        validated_quantity = QuantityValidator.validate_quantity(dto.quantity_contributed)
+        base_drawn = self._validate_and_convert_quantity(source, validated_quantity, dto.unit)
+        source.validate_sufficient_quantity(base_drawn)
+
+        # Concentration before the operation (the source keeps its own concentration)
+        initial_concentration = source.concentration
+
+        source.quantity = source.quantity - base_drawn
+        source.save()
+
+        # Create the new, more concentrated output item
+        output, output_base_quantity = self._create_concentration_output(
+            reference_item=source,
+            output_item_number=dto.output_item_number,
+            output_quantity=dto.output_quantity,
+            output_unit=dto.output_unit,
+            concentration=dto.output_concentration,
+            concentration_unit=dto.output_concentration_unit,
+            location_id=dto.output_location_id,
+            label=dto.output_label,
+            expiry_date=dto.output_expiry_date,
+        )
+
+        activity = self._activity_service.log_activity(
+            CreateActivityDTO(
+                activity_type=ActivityType.CONCENTRATE,
+                item_id=output.id,
+                quantity=output_base_quantity,
+                unit_type=source.unit_type,
+                notes=dto.notes,
+                note_id=dto.note_id,
+                initial_concentration=initial_concentration,
+                final_concentration=dto.output_concentration,
+                concentration_unit=dto.output_concentration_unit,
+                dilution_factor=dto.dilution_factor,
+                inputs=[
+                    CreateActivityInputDTO(
+                        item_id=source.id,
+                        role=ActivityInputRole.INGREDIENT,
+                        quantity_contributed=base_drawn,
+                        unit_type=source.unit_type,
+                    )
+                ],
+                outputs=[
+                    CreateActivityOutputDTO(
+                        item_id=output.id,
+                        quantity=output_base_quantity,
+                        unit_type=source.unit_type,
+                    )
+                ],
+            )
+        )
+
+        return TransformResult(activity=activity, inputs=[source], outputs=[output])
+
+    @ElnDbManager.transaction()
+    def dilute_item(self, item_id: str, dto: DiluteItemDTO) -> TransformResult:
+        """
+        Dilute a target item with a diluent into a new, less concentrated item.
+
+        BOTH the target and the diluent are reduced in place. A brand new
+        output item is created on the target's own sheet at the user-entered
+        concentration; its quantity is user-entered, never computed by summing
+        target+diluent. The diluent may be of any dimension. The
+        DILUTE activity records the target and diluent as INGREDIENT inputs, the
+        new item as the output, and the initial/final concentration + dilution
+        factor as store-only audit.
+
+        :param item_id: The ID of the target item being diluted
+        :type item_id: str
+        :param dto: DTO describing the draws (target + diluent) and the output item
+        :type dto: DiluteItemDTO
+        :return: The mutated target and diluent, and the created output + activity
+        :rtype: TransformResult
+        :raises NotFoundException: If the target or diluent item not found
+        :raises BadRequestException: If validation fails (discarded/non-consumable
+                                     input, bad unit, or insufficient quantity)
+        """
+        target = self.get_item(item_id)
+        if target.is_discarded():
+            raise BadRequestException(f"Cannot dilute discarded item '{target.item_number}'")
+        if not target.is_consumable():
+            raise BadRequestException(
+                f"Cannot dilute non-consumable item sheet '{target.item_sheet.name}'."
+            )
+
+        diluent = self.get_item(dto.diluent_item_id)
+        if diluent.is_discarded():
+            raise BadRequestException(
+                f"Cannot use discarded item '{diluent.item_number}' as a diluent"
+            )
+        if not diluent.is_consumable():
+            raise BadRequestException(
+                f"Cannot use non-consumable item sheet '{diluent.item_sheet.name}' as a diluent."
+            )
+
+        # Concentration of the target before the operation
+        initial_concentration = target.concentration
+
+        # Reduce the target
+        target_quantity = QuantityValidator.validate_quantity(dto.quantity_contributed)
+        base_target = self._validate_and_convert_quantity(target, target_quantity, dto.unit)
+        target.validate_sufficient_quantity(base_target)
+        target.quantity = target.quantity - base_target
+        target.save()
+
+        # Reduce the diluent (its own dimension - not enforced, §23)
+        diluent_quantity = QuantityValidator.validate_quantity(dto.diluent_quantity_contributed)
+        base_diluent = self._validate_and_convert_quantity(
+            diluent, diluent_quantity, dto.diluent_unit
+        )
+        diluent.validate_sufficient_quantity(base_diluent)
+        diluent.quantity = diluent.quantity - base_diluent
+        diluent.save()
+
+        # Create the new, diluted output item (on the target's sheet)
+        output, output_base_quantity = self._create_concentration_output(
+            reference_item=target,
+            output_item_number=dto.output_item_number,
+            output_quantity=dto.output_quantity,
+            output_unit=dto.output_unit,
+            concentration=dto.output_concentration,
+            concentration_unit=dto.output_concentration_unit,
+            location_id=dto.output_location_id,
+            label=dto.output_label,
+            expiry_date=dto.output_expiry_date,
+        )
+
+        activity = self._activity_service.log_activity(
+            CreateActivityDTO(
+                activity_type=ActivityType.DILUTE,
+                item_id=output.id,
+                quantity=output_base_quantity,
+                unit_type=target.unit_type,
+                notes=dto.notes,
+                note_id=dto.note_id,
+                initial_concentration=initial_concentration,
+                final_concentration=dto.output_concentration,
+                concentration_unit=dto.output_concentration_unit,
+                dilution_factor=dto.dilution_factor,
+                inputs=[
+                    CreateActivityInputDTO(
+                        item_id=target.id,
+                        role=ActivityInputRole.INGREDIENT,
+                        quantity_contributed=base_target,
+                        unit_type=target.unit_type,
+                    ),
+                    CreateActivityInputDTO(
+                        item_id=diluent.id,
+                        role=ActivityInputRole.INGREDIENT,
+                        quantity_contributed=base_diluent,
+                        unit_type=diluent.unit_type,
+                    ),
+                ],
+                outputs=[
+                    CreateActivityOutputDTO(
+                        item_id=output.id,
+                        quantity=output_base_quantity,
+                        unit_type=target.unit_type,
+                    )
+                ],
+            )
+        )
+
+        return TransformResult(activity=activity, inputs=[target, diluent], outputs=[output])
 
     def cancel_creation(self, item_id: str) -> None:
         """

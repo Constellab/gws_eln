@@ -16,10 +16,16 @@ from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from .combine_item_form_dialog.combine_item_form_dialog_component import (
     combine_item_dialog,
 )
-from .core.item_actions_menu import item_actions_menu
+from .concentrate_item_form_dialog.concentrate_item_form_dialog_component import (
+    concentrate_item_dialog,
+)
+from .core.item_actions_menu import ItemTransformActions, item_actions_menu
 from .core.item_components import expiry_date_badge, item_inline_link, status_badge
 from .delete_item_form_dialog.delete_item_form_dialog_component import (
     delete_item_dialog,
+)
+from .dilute_item_form_dialog.dilute_item_form_dialog_component import (
+    dilute_item_dialog,
 )
 from .item_detail_state import ItemDetailState
 from .item_event_form_dialog.item_event_form_dialog_component import (
@@ -226,9 +232,13 @@ def _actions_menu() -> rx.Component:
         on_move=ItemDetailState.open_move_dialog,
         on_update=ItemDetailState.open_update_dialog,
         on_relabel=ItemDetailState.open_relabel_dialog,
-        on_split=ItemDetailState.open_split_dialog,
-        on_combine=ItemDetailState.open_combine_dialog,
         on_delete=ItemDetailState.open_delete_dialog,
+        transforms=ItemTransformActions(
+            on_split=ItemDetailState.open_split_dialog,
+            on_combine=ItemDetailState.open_combine_dialog,
+            on_concentrate=ItemDetailState.open_concentrate_dialog,
+            on_dilute=ItemDetailState.open_dilute_dialog,
+        ),
     )
 
 
@@ -320,5 +330,7 @@ def item_detail_page() -> rx.Component:
         relabel_item_dialog(),
         split_item_dialog(),
         combine_item_dialog(),
+        concentrate_item_dialog(),
+        dilute_item_dialog(),
         delete_item_dialog(),
     )
