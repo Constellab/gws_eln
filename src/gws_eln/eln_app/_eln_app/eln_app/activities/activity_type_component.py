@@ -49,6 +49,26 @@ def activity_type_badge(activity_type: ActivityType) -> rx.Component:
                 ActivityType.RELABEL.value,
                 rx.badge(rx.icon("tag", size=12), "Relabeled", color_scheme="gray", size="1"),
             ),
+            (
+                ActivityType.SPLIT.value,
+                rx.badge(rx.icon("split", size=12), "Split", color_scheme="teal", size="1"),
+            ),
+            (
+                ActivityType.COMBINE.value,
+                rx.badge(
+                    rx.icon("git-merge", size=12), "Combined", color_scheme="indigo", size="1"
+                ),
+            ),
+            (
+                ActivityType.DILUTE.value,
+                rx.badge(rx.icon("droplets", size=12), "Diluted", color_scheme="cyan", size="1"),
+            ),
+            (
+                ActivityType.CONCENTRATE.value,
+                rx.badge(
+                    rx.icon("shrink", size=12), "Concentrated", color_scheme="amber", size="1"
+                ),
+            ),
             rx.badge(activity_type, color_scheme="gray", size="1"),
         ),
     )
