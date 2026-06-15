@@ -14,10 +14,62 @@ const ACTIVITY_TYPE_CONFIG = {
   consume: { label: 'Consumed', icon: 'local_fire_department', color: 'var(--accent-11)' },
   use: { label: 'Used', icon: 'pan_tool', color: 'var(--accent-8)' },
   discard: { label: 'Discarded', icon: 'delete', color: 'var(--accent-12)' },
-  aliquot: { label: 'Aliquot', icon: 'call_split', color: 'var(--accent-7)' },
-  aliquot_created: { label: 'Aliquot creation', icon: 'arrow_downward', color: 'var(--accent-6)' },
   relabel: { label: 'Relabeled', icon: 'label', color: 'var(--accent-5)' },
+  split: { label: 'Split', icon: 'call_split', color: 'var(--accent-7)' },
+  combine: { label: 'Combined', icon: 'merge', color: 'var(--accent-9)' },
+  concentrate: { label: 'Concentrated', icon: 'compress', color: 'var(--accent-10)' },
+  dilute: { label: 'Diluted', icon: 'water_drop', color: 'var(--accent-8)' },
 };
+
+/**
+ * Build a one-line "what happened" recap for any activity, in the inputs -> outputs
+ * style used by the transforms. Quantity-bearing single-item events render with an
+ * empty side (receive: "-> X (q)", consume: "X (q) ->"); move renders its locations.
+ * Returns '' when there is nothing meaningful to recap (e.g. relabel/use).
+ */
+function buildActivityRecap(activity) {
+  const stripSign = (s) => (s || '').replace(/^[+-]/, '').trim();
+  const fmt = (entry) => {
+    const number = entry.item?.item_number || '?';
+    const qty = stripSign(entry.pretty_quantity);
+    return qty ? `${number} (${qty})` : number;
+  };
+
+  const ingredientInputs = (activity.inputs || [])
+    .filter((input) => input.role === 'ingredient' && input.pretty_quantity)
+    .map(fmt);
+  const outputs = (activity.outputs || []).map(fmt);
+
+  // Two-sided transforms (split/combine/dilute/concentrate).
+  if (ingredientInputs.length && outputs.length) {
+    return `${ingredientInputs.join(' + ')} → ${outputs.join(' + ')}`;
+  }
+
+  const type = activity.activity_type;
+  const subject = activity.item?.item_number || '?';
+  const subjectQty = stripSign(activity.pretty_quantity);
+
+  if (['receive', 'create'].includes(type)) {
+    if (outputs.length) return `→ ${outputs.join(' + ')}`;
+    return subjectQty ? `→ ${subject} (${subjectQty})` : '';
+  }
+  if (['consume', 'discard'].includes(type)) {
+    if (ingredientInputs.length) return `${ingredientInputs.join(' + ')} →`;
+    return subjectQty ? `${subject} (${subjectQty}) →` : '';
+  }
+  if (type === 'move') {
+    const from = activity.from_location?.name;
+    const to = activity.to_location?.name;
+    if (from || to) return `${from || '?'} → ${to || '?'}`;
+  }
+  if (type === 'relabel') {
+    // The relabel change ("item_number: 'x' -> 'y'") is stored in notes; surface
+    // it as the recap so it sits above the "By:" line (the notes div is skipped
+    // for relabel to avoid duplicating it), with the same arrow as the others.
+    return (activity.notes || '').replace(/ -> /g, ' → ');
+  }
+  return '';
+}
 
 /**
  * Factory function to create custom tools for the rich text editor.
@@ -78,54 +130,37 @@ export function getCustomTools(customToolsConfig, authenticationInfo, customTool
       const typeText = document.createTextNode(`${typeCfg.label} — `);
       title.appendChild(typeText);
 
-      const batchLink = document.createElement('a');
-      batchLink.className = 'ab-batch-link';
-      batchLink.textContent = activity.batch?.batch_number || 'Unknown batch';
-      if (activity.batch?.id) {
-        batchLink.href = `/items/${activity.batch.id}`;
+      const itemLink = document.createElement('a');
+      itemLink.className = 'ab-batch-link';
+      itemLink.textContent = activity.item?.item_number || 'Unknown item';
+      if (activity.item?.id) {
+        itemLink.href = `/items/${activity.item.id}`;
       }
-      title.appendChild(batchLink);
+      title.appendChild(itemLink);
 
       header.appendChild(icon);
       header.appendChild(title);
 
-      if (activity.batch?.label) {
+      if (activity.item?.label) {
         const labelEl = document.createElement('span');
         labelEl.className = 'ab-header-label';
-        labelEl.textContent = `– ${activity.batch.label}`;
+        labelEl.textContent = `– ${activity.item.label}`;
         header.appendChild(labelEl);
       }
       card.appendChild(header);
+
+      // --- Recap line (inputs -> outputs style), shared by every activity type ---
+      const lineage = buildActivityRecap(activity);
 
       // --- Detail chips line ---
       const details = [];
       const type = activity.activity_type;
 
-      if (['create', 'receive', 'consume', 'aliquot', 'aliquot_created'].includes(type)) {
-        if (activity.pretty_quantity) {
-          details.push(`Qty: ${activity.pretty_quantity}`);
-        }
-      }
-
-      if (type === 'move') {
-        if (activity.from_location?.name) {
-          details.push(`From: ${activity.from_location.name}`);
-        }
-        if (activity.to_location?.name) {
-          details.push(`To: ${activity.to_location.name}`);
-        }
-      }
-
+      // Quantity and move locations now live in the recap line above; the
+      // storage location is the only remaining type-specific chip.
       if (['create', 'receive'].includes(type)) {
         if (activity.to_location?.name) {
           details.push(`Location: ${activity.to_location.name}`);
-        }
-      }
-
-      if (['aliquot', 'aliquot_created'].includes(type)) {
-        if (activity.related_batch?.batch_number) {
-          const relLabel = type === 'aliquot' ? 'Child' : 'Parent';
-          details.push(`${relLabel}: ${activity.related_batch.batch_number}`);
         }
       }
 
@@ -134,10 +169,17 @@ export function getCustomTools(customToolsConfig, authenticationInfo, customTool
         details.push(`By: ${name}`);
       }
 
-      const hasBody = details.length > 0 || activity.notes;
+      const hasBody = details.length > 0 || activity.notes || lineage;
       if (hasBody) {
         const body = document.createElement('div');
         body.className = 'ab-body';
+
+        if (lineage) {
+          const lineageEl = document.createElement('div');
+          lineageEl.className = 'ab-lineage';
+          lineageEl.textContent = lineage;
+          body.appendChild(lineageEl);
+        }
 
         if (details.length > 0) {
           const detailLine = document.createElement('div');
@@ -146,7 +188,7 @@ export function getCustomTools(customToolsConfig, authenticationInfo, customTool
           body.appendChild(detailLine);
         }
 
-        if (activity.notes) {
+        if (activity.notes && type !== 'relabel') {
           const notesEl = document.createElement('div');
           notesEl.className = 'ab-notes';
           notesEl.textContent = activity.notes;

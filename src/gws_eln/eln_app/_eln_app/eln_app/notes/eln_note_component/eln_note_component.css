@@ -49,6 +49,12 @@
     gap: 3px;
 }
 
+.activity-block .ab-lineage {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gray-12);
+}
+
 .activity-block .ab-details {
     font-size: 11px;
     color: var(--gray-11);
