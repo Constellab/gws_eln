@@ -12,6 +12,8 @@ from gws_eln.items.item_service import ItemService
 from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_main import FormDialogState, ReflexMainState
 
+from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
 
@@ -30,7 +32,7 @@ class SplitOutputRow:
     label: str = ""
 
 
-class SplitItemFormDialogState(FormDialogState, rx.State):
+class SplitItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
     """State for the split item dialog.
 
     Splits one source item into 1..N new output items. The source quantity is
@@ -180,7 +182,7 @@ class SplitItemFormDialogState(FormDialogState, rx.State):
 
         outputs_dto = self._build_outputs_dto()
         notes = form_data.get("notes", "").strip() or None
-        dto = SplitItemDTO(outputs=outputs_dto, notes=notes)
+        dto = SplitItemDTO(outputs=outputs_dto, notes=notes, note_id=self.note_dto_id)
 
         main_state: ReflexMainState
         async with self:
@@ -188,8 +190,10 @@ class SplitItemFormDialogState(FormDialogState, rx.State):
 
         with await main_state.authenticate_user():
             result = ItemService().split_item(self._item.id, dto)
+            linked_note = self._link_note_activity(result.activity.id)
 
         yield rx.toast.success(f"Item split into {len(outputs_dto)} new item(s)")
+        await self._after_note_link(linked_note)
 
         if self._callback_after_close:
             # The mutated source item (reduced quantity) drives the detail refresh
@@ -205,6 +209,7 @@ class SplitItemFormDialogState(FormDialogState, rx.State):
         self.form_unit_type = UnitType.COUNT.value
         self.form_default_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.outputs = []
+        self.clear_note_context()
         self.is_update_mode = False
 
     def set_callback_after_close(self, callback: FormDialogCloseCallback | None):

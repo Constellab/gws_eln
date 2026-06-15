@@ -11,13 +11,15 @@ from gws_eln.items.item_service import ItemService
 from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_main import FormDialogState, ReflexMainState
 
+from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
 # Sentinel for the "no concentration unit" option.
 NO_CONCENTRATION_VALUE = "__none__"
 
 
-class ConcentrateItemFormDialogState(FormDialogState, rx.State):
+class ConcentrateItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
     """State for the concentrate item dialog.
 
     Concentrates a source item into a new, more concentrated item: the source is
@@ -165,10 +167,13 @@ class ConcentrateItemFormDialogState(FormDialogState, rx.State):
         async with self:
             main_state = await self.get_state(ReflexMainState)
 
+        dto.note_id = self.note_dto_id
         with await main_state.authenticate_user():
             result = ItemService().concentrate_item(self._item.id, dto)
+            linked_note = self._link_note_activity(result.activity.id)
 
         yield rx.toast.success("Item concentrated successfully")
+        await self._after_note_link(linked_note)
 
         if self._callback_after_close:
             await self._callback_after_close(result.inputs[0].to_dto())
@@ -184,6 +189,7 @@ class ConcentrateItemFormDialogState(FormDialogState, rx.State):
         self.form_draw_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.form_output_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.form_concentration_unit = NO_CONCENTRATION_VALUE
+        self.clear_note_context()
         self.is_update_mode = False
 
     def set_callback_after_close(self, callback: FormDialogCloseCallback | None):

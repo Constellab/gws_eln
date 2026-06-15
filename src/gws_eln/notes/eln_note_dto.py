@@ -1,18 +1,19 @@
-from typing import Any
-
 from gws_core import (
     BaseModelDTO,
     RichTextDTO,
 )
-from gws_eln.activities.activity_type import ActivityType
 
 
-class AddNoteActivityDTO(BaseModelDTO):
-    """DTO for adding an activity from a note block."""
+class LinkNoteActivityDTO(BaseModelDTO):
+    """DTO for linking an existing activity to a note block.
+
+    The activity is created beforehand in the app; the
+    note block only references it by id (the block is a view onto an
+    activity, never its owner). The block stores the ``activity_id`` and renders
+    the activity; deleting the block only unlinks it.
+    """
 
     note_id: str
     note_block_id: str
-    item_id: str | None = None  # None when RECEIVE creates a new item (from an item sheet)
-    activity_type: ActivityType
-    activity_data: dict[str, Any]
+    activity_id: str
     rich_text_content: RichTextDTO

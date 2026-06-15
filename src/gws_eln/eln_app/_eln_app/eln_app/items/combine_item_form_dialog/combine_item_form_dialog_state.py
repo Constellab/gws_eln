@@ -14,6 +14,8 @@ from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_main import FormDialogState, ReflexMainState
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
+from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
 # Sentinel for the "no concentration unit" option (rx.select cannot use None).
@@ -46,7 +48,7 @@ class CombineIngredientRow:
     unit_type: str = UnitType.COUNT.value
 
 
-class CombineItemFormDialogState(FormDialogState, rx.State):
+class CombineItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
     """State for the combine item dialog.
 
     Combines 2..N ingredient items into one new output item. Each ingredient is
@@ -266,6 +268,7 @@ class CombineItemFormDialogState(FormDialogState, rx.State):
             Reflex events (rx.toast)
         """
         dto = self._build_dto(form_data)
+        dto.note_id = self.note_dto_id
 
         main_state: ReflexMainState
         async with self:
@@ -273,8 +276,10 @@ class CombineItemFormDialogState(FormDialogState, rx.State):
 
         with await main_state.authenticate_user():
             result = ItemService().combine_items(dto)
+            linked_note = self._link_note_activity(result.activity.id)
 
         yield rx.toast.success("Items combined successfully")
+        await self._after_note_link(linked_note)
 
         if self._callback_after_close:
             # The first (seed) mutated ingredient drives the source-detail refresh
@@ -293,6 +298,7 @@ class CombineItemFormDialogState(FormDialogState, rx.State):
         self.output_unit_type = UnitType.COUNT.value
         self.output_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.output_concentration_unit = NO_CONCENTRATION_VALUE
+        self.clear_note_context()
         self.is_update_mode = False
 
     def set_callback_after_close(self, callback: FormDialogCloseCallback | None):

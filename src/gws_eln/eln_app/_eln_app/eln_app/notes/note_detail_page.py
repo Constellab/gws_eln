@@ -10,6 +10,23 @@ from gws_reflex_main import (
 
 from ..common.detail_page_layout import detail_content_layout
 from ..common.page_layout import page_layout
+from ..items.combine_item_form_dialog.combine_item_form_dialog_component import (
+    combine_item_dialog,
+)
+from ..items.concentrate_item_form_dialog.concentrate_item_form_dialog_component import (
+    concentrate_item_dialog,
+)
+from ..items.dilute_item_form_dialog.dilute_item_form_dialog_component import (
+    dilute_item_dialog,
+)
+from ..items.item_event_form_dialog.item_event_form_dialog_component import (
+    item_event_form_dialog,
+)
+from ..items.move_item_form_dialog.move_item_form_dialog_component import move_item_dialog
+from ..items.relabel_item_form_dialog.relabel_item_form_dialog_component import (
+    relabel_item_dialog,
+)
+from ..items.split_item_form_dialog.split_item_form_dialog_component import split_item_dialog
 from .eln_note_component.eln_note_component import eln_note_component
 from .note_actions_menu import note_actions_menu
 from .note_activity_form_dialog.note_activity_form_dialog_component import (
@@ -199,6 +216,14 @@ def _header() -> rx.Component:
         right_sidebar_open_button(),
         note_update_dialog(),
         note_activity_form_dialog(),
+        # Shared activity dialogs launched from the note chooser
+        split_item_dialog(),
+        combine_item_dialog(),
+        concentrate_item_dialog(),
+        dilute_item_dialog(),
+        move_item_dialog(),
+        relabel_item_dialog(),
+        item_event_form_dialog(),
         width="100%",
         align="center",
         spacing="4",

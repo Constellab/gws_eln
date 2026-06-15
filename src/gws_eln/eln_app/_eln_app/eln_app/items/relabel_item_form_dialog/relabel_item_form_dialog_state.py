@@ -8,10 +8,12 @@ from gws_eln.items.item_dto import ItemDTO, RelabelItemDTO
 from gws_eln.items.item_service import ItemService
 from gws_reflex_main import FormDialogState, ReflexMainState
 
+from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
 
-class RelabelItemFormDialogState(FormDialogState, rx.State):
+class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
     """State management for the relabel item dialog functionality.
 
     This dialog is used to relabel a item (change item_number and/or label).
@@ -114,6 +116,7 @@ class RelabelItemFormDialogState(FormDialogState, rx.State):
 
         # Validate and parse form data
         dto = self._validate_form_data(form_data)
+        dto.note_id = self.note_dto_id
 
         main_state: ReflexMainState
         async with self:
@@ -123,9 +126,11 @@ class RelabelItemFormDialogState(FormDialogState, rx.State):
         with await main_state.authenticate_user():
             item_service = ItemService()
             result = item_service.relabel_item(self._item.id, dto)
+            linked_note = self._link_note_activity(result.activity.id)
 
         # Show success toast
         yield rx.toast.success("Item relabeled successfully")
+        await self._after_note_link(linked_note)
 
         if self._callback_after_close:
             await self._callback_after_close(result.item.to_dto())
@@ -139,6 +144,7 @@ class RelabelItemFormDialogState(FormDialogState, rx.State):
         self._item = None
         self.form_item_number = ""
         self.form_label = ""
+        self.clear_note_context()
         self.is_update_mode = False
 
     def set_callback_after_close(self, callback: FormDialogCloseCallback | None):

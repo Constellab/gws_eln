@@ -12,13 +12,15 @@ from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_main import FormDialogState, ReflexMainState
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
+from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
 # Sentinel for the "no concentration unit" option.
 NO_CONCENTRATION_VALUE = "__none__"
 
 
-class DiluteItemFormDialogState(FormDialogState, rx.State):
+class DiluteItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
     """State for the dilute item dialog.
 
     Dilutes a target item with a diluent into a new, less concentrated item:
@@ -210,10 +212,13 @@ class DiluteItemFormDialogState(FormDialogState, rx.State):
         async with self:
             main_state = await self.get_state(ReflexMainState)
 
+        dto.note_id = self.note_dto_id
         with await main_state.authenticate_user():
             result = ItemService().dilute_item(self._item.id, dto)
+            linked_note = self._link_note_activity(result.activity.id)
 
         yield rx.toast.success("Item diluted successfully")
+        await self._after_note_link(linked_note)
 
         if self._callback_after_close:
             await self._callback_after_close(result.inputs[0].to_dto())
@@ -233,6 +238,7 @@ class DiluteItemFormDialogState(FormDialogState, rx.State):
         self.diluent_display = ""
         self.diluent_unit_type = UnitType.COUNT.value
         self.form_diluent_unit = UnitConverter.get_default_unit(UnitType.COUNT)
+        self.clear_note_context()
         self.is_update_mode = False
 
     def set_callback_after_close(self, callback: FormDialogCloseCallback | None):

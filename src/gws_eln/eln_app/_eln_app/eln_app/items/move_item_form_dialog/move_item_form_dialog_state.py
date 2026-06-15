@@ -6,10 +6,12 @@ from gws_eln.items.item_dto import ItemDTO, MoveItemDTO
 from gws_eln.items.item_service import ItemService
 from gws_reflex_main import FormDialogState, ReflexMainState
 
+from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
 
-class MoveItemFormDialogState(FormDialogState, rx.State):
+class MoveItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
     """State management for the move item dialog functionality.
 
     This dialog is used to move a item to a different location.
@@ -109,11 +111,13 @@ class MoveItemFormDialogState(FormDialogState, rx.State):
         # Move the item
         with await main_state.authenticate_user():
             item_service = ItemService()
-            dto = MoveItemDTO(to_location_id=location_id)
+            dto = MoveItemDTO(to_location_id=location_id, note_id=self.note_dto_id)
             result = item_service.move_item(self._item.id, dto)
+            linked_note = self._link_note_activity(result.activity.id)
 
         # Show success toast
         yield rx.toast.success("Item moved successfully")
+        await self._after_note_link(linked_note)
 
         if self._callback_after_close:
             await self._callback_after_close(result.item.to_dto())
@@ -126,6 +130,7 @@ class MoveItemFormDialogState(FormDialogState, rx.State):
         """Clear all form state after successful operation."""
         self._item = None
         self.form_location_id = ""
+        self.clear_note_context()
         self.is_update_mode = False
 
     def set_callback_after_close(self, callback: FormDialogCloseCallback | None):

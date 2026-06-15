@@ -1,5 +1,3 @@
-from typing import Any
-
 from gws_core import (
     BadRequestException,
     CurrentUserService,
@@ -15,20 +13,8 @@ from gws_core import (
 )
 from gws_eln.activities.activity import Activity
 from gws_eln.activities.activity_service import ActivityService
-from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.eln_db_manager import ElnDbManager
-from gws_eln.items.item_activity_dto import ItemActivityResult
-from gws_eln.items.item_dto import (
-    CreateItemDTO,
-    DecrementQuantityDTO,
-    DiscardItemDTO,
-    MoveItemDTO,
-    ReceiveItemDTO,
-    RelabelItemDTO,
-    UseItemDTO,
-)
-from gws_eln.items.item_service import ItemService
-from gws_eln.notes.eln_note_dto import AddNoteActivityDTO
+from gws_eln.notes.eln_note_dto import LinkNoteActivityDTO
 from gws_eln.rich_text.rich_text_block_item_activity import RichTextBlockItemActivity
 
 
@@ -66,20 +52,25 @@ class ElnNoteService:
         return note_tags.has_tag(Tag(self.ELN_NOTE_TAG_KEY, self.ELN_NOTE_TAG_VALUE))
 
     @ElnDbManager.transaction()
-    def add_activity(self, dto: AddNoteActivityDTO) -> Note:
-        """Add an item activity from a note block.
+    def link_activity(self, dto: LinkNoteActivityDTO) -> Note:
+        """Link an existing activity to a note block.
 
-        Verifies the note exists, builds the appropriate item action DTO
-        based on the activity type, then delegates to ItemService.
+        The activity is created beforehand in the app (any type, including the
+        split/combine/dilute/concentrate transforms); here the note block only
+        stores its id and renders it (the block is a view onto an activity,
+        never its owner). This never mutates inventory.
 
-        :param dto: DTO containing note_id, note_block_id, activity_type, and activity_data
-        :type dto: AddNoteActivityDTO
-        :return: The item and activity result
-        :rtype: ItemActivityResult
-        :raises BadRequestException: If the activity type is unsupported or data is invalid
+        :param dto: DTO with note_id, note_block_id, activity_id and the current
+            rich text content
+        :type dto: LinkNoteActivityDTO
+        :return: The updated note
+        :rtype: Note
+        :raises BadRequestException: If the block is missing or is not an Item
+            Activity block
         """
-        # Verify the note exists
+        # Verify the note and the activity exist
         NoteService.get_by_id_and_check(dto.note_id)
+        ActivityService().get_by_id_and_check(dto.activity_id)
 
         rich_text = RichText(dto.rich_text_content)
 
@@ -94,160 +85,42 @@ class ElnNoteService:
                 f"Note block with ID {dto.note_block_id} is not an Item Activity block"
             )
 
-        item_service = ItemService()
-        activity_data = dto.activity_data
-
-        handler = self._get_activity_handler(dto.activity_type)
-        item_result = handler(item_service, dto.item_id, activity_data, dto.note_id)
-
-        # if activity was created, set the activity id in the block data
-        activity = item_result.activity
-        if activity:
-            block.set_data(RichTextBlockItemActivity(activity_id=activity.id))
-            rich_text.replace_block_by_id(block.id, block)
-        else:
-            # if no activity was created, remove the block from the note
-            rich_text.remove_block_by_id(dto.note_block_id)
+        block.set_data(RichTextBlockItemActivity(activity_id=dto.activity_id))
+        rich_text.replace_block_by_id(block.id, block)
 
         return NoteService.update_content(dto.note_id, rich_text.to_dto())
 
-    def _get_activity_handler(self, activity_type: ActivityType):
-        """Return the handler method for the given activity type.
+    @ElnDbManager.transaction()
+    def remove_activity_block(self, note_id: str, note_block_id: str, rich_text_content) -> Note:
+        """Remove an (unlinked) item-activity block from a note.
 
-        :param activity_type: The type of activity to handle
-        :type activity_type: ActivityType
-        :return: The handler method
-        :raises BadRequestException: If the activity type is unsupported
+        Used when the user aborts creating the activity: the editor already
+        inserted the block, so on cancel it is dropped to avoid an empty
+        "Activity ID missing" block. Never touches inventory.
+
+        :param note_id: The note holding the block
+        :param note_block_id: The block to remove
+        :param rich_text_content: The current rich text content of the note
+        :return: The updated note
+        :rtype: Note
         """
-        handlers = {
-            ActivityType.RECEIVE: self._handle_receive,
-            ActivityType.CONSUME: self._handle_consume,
-            ActivityType.MOVE: self._handle_move,
-            ActivityType.USE: self._handle_use,
-            ActivityType.DISCARD: self._handle_discard,
-            ActivityType.RELABEL: self._handle_relabel,
-        }
-        handler = handlers.get(activity_type)
-        if handler is None:
-            raise BadRequestException(
-                f"Unsupported activity type for note activity: {activity_type.value}"
-            )
-        return handler
+        NoteService.get_by_id_and_check(note_id)
 
-    def _handle_receive(
-        self,
-        item_service: ItemService,
-        item_id: str | None,
-        activity_data: dict[str, Any],
-        note_id: str,
-    ) -> ItemActivityResult:
-        """Handle a RECEIVE activity.
+        rich_text = RichText(rich_text_content)
+        if rich_text.get_block_by_id(note_block_id) is not None:
+            rich_text.remove_block_by_id(note_block_id)
 
-        RECEIVE is the single way an item enters the inventory:
-        - new item (an ``item_sheet_id`` is provided, no existing item) → create the item;
-        - existing item (an ``item_id`` is targeted) → increment its quantity.
-        Both log a RECEIVE activity.
-        """
-        if activity_data.get("item_sheet_id"):
-            create_dto = CreateItemDTO(
-                item_sheet_id=activity_data["item_sheet_id"],
-                item_number=activity_data.get("item_number"),
-                quantity=activity_data["quantity"],
-                unit=activity_data["unit"],
-                location_id=activity_data.get("location_id"),
-                supplier_id=activity_data.get("supplier_id"),
-                expiry_date=activity_data.get("expiry_date"),
-                label=activity_data.get("label"),
-                notes=activity_data.get("notes"),
-                note_id=note_id,
-            )
-            return item_service.create_item(create_dto)
-
-        receive_dto = ReceiveItemDTO(
-            quantity=activity_data["quantity"],
-            unit=activity_data["unit"],
-            notes=activity_data.get("notes"),
-            note_id=note_id,
-        )
-        return item_service.receive_item(item_id, receive_dto)
-
-    def _handle_consume(
-        self,
-        item_service: ItemService,
-        item_id: str,
-        activity_data: dict[str, Any],
-        note_id: str,
-    ) -> ItemActivityResult:
-        item_dto = DecrementQuantityDTO(
-            quantity=activity_data["quantity"],
-            unit=activity_data["unit"],
-            notes=activity_data.get("notes"),
-            note_id=note_id,
-        )
-        return item_service.consume_quantity(item_id, item_dto)
-
-    def _handle_move(
-        self,
-        item_service: ItemService,
-        item_id: str,
-        activity_data: dict[str, Any],
-        note_id: str,
-    ) -> ItemActivityResult:
-        item_dto = MoveItemDTO(
-            to_location_id=activity_data["to_location_id"],
-            note_id=note_id,
-        )
-        return item_service.move_item(item_id, item_dto)
-
-    def _handle_use(
-        self,
-        item_service: ItemService,
-        item_id: str,
-        activity_data: dict[str, Any],
-        note_id: str,
-    ) -> ItemActivityResult:
-        item_dto = UseItemDTO(
-            notes=activity_data.get("notes"),
-            note_id=note_id,
-        )
-        return item_service.use_item(item_id, item_dto)
-
-    def _handle_discard(
-        self,
-        item_service: ItemService,
-        item_id: str,
-        activity_data: dict[str, Any],
-        note_id: str,
-    ) -> ItemActivityResult:
-        item_dto = DiscardItemDTO(
-            notes=activity_data.get("notes"),
-            note_id=note_id,
-        )
-        return item_service.discard_item(item_id, item_dto)
-
-    def _handle_relabel(
-        self,
-        item_service: ItemService,
-        item_id: str,
-        activity_data: dict[str, Any],
-        note_id: str,
-    ) -> ItemActivityResult:
-        item_dto = RelabelItemDTO(
-            item_number=activity_data.get("item_number"),
-            label=activity_data.get("label"),
-            note_id=note_id,
-        )
-        return item_service.relabel_item(item_id, item_dto)
+        return NoteService.update_content(note_id, rich_text.to_dto())
 
     def get_activity(
         self,
         activity_id: str,
     ) -> Activity:
-        """Get the item activity block for the given activity ID.
+        """Get the activity for the given activity ID.
 
         :param activity_id: The ID of the activity
         :type activity_id: str
-        :return: The item activity block
-        :rtype: RichTextBlockItemActivity
+        :return: The activity
+        :rtype: Activity
         """
         return ActivityService().get_by_id_and_check(activity_id)

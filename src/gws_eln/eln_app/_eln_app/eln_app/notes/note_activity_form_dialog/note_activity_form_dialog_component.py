@@ -1,176 +1,92 @@
-"""Note activity form dialog component.
+"""Note activity launcher (chooser) component.
 
-Two-step dialog for adding a item activity from within a note:
-1. Select a item and an activity type
-2. Fill in the activity-specific sub-form (reused from existing form sections)
+Asks for an activity type and an item, then launches the matching shared dialog.
+The "Continue" button dispatches to the real dialog,
+which carries the note context and links the created activity to the block.
 """
 
 import reflex as rx
-from gws_reflex_main import form_dialog_component
 
-from ...activities.activity_form_sections import (
-    create_item_form_section,
-    move_form_section,
-    receive_consume_form_section,
-    relabel_form_section,
-    use_discard_form_section,
-)
-from ...activities.activity_type_select_component import (
-    activity_type_select_component,
-)
 from ...items.core.item_select_component import item_select_component
 from .note_activity_form_dialog_state import NoteActivityFormDialogState
 
 S = NoteActivityFormDialogState
 
 
-def _item_info_section() -> rx.Component:
-    """Read-only display of selected item info, shown when an existing item is selected."""
-    return rx.cond(
-        S.show_item_select & S.item,
-        rx.vstack(
-            rx.vstack(
-                rx.text("Current Quantity", size="2", weight="bold"),
-                rx.text(S.item.pretty_quantity, size="2", color="gray"),
-                width="100%",
-                spacing="1",
-            ),
-            rx.divider(),
-            width="100%",
-            spacing="3",
-        ),
-    )
-
-
-def _sub_form() -> rx.Component:
-    """Conditionally render the activity-specific sub-form."""
-    return rx.fragment(
-        rx.cond(
-            S.show_create_form,
-            create_item_form_section(
-                form_item_sheet=S.form_item_sheet,
-                on_item_sheet_change=S.set_item_sheet,
-                form_unit_type=S.form_unit_type,
-                form_unit=S.form_unit,
-                on_unit_change=S.set_unit,
-                form_location_id=S.form_location_id,
-                on_location_change=S.set_location_id,
-                form_supplier_id=S.form_supplier_id,
-                on_supplier_change=S.set_supplier_id,
-                form_notes=S.form_notes,
+def _activity_type_select() -> rx.Component:
+    """Select limited to the activity types creatable from a note."""
+    return rx.select.root(
+        rx.select.trigger(placeholder="Select an activity type...", width="100%"),
+        rx.select.content(
+            rx.foreach(
+                S.activity_type_options,
+                lambda option: rx.select.item(option[1], value=option[0]),
             ),
         ),
-        rx.cond(
-            S.show_receive_consume_form,
-            receive_consume_form_section(
-                unit_type=S.form_unit_type,
-                unit_value=S.form_unit,
-                on_unit_change=S.set_unit,
-                quantity_label=S.quantity_label,
-                form_notes=S.form_notes,
-            ),
-        ),
-        rx.cond(
-            S.show_move_form,
-            rx.fragment(
-                rx.vstack(
-                    rx.text("Current Location", size="2", weight="bold"),
-                    rx.text(S.current_location_name, size="2", color="gray"),
-                    width="100%",
-                    spacing="1",
-                ),
-                move_form_section(
-                    form_location_id=S.form_location_id,
-                    on_location_change=S.set_location_id,
-                ),
-            ),
-        ),
-        rx.cond(
-            S.show_use_discard_form,
-            use_discard_form_section(
-                form_notes=S.form_notes,
-            ),
-        ),
-        rx.cond(
-            S.show_relabel_form,
-            relabel_form_section(
-                form_item_number=S.form_item_number,
-                form_label=S.form_label,
-            ),
-        ),
-    )
-
-
-def _form_content() -> rx.Component:
-    """Full form content: selection step + dynamic sub-form."""
-    return rx.vstack(
-        # Step 1: Activity type selection
-        rx.vstack(
-            rx.text("Activity Type*", size="2", weight="bold"),
-            activity_type_select_component(
-                value=S.form_activity_type,
-                on_change=S.set_activity_type,
-            ),
-            width="100%",
-            spacing="1",
-        ),
-        # For RECEIVE: choose between an existing item (restock) and a new item
-        rx.cond(
-            S.show_receive_mode_toggle,
-            rx.vstack(
-                rx.segmented_control.root(
-                    rx.segmented_control.item("Existing item", value="existing"),
-                    rx.segmented_control.item("New item", value="new"),
-                    value=S.form_receive_mode,
-                    on_change=S.set_receive_mode,
-                    width="100%",
-                ),
-                width="100%",
-                spacing="1",
-            ),
-        ),
-        rx.cond(
-            S.show_item_select,
-            # For other activities: show item selector
-            rx.vstack(
-                item_select_component(
-                    placeholder="Select a item...",
-                    selected_item=S.form_item,
-                    item_selected=S.set_item,
-                ),
-                width="100%",
-                spacing="1",
-            ),
-        ),
-        # Item info + sub-form (shown after both selections)
-        _item_info_section(),
-        _sub_form(),
+        value=S.form_activity_type,
+        on_change=S.set_activity_type,
         width="100%",
-        spacing="3",
     )
 
 
 def _dialog() -> rx.Component:
-    """The dialog component."""
-    return form_dialog_component(
-        state=NoteActivityFormDialogState,
-        title="Add Item Activity",
-        description="Select a item and an activity to record from this note.",
-        form_content=_form_content(),
-        max_width="500px",
+    """The chooser dialog."""
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.vstack(
+                rx.heading("Add Item Activity", size="4"),
+                rx.text(
+                    "Choose an activity type and an item. The activity form opens next.",
+                    size="2",
+                    color="gray",
+                    margin_bottom="0.5rem",
+                ),
+                rx.vstack(
+                    rx.text("Activity Type*", size="2", weight="bold"),
+                    _activity_type_select(),
+                    width="100%",
+                    spacing="1",
+                ),
+                rx.vstack(
+                    rx.text("Item*", size="2", weight="bold"),
+                    item_select_component(
+                        placeholder="Search an item...",
+                        selected_item=S.form_item,
+                        item_selected=S.set_item,
+                    ),
+                    width="100%",
+                    spacing="1",
+                ),
+                rx.hstack(
+                    rx.button(
+                        "Cancel",
+                        type="button",
+                        variant="soft",
+                        color_scheme="gray",
+                        on_click=S.close_dialog,
+                    ),
+                    rx.button("Continue", type="button", on_click=S.continue_to_dialog),
+                    margin_top="1em",
+                    spacing="2",
+                ),
+                width="100%",
+                spacing="3",
+            ),
+            max_width="500px",
+            on_interact_outside=S.close_dialog,
+            on_escape_key_down=S.close_dialog,
+        ),
+        open=S.dialog_opened,
     )
 
 
 def note_activity_form_dialog() -> rx.Component:
-    """Dialog component for adding a item activity from a note.
+    """Launcher dialog for creating an activity from a note.
 
-    This component provides the dialog (without a trigger button).
-    The dialog is controlled by NoteActivityFormDialogState.dialog_opened.
+    Controlled by NoteActivityFormDialogState.dialog_opened. Open it with:
+        NoteActivityFormDialogState.open_dialog(note_id, note_block_id, rich_text_content)
 
-    To open the dialog, call:
-        NoteActivityFormDialogState.open_dialog(note_id, note_block_id)
-
-    :return: The note activity form dialog component
+    :return: The note activity launcher dialog component
     :rtype: rx.Component
     """
     return _dialog()

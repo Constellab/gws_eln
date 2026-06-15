@@ -16,6 +16,8 @@ from gws_eln.items.item_service import ItemService
 from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_main import FormDialogState, ReflexMainState
 
+from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
 
@@ -26,7 +28,7 @@ class ItemEventType(str, Enum):
     CONSUME = "consume"
 
 
-class ItemEventFormDialogState(FormDialogState, rx.State):
+class ItemEventFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
     """State management for the item event dialog functionality.
 
     This dialog handles Receive and Consume operations on items.
@@ -203,18 +205,27 @@ class ItemEventFormDialogState(FormDialogState, rx.State):
             main_state = await self.get_state(ReflexMainState)
 
         # Execute the appropriate event
+        linked_note = None
         with await main_state.authenticate_user():
             item_service = ItemService()
 
             if self._event_type == ItemEventType.RECEIVE:
-                dto = ReceiveItemDTO(quantity=quantity, unit=unit, notes=notes)
+                dto = ReceiveItemDTO(
+                    quantity=quantity, unit=unit, notes=notes, note_id=self.note_dto_id
+                )
                 result = item_service.receive_item(self._item.id, dto)
+                linked_note = self._link_note_activity(result.activity.id)
                 yield rx.toast.success("Stock received successfully")
 
             elif self._event_type == ItemEventType.CONSUME:
-                dto = DecrementQuantityDTO(quantity=quantity, unit=unit, notes=notes)
+                dto = DecrementQuantityDTO(
+                    quantity=quantity, unit=unit, notes=notes, note_id=self.note_dto_id
+                )
                 result = item_service.consume_quantity(self._item.id, dto)
+                linked_note = self._link_note_activity(result.activity.id)
                 yield rx.toast.success("Stock consumed successfully")
+
+        await self._after_note_link(linked_note)
 
         if self._callback_after_close:
             await self._callback_after_close(result.item.to_dto())
@@ -230,6 +241,7 @@ class ItemEventFormDialogState(FormDialogState, rx.State):
         self.form_unit_type = UnitType.COUNT.value
         self.form_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.form_notes = ""
+        self.clear_note_context()
         self.is_update_mode = False
 
     def set_callback_after_close(self, callback: FormDialogCloseCallback | None):
