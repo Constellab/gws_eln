@@ -21,10 +21,31 @@ def _form_content() -> rx.Component:
                 name="name",
                 required=True,
                 width="100%",
-                default_value=ItemSheetFormDialogState.form_name,
+                value=ItemSheetFormDialogState.form_name,
+                on_change=ItemSheetFormDialogState.set_form_name,
+                on_blur=ItemSheetFormDialogState.suggest_code_from_name,
             ),
             width="100%",
             spacing="1",
+        ),
+        # Code field (create only - the code is immutable once the sheet exists)
+        rx.cond(
+            ItemSheetFormDialogState.is_update_mode,
+            rx.fragment(),
+            rx.vstack(
+                rx.text("Code* (4 characters, A-Z / 0-9)", size="2", weight="bold"),
+                rx.input(
+                    placeholder="e.g. ETHA",
+                    name="code",
+                    required=True,
+                    max_length=4,
+                    width="100%",
+                    value=ItemSheetFormDialogState.form_code,
+                    on_change=ItemSheetFormDialogState.set_form_code,
+                ),
+                width="100%",
+                spacing="1",
+            ),
         ),
         # Description field
         rx.vstack(
@@ -75,7 +96,8 @@ def _form_content() -> rx.Component:
         ),
         # Consumable checkbox (only shown in create mode)
         rx.cond(
-            ~ItemSheetFormDialogState.is_update_mode,
+            ItemSheetFormDialogState.is_update_mode,
+            rx.fragment(),
             rx.hstack(
                 rx.checkbox(
                     checked=ItemSheetFormDialogState.form_is_consumable,

@@ -96,6 +96,7 @@ def _row(item_sheet: ItemSheetDTO) -> rx.Component:
     """
     return rx.table.row(
         rx.table.cell(rx.text(item_sheet.name)),
+        rx.table.cell(rx.code(item_sheet.code)),
         rx.table.cell(
             rx.cond(
                 item_sheet.description,
@@ -162,6 +163,7 @@ def item_sheets_list_page() -> rx.Component:
                             rx.table.header(
                                 rx.table.row(
                                     rx.table.column_header_cell("Name"),
+                                    rx.table.column_header_cell("Code"),
                                     rx.table.column_header_cell("Description"),
                                     rx.table.column_header_cell("Default Supplier"),
                                     rx.table.column_header_cell("Type"),

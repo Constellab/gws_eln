@@ -13,6 +13,7 @@ class CreateItemSheetDTO(BaseModelDTO):
     """DTO for creating a new item sheet."""
 
     name: str
+    code: str  # Exactly 4 chars [A-Z0-9], unique, immutable
     description: str | None = None
     supplier_id: str | None = None
     is_consumable: bool = True
@@ -33,6 +34,7 @@ class ItemSheetDTO(ModelDTO):
     """DTO for displaying item sheet information in the frontend."""
 
     name: str
+    code: str
     description: str | None
     default_supplier: SupplierDTO | None
     is_consumable: bool

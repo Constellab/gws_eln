@@ -4,11 +4,19 @@ ItemSheet Service for managing ItemSheet entities.
 Handles CRUD operations, validation, and business logic for item sheets.
 """
 
+import re
+import string
+import unicodedata
+
 from gws_core import BadRequestException, CurrentUserService
 from gws_eln.items.item import Item
 from gws_eln.items.item_sheet import ItemSheet
 from gws_eln.items.item_sheet_dto import CreateItemSheetDTO, UpdateItemSheetDTO
 from gws_eln.suppliers.supplier import Supplier
+
+# A sheet code is exactly 4 characters using A-Z and 0-9.
+ITEM_SHEET_CODE_PATTERN = re.compile(r"^[A-Z0-9]{4}$")
+ITEM_SHEET_CODE_ALPHABET = string.ascii_uppercase + string.digits
 
 
 class ItemSheetService:
@@ -52,6 +60,57 @@ class ItemSheetService:
 
         return list(query.order_by(ItemSheet.name))
 
+    def is_code_available(self, code: str) -> bool:
+        """Whether a normalized 4-char code is not yet used by any sheet.
+
+        :param code: The (already uppercased) code to check
+        :type code: str
+        :return: True if free, False if taken
+        :rtype: bool
+        """
+        return not ItemSheet.select().where(ItemSheet.code == code).exists()
+
+    def suggest_code(self, name: str) -> str:
+        """Suggest an available 4-char code derived from a name.
+
+        Accents are stripped and the name reduced to ``[A-Z0-9]`` (e.g.
+        "Éthanol 99%" -> "ETHA"); the first 4 chars form the base, padded with
+        ``0`` if shorter (and "ITEM" if the name has no alphanumerics). If that
+        base is taken, the trailing character(s) are varied until a free code is
+        found. Always returns a valid, available code - editable before saving.
+
+        :param name: The item sheet name to derive a code from
+        :type name: str
+        :return: An available 4-char [A-Z0-9] code
+        :rtype: str
+        """
+        CurrentUserService.get_and_check_current_user()
+
+        # "Éthanol 99%" -> "ETHA"
+        base = (self._slug_code(name)[:4] or "ITEM").ljust(4, "0")
+
+        if self.is_code_available(base):
+            return base
+
+        # Vary the last character, then the last two, to find a free code.
+        for char in ITEM_SHEET_CODE_ALPHABET:
+            candidate = base[:3] + char
+            if self.is_code_available(candidate):
+                return candidate
+        for first in ITEM_SHEET_CODE_ALPHABET:
+            for second in ITEM_SHEET_CODE_ALPHABET:
+                candidate = base[:2] + first + second
+                if self.is_code_available(candidate):
+                    return candidate
+
+        return base  # all variants exhausted (practically impossible)
+
+    def _slug_code(self, name: str) -> str:
+        """Reduce a name to uppercase ``[A-Z0-9]`` only, stripping accents."""
+        decomposed = unicodedata.normalize("NFKD", name or "")
+        ascii_only = decomposed.encode("ascii", "ignore").decode("ascii")
+        return "".join(char for char in ascii_only.upper() if char in ITEM_SHEET_CODE_ALPHABET)
+
     def create_item_sheet(self, dto: CreateItemSheetDTO) -> ItemSheet:
         """
         Create a new item sheet.
@@ -64,6 +123,7 @@ class ItemSheetService:
         """
         # Validate input
         self._validate_item_sheet_name(dto.name)
+        code = self._validate_code(dto.code)
 
         # Validate supplier exists if provided
         supplier = None
@@ -73,6 +133,7 @@ class ItemSheetService:
         # Create item sheet
         item_sheet = ItemSheet()
         item_sheet.name = dto.name.strip()
+        item_sheet.code = code
         item_sheet.description = dto.description.strip() if dto.description else None
         item_sheet.default_supplier = supplier
         item_sheet.is_consumable = dto.is_consumable
@@ -150,6 +211,33 @@ class ItemSheetService:
         """
         if not name or len(name.strip()) == 0:
             raise BadRequestException("Item sheet name is required")
+
+    def _validate_code(self, code: str) -> str:
+        """Validate and normalize a sheet code.
+
+        The code is uppercased, then must be exactly 4 characters [A-Z0-9] and
+        not already used by another sheet (it is the unique prefix of item codes).
+        It is immutable once the sheet is created.
+
+        :param code: The raw code to validate
+        :type code: str
+        :return: The normalized (uppercased) code
+        :rtype: str
+        :raises BadRequestException: If the code is missing, malformed or taken
+        """
+        if not code or not code.strip():
+            raise BadRequestException("Item sheet code is required")
+
+        normalized = code.strip().upper()
+        if not ITEM_SHEET_CODE_PATTERN.match(normalized):
+            raise BadRequestException(
+                "Item sheet code must be exactly 4 characters using A-Z and 0-9 only"
+            )
+
+        if ItemSheet.select().where(ItemSheet.code == normalized).exists():
+            raise BadRequestException(f"Item sheet code '{normalized}' is already in use")
+
+        return normalized
 
     def _validate_supplier_exists(self, supplier_id: str) -> Supplier:
         """

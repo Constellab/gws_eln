@@ -24,6 +24,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
 
     # Form field default values
     form_name: str = ""
+    form_code: str = ""
     form_description: str = ""
     form_supplier_id: str = "__none__"
     form_is_consumable: bool = True
@@ -63,6 +64,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
 
         # Reset form fields to defaults
         self.form_name = ""
+        self.form_code = ""
         self.form_description = ""
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_is_consumable = True
@@ -89,6 +91,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
 
         # Initialize form fields with item_sheet data
         self.form_name = item_sheet.name
+        self.form_code = item_sheet.code
         self.form_description = item_sheet.description or ""
         self.form_supplier_id = (
             item_sheet.default_supplier.id if item_sheet.default_supplier else self.NO_SUPPLIER_VALUE
@@ -101,6 +104,34 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
 
         # Open the dialog
         await self.open_dialog()
+
+    @rx.event
+    def set_form_name(self, value: str):
+        """Handle item sheet name change."""
+        self.form_name = value
+
+    @rx.event
+    def set_form_code(self, value: str):
+        """Handle code change (kept uppercase to match the stored format)."""
+        self.form_code = value.upper()
+
+    @rx.event
+    async def suggest_code_from_name(self, name_value: str = ""):
+        """Auto-suggest a code from the name when leaving the name field.
+
+        Only fills in create mode and when the user hasn't already entered a
+        code, so a manual entry is never overwritten.
+        """
+        if self.is_update_mode or self.form_code.strip():
+            return
+        name = (name_value or self.form_name).strip()
+        if not name:
+            return
+        main_state: ReflexMainState
+        async with self:
+            main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            self.form_code = ItemSheetService().suggest_code(name)
 
     @rx.event
     def set_supplier_id(self, value: str):
@@ -175,6 +206,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
             item_sheet_service = ItemSheetService()
             dto = CreateItemSheetDTO(
                 name=name,
+                code=form_data.get("code", "").strip(),
                 description=description,
                 supplier_id=supplier_id,
                 is_consumable=is_consumable,
@@ -228,6 +260,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         """Clear all form state after successful operation."""
         self._editing_item_sheet = None
         self.form_name = ""
+        self.form_code = ""
         self.form_description = ""
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_is_consumable = True

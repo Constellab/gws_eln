@@ -23,6 +23,8 @@ class ItemSheet(ModelWithUser):
 
     Attributes:
         name: ItemSheet name (required, indexed)
+        code: Unique 4-char [A-Z0-9] identifier, immutable; the prefix for item
+            codes (e.g. ETHA-2026-0007).
         description: Optional description text
         default_supplier: Optional reference to supplier (FK to gws_eln_suppliers)
         is_consumable: Whether the item sheet is consumable (affects quantity behavior)
@@ -31,6 +33,10 @@ class ItemSheet(ModelWithUser):
 
     # Required fields
     name = TypedCharField(max_length=255, index=True)
+
+    # Unique 4-char [A-Z0-9] code, immutable once created; serves as the prefix for
+    # item codes so it must be unique.
+    code = TypedCharField(max_length=4, unique=True, index=True)
 
     # Optional fields
     description = NullableTextField()
@@ -63,6 +69,7 @@ class ItemSheet(ModelWithUser):
         return ItemSheetDTO(
             id=self.id,
             name=self.name,
+            code=self.code,
             description=self.description,
             default_supplier=self.default_supplier.to_dto() if self.default_supplier else None,
             is_consumable=self.is_consumable,
