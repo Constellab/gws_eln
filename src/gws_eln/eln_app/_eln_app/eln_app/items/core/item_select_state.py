@@ -29,7 +29,7 @@ class ItemSelectState(rx.State):
         search_builder.add_active_only_filter()
 
         if search_param.search_text:
-            search_builder.add_label_or_item_number_filter(search_param.search_text)
+            search_builder.add_label_or_code_filter(search_param.search_text)
 
         result = search_builder.search_page(
             page=search_param.page, number_of_items_per_page=search_param.page_size
@@ -37,8 +37,8 @@ class ItemSelectState(rx.State):
 
         def get_display_text(item) -> str:
             if item.label:
-                return f"{item.item_number} ({item.label})"
-            return item.item_number
+                return f"{item.code} ({item.label})"
+            return item.code
 
         self.search_results = result.map_page(
             lambda item: InputSearchResultDTO(

@@ -5,7 +5,7 @@ from gws_eln.items.item_status import ItemStatus
 
 class ItemSearchBuilder(SearchBuilder):
     def __init__(self) -> None:
-        super().__init__(Item, default_orders=[Item.item_number.asc()])
+        super().__init__(Item, default_orders=[Item.code.asc()])
 
     def add_item_sheet_filter(self, item_sheet_id: str) -> "ItemSearchBuilder":
         """Filter the search query by item sheet ID"""
@@ -37,10 +37,10 @@ class ItemSearchBuilder(SearchBuilder):
         self.add_expression(Item.supplier == supplier_id)
         return self
 
-    def add_item_number_filter(self, item_number: str) -> "ItemSearchBuilder":
-        """Filter the search query by item number (case-insensitive contains)"""
-        like_pattern = f"%{item_number}%"
-        self.add_expression(Item.item_number.ilike(like_pattern))
+    def add_code_filter(self, code: str) -> "ItemSearchBuilder":
+        """Filter the search query by code (case-insensitive contains)"""
+        like_pattern = f"%{code}%"
+        self.add_expression(Item.code.ilike(like_pattern))
         return self
 
     def add_label_filter(self, label: str) -> "ItemSearchBuilder":
@@ -49,11 +49,11 @@ class ItemSearchBuilder(SearchBuilder):
         self.add_expression(Item.label.ilike(like_pattern))
         return self
 
-    def add_label_or_item_number_filter(self, text: str) -> "ItemSearchBuilder":
-        """Filter the search query by label or item number (case-insensitive contains)"""
+    def add_label_or_code_filter(self, text: str) -> "ItemSearchBuilder":
+        """Filter the search query by label or code (case-insensitive contains)"""
         like_pattern = f"%{text}%"
         self.add_expression(
-            (Item.label.ilike(like_pattern)) | (Item.item_number.ilike(like_pattern))
+            (Item.label.ilike(like_pattern)) | (Item.code.ilike(like_pattern))
         )
         return self
 

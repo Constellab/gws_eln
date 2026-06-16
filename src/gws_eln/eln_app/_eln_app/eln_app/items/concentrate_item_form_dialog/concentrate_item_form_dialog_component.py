@@ -14,9 +14,10 @@ def _form_content() -> rx.Component:
         # Source item (read-only)
         rx.vstack(
             rx.text("Source Item", size="2", weight="bold"),
-            rx.text(ConcentrateItemFormDialogState.item_number, size="2", color="gray"),
+            rx.code(ConcentrateItemFormDialogState.code, size="2"),
             width="100%",
             spacing="1",
+            align="start",
         ),
         rx.hstack(
             rx.vstack(
@@ -46,17 +47,6 @@ def _form_content() -> rx.Component:
         rx.divider(margin_y="0.25rem"),
         # Output item
         rx.text("Output item", size="2", weight="bold"),
-        rx.vstack(
-            rx.text("Item Number*", size="1", weight="medium", color="gray"),
-            rx.input(
-                placeholder="Enter item number",
-                name="output_item_number",
-                required=True,
-                width="100%",
-            ),
-            width="100%",
-            spacing="1",
-        ),
         quantity_unit_input(
             unit_type=ConcentrateItemFormDialogState.form_unit_type,
             quantity_name="output_quantity",

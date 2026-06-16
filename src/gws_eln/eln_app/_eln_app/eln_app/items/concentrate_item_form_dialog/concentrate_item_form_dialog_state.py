@@ -39,10 +39,10 @@ class ConcentrateItemFormDialogState(NoteLinkableDialogState, FormDialogState, r
     _callback_after_close: FormDialogCloseCallback | None = None
 
     @rx.var
-    def item_number(self) -> str:
-        """Get the source item number for display."""
+    def code(self) -> str:
+        """Get the source item code for display."""
         if self._item:
-            return self._item.item_number
+            return self._item.code
         return ""
 
     @rx.var
@@ -125,10 +125,6 @@ class ConcentrateItemFormDialogState(NoteLinkableDialogState, FormDialogState, r
         if not self._item:
             raise Exception("Item is required")
 
-        output_item_number = form_data.get("output_item_number", "").strip()
-        if not output_item_number:
-            raise Exception("An output item number is required")
-
         draw_quantity = self._parse_quantity(form_data.get("draw_quantity", ""), "Drawn quantity")
         output_quantity = self._parse_quantity(
             form_data.get("output_quantity", ""), "Output quantity"
@@ -154,7 +150,6 @@ class ConcentrateItemFormDialogState(NoteLinkableDialogState, FormDialogState, r
         dto = ConcentrateItemDTO(
             quantity_contributed=draw_quantity,
             unit=self.form_draw_unit,
-            output_item_number=output_item_number,
             output_quantity=output_quantity,
             output_unit=self.form_output_unit,
             output_concentration=output_concentration,

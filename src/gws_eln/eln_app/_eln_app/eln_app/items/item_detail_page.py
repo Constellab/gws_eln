@@ -102,9 +102,9 @@ def _details_sidebar() -> rx.Component:
         ),
         # Main info grid (label + value per row)
         rx.grid(
-            # Item Number
-            rx.text("Item Number", size="2", color="gray", weight="medium"),
-            rx.text(ItemDetailState.item.item_number, size="2", weight="medium"),
+            # Code
+            rx.text("Code", size="2", color="gray", weight="medium"),
+            rx.code(ItemDetailState.item.code, size="2"),
             # Label
             rx.cond(
                 ItemDetailState.item.label,
@@ -249,18 +249,17 @@ def _header() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.hstack(
-        rx.vstack(
-            rx.code(ItemDetailState.item.code, size="2"),
-            rx.heading(ItemDetailState.item.item_number, size="6"),
-            rx.cond(
-                ItemDetailState.item.label,
-                rx.text(
-                    f"{ItemDetailState.item.label}",
-                    size="2",
-                    color="gray",
-                ),
+        rx.cond(
+            ItemDetailState.item.label,
+            # With a label: label is the title, code shown as a badge below
+            rx.vstack(
+                rx.heading(ItemDetailState.item.label, size="6"),
+                rx.code(ItemDetailState.item.code, size="2"),
+                spacing="1",
+                align="start",
             ),
-            spacing="0",
+            # No label: the code is the title
+            rx.heading(ItemDetailState.item.code, size="6"),
         ),
         rx.spacer(),
         rx.cond(

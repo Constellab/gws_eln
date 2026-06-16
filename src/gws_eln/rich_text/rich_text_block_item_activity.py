@@ -20,11 +20,11 @@ class RichTextBlockItemActivity(RichTextBlockDataSpecial):
     activity_id: str | None = None
 
     @staticmethod
-    def _format_endpoint(item_number: str, pretty_quantity: str | None) -> str:
+    def _format_endpoint(code: str, pretty_quantity: str | None) -> str:
         """Render one lineage endpoint as ``CODE (±qty)`` (or just ``CODE``)."""
         if pretty_quantity:
-            return f"{item_number} ({pretty_quantity})"
-        return item_number
+            return f"{code} ({pretty_quantity})"
+        return code
 
     def _lineage_parts(self, activity: Activity) -> tuple[list[str], list[str], list[str]]:
         """Split an activity into ingredient inputs, outputs and instruments.
@@ -32,16 +32,16 @@ class RichTextBlockItemActivity(RichTextBlockDataSpecial):
         :return: (ingredient endpoints, output endpoints, instrument labels)
         """
         ingredient_inputs = [
-            self._format_endpoint(i.item.item_number, i.get_pretty_quantity())
+            self._format_endpoint(i.item.code, i.get_pretty_quantity())
             for i in activity.inputs
             if i.role == ActivityInputRole.INGREDIENT
         ]
         outputs = [
-            self._format_endpoint(o.item.item_number, o.get_pretty_quantity())
+            self._format_endpoint(o.item.code, o.get_pretty_quantity())
             for o in activity.outputs
         ]
         instruments = [
-            i.item.item_number for i in activity.inputs if i.role == ActivityInputRole.INSTRUMENT
+            i.item.code for i in activity.inputs if i.role == ActivityInputRole.INSTRUMENT
         ]
         return ingredient_inputs, outputs, instruments
 
@@ -66,7 +66,7 @@ class RichTextBlockItemActivity(RichTextBlockDataSpecial):
             return " + ".join(ingredient_inputs)
         if instruments:  # use (instruments only)
             return ", ".join(instruments)
-        return activity.item.item_number  # fallback
+        return activity.item.code  # fallback
 
     def to_html(self) -> str:
         """Render the activity as HTML for display in the note.

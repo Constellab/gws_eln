@@ -26,7 +26,6 @@ class SplitOutputRow:
     while editing and parsed/validated on submit.
     """
 
-    item_number: str = ""
     quantity: str = ""
     unit: str = ""
     label: str = ""
@@ -56,10 +55,10 @@ class SplitItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Stat
     _callback_after_close: FormDialogCloseCallback | None = None
 
     @rx.var
-    def item_number(self) -> str:
-        """Get the source item number for display."""
+    def code(self) -> str:
+        """Get the source item code for display."""
         if self._item:
-            return self._item.item_number
+            return self._item.code
         return ""
 
     @rx.var
@@ -114,11 +113,6 @@ class SplitItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Stat
             del self.outputs[index]
 
     @rx.event
-    def set_row_item_number(self, index: int, value: str):
-        """Update the item number of the output row at the given index."""
-        self.outputs[index].item_number = value
-
-    @rx.event
     def set_row_quantity(self, index: int, value: str):
         """Update the quantity of the output row at the given index."""
         self.outputs[index].quantity = value
@@ -141,10 +135,6 @@ class SplitItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Stat
         """
         outputs: list[SplitOutputDTO] = []
         for position, row in enumerate(self.outputs, start=1):
-            item_number = row.item_number.strip()
-            if not item_number:
-                raise Exception(f"Output #{position}: an item number is required")
-
             quantity_str = row.quantity.strip()
             if not quantity_str:
                 raise Exception(f"Output #{position}: a quantity is required")
@@ -160,7 +150,6 @@ class SplitItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Stat
 
             outputs.append(
                 SplitOutputDTO(
-                    item_number=item_number,
                     quantity=quantity,
                     unit=row.unit,
                     label=row.label.strip() or None,

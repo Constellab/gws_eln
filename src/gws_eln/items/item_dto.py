@@ -27,7 +27,6 @@ class CreateItemDTO(BaseModelDTO):
     """
 
     item_sheet_id: str
-    item_number: str
     quantity: Decimal
     unit: str  # Exact unit (e.g., 'mL', 'g', 'kg') - converted to base unit for storage
     concentration: Decimal | None = None
@@ -111,9 +110,8 @@ class DiscardItemDTO(BaseModelDTO):
 
 
 class RelabelItemDTO(BaseModelDTO):
-    """DTO for relabeling an item (changing item_number or label)."""
+    """DTO for relabeling an item (changing its label)."""
 
-    item_number: str | None = None
     label: str | None = None
     note_id: str | None = None  # Link to Constellab Note
 
@@ -126,7 +124,6 @@ class SplitOutputDTO(BaseModelDTO):
     The quantity unit is validated against the source item's unit type.
     """
 
-    item_number: str
     quantity: Decimal
     unit: str  # Exact unit (e.g., 'mL', 'g') - validated against the source's unit type
     location_id: str | None = None  # Defaults to the source item's location if None
@@ -171,7 +168,6 @@ class CombineItemDTO(BaseModelDTO):
 
     inputs: list[CombineInputDTO]
     output_item_sheet_id: str
-    output_item_number: str
     output_quantity: Decimal
     output_unit: str  # Validated against the output item sheet's default unit type
     instrument_item_ids: list[str] = []  # Optional instrument inputs (non-consumable)
@@ -195,7 +191,6 @@ class ConcentrateItemDTO(BaseModelDTO):
 
     quantity_contributed: Decimal  # Amount drawn from the source (reduces it)
     unit: str  # Validated against the source item's unit type
-    output_item_number: str
     output_quantity: Decimal
     output_unit: str  # Validated against the source item's unit type (same sheet)
     output_concentration: Decimal | None = None
@@ -225,7 +220,6 @@ class DiluteItemDTO(BaseModelDTO):
     diluent_item_id: str
     diluent_quantity_contributed: Decimal  # Amount drawn from the diluent (reduces it)
     diluent_unit: str  # Validated against the diluent item's own unit type (any dimension)
-    output_item_number: str
     output_quantity: Decimal
     output_unit: str  # Validated against the target item's unit type (same sheet)
     output_concentration: Decimal | None = None
@@ -250,7 +244,6 @@ class ItemSimpleDTO(BaseModelDTO):
 
     id: str
     code: str  # Structured "{sheet.code}-{year}-{incr}", unique, immutable.
-    item_number: str
     label: str | None
 
 

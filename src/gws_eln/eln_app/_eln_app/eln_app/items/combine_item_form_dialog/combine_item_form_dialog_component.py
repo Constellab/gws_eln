@@ -83,18 +83,6 @@ def _output_section() -> rx.Component:
                     size="1",
                     color="gray",
                 ),
-                # Item number
-                rx.vstack(
-                    rx.text("Item Number*", size="1", weight="medium", color="gray"),
-                    rx.input(
-                        placeholder="Enter item number",
-                        name="output_item_number",
-                        required=True,
-                        width="100%",
-                    ),
-                    width="100%",
-                    spacing="1",
-                ),
                 # Quantity + unit (unit type from the output sheet)
                 quantity_unit_input(
                     unit_type=CombineItemFormDialogState.output_unit_type,

@@ -30,7 +30,7 @@ const ACTIVITY_TYPE_CONFIG = {
 function buildActivityRecap(activity) {
   const stripSign = (s) => (s || '').replace(/^[+-]/, '').trim();
   const fmt = (entry) => {
-    const number = entry.item?.item_number || '?';
+    const number = entry.item?.code || '?';
     const qty = stripSign(entry.pretty_quantity);
     return qty ? `${number} (${qty})` : number;
   };
@@ -46,7 +46,7 @@ function buildActivityRecap(activity) {
   }
 
   const type = activity.activity_type;
-  const subject = activity.item?.item_number || '?';
+  const subject = activity.item?.code || '?';
   const subjectQty = stripSign(activity.pretty_quantity);
 
   if (['receive', 'create'].includes(type)) {
@@ -63,7 +63,7 @@ function buildActivityRecap(activity) {
     if (from || to) return `${from || '?'} → ${to || '?'}`;
   }
   if (type === 'relabel') {
-    // The relabel change ("item_number: 'x' -> 'y'") is stored in notes; surface
+    // The relabel change ("label: 'x' -> 'y'") is stored in notes; surface
     // it as the recap so it sits above the "By:" line (the notes div is skipped
     // for relabel to avoid duplicating it), with the same arrow as the others.
     return (activity.notes || '').replace(/ -> /g, ' → ');
@@ -132,7 +132,7 @@ export function getCustomTools(customToolsConfig, authenticationInfo, customTool
 
       const itemLink = document.createElement('a');
       itemLink.className = 'ab-batch-link';
-      itemLink.textContent = activity.item?.item_number || 'Unknown item';
+      itemLink.textContent = activity.item?.code || 'Unknown item';
       if (activity.item?.id) {
         itemLink.href = `/items/${activity.item.id}`;
       }

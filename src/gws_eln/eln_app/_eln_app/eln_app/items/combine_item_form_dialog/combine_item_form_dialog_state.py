@@ -28,8 +28,8 @@ MIN_INGREDIENTS = 2
 def _item_display(item: ItemDTO) -> str:
     """Human-readable label for a selected ingredient item."""
     if item.label:
-        return f"{item.item_number} ({item.label})"
-    return item.item_number
+        return f"{item.code} ({item.label})"
+    return item.code
 
 
 @dataclass
@@ -212,10 +212,6 @@ class CombineItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
         if not self.output_sheet_id:
             raise Exception("An output item sheet is required")
 
-        output_item_number = form_data.get("output_item_number", "").strip()
-        if not output_item_number:
-            raise Exception("An output item number is required")
-
         output_quantity_str = form_data.get("output_quantity", "").strip()
         if not output_quantity_str:
             raise Exception("An output quantity is required")
@@ -252,7 +248,6 @@ class CombineItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
         return CombineItemDTO(
             inputs=inputs,
             output_item_sheet_id=self.output_sheet_id,
-            output_item_number=output_item_number,
             output_quantity=output_quantity,
             output_unit=self.output_unit,
             output_concentration=output_concentration,

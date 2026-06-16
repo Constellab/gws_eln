@@ -31,18 +31,6 @@ def _output_row(row: SplitOutputRow, index: int) -> rx.Component:
             width="100%",
             align="center",
         ),
-        # Item number
-        rx.vstack(
-            rx.text("Item Number*", size="1", weight="medium", color="gray"),
-            rx.input(
-                placeholder="Enter item number",
-                value=row.item_number,
-                on_change=lambda v: SplitItemFormDialogState.set_row_item_number(index, v),
-                width="100%",
-            ),
-            width="100%",
-            spacing="1",
-        ),
         # Quantity + unit (unit type shared from the source item)
         quantity_unit_input(
             unit_type=SplitItemFormDialogState.form_unit_type,
@@ -78,9 +66,10 @@ def _form_content() -> rx.Component:
         # Source item (read-only display)
         rx.vstack(
             rx.text("Source Item", size="2", weight="bold"),
-            rx.text(SplitItemFormDialogState.item_number, size="2", color="gray"),
+            rx.code(SplitItemFormDialogState.code, size="2"),
             width="100%",
             spacing="1",
+            align="start",
         ),
         # Current quantity (read-only display)
         rx.vstack(

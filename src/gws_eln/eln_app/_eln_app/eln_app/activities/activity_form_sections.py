@@ -85,34 +85,19 @@ def use_discard_form_section(
 
 
 def relabel_form_section(
-    form_item_number: rx.Var[str],
     form_label: rx.Var[str],
 ) -> rx.Component:
-    """Form section for relabel operation: new item number + new label."""
-    return rx.fragment(
-        rx.vstack(
-            rx.text("New Item Number*", size="2", weight="bold"),
-            rx.input(
-                placeholder="Enter new item number",
-                name="item_number",
-                required=True,
-                width="100%",
-                default_value=form_item_number,
-            ),
+    """Form section for relabel operation: new label."""
+    return rx.vstack(
+        rx.text("New Label", size="2", weight="bold"),
+        rx.input(
+            placeholder="Enter new label (leave empty to clear)",
+            name="label",
             width="100%",
-            spacing="1",
+            default_value=form_label,
         ),
-        rx.vstack(
-            rx.text("New Label", size="2", weight="bold"),
-            rx.input(
-                placeholder="Enter new label (optional)",
-                name="label",
-                width="100%",
-                default_value=form_label,
-            ),
-            width="100%",
-            spacing="1",
-        ),
+        width="100%",
+        spacing="1",
     )
 
 
@@ -138,18 +123,6 @@ def create_item_form_section(
         rx.cond(
             form_item_sheet,
             rx.fragment(
-                # Item Number (required)
-                rx.vstack(
-                    rx.text("Item Number*", size="2", weight="bold"),
-                    rx.input(
-                        placeholder="Enter item number",
-                        name="item_number",
-                        required=True,
-                        width="100%",
-                    ),
-                    width="100%",
-                    spacing="1",
-                ),
                 # Quantity + Unit (required)
                 quantity_unit_input(
                     unit_type=form_unit_type,

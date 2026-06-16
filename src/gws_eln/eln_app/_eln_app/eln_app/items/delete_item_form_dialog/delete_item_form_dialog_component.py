@@ -21,7 +21,7 @@ def _form_content() -> rx.Component:
         rx.vstack(
             rx.text("Item", size="2", weight="bold"),
             rx.text(
-                DeleteItemFormDialogState.item_number,
+                DeleteItemFormDialogState.code,
                 size="2",
                 color="gray",
             ),

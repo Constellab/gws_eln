@@ -51,7 +51,7 @@ def _filter_bar() -> rx.Component:
     return rx.hstack(
         # Search input (item number)
         rx.input(
-            placeholder="Search item number...",
+            placeholder="Search label or code...",
             value=ItemsListState.search_text,
             on_change=ItemsListState.handle_search_change,
             width="200px",
@@ -106,7 +106,6 @@ def _row(item: ItemDTO) -> rx.Component:
         rx.table.cell(
             item_inline(item),
         ),
-        rx.table.cell(rx.code(item.code)),
         rx.table.cell(
             inline_location_component(item.location),
             display=rx.breakpoints(initial="none", md="table-cell"),
@@ -206,8 +205,7 @@ def _items_table() -> rx.Component:
             rx.table.root(
                 rx.table.header(
                     rx.table.row(
-                        rx.table.column_header_cell("Item Number"),
-                        rx.table.column_header_cell("Code"),
+                        rx.table.column_header_cell("Item"),
                         rx.table.column_header_cell(
                             "Location",
                             display=rx.breakpoints(initial="none", md="table-cell"),

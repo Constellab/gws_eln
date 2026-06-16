@@ -147,9 +147,6 @@ class ItemService:
         :rtype: ItemActivityResult
         :raises BadRequestException: If validation fails or references don't exist
         """
-        # Validate input
-        self._validate_item_number(dto.item_number)
-
         # Validate quantity is positive
         validated_quantity = QuantityValidator.validate_quantity(dto.quantity)
 
@@ -183,7 +180,6 @@ class ItemService:
         item = Item()
         item.item_sheet = item_sheet
         item.code = self._generate_item_code(item_sheet)
-        item.item_number = dto.item_number.strip()
         item.quantity = base_quantity
         item.unit_type = unit_type
         item.concentration = dto.concentration
@@ -383,7 +379,7 @@ class ItemService:
         """
         Update item metadata (label, notes, expiry_date).
 
-        Note: To change item_number or label with activity logging, use relabel_item().
+        Note: To change the label with activity logging, use relabel_item().
 
         :param item_id: The ID of the item to update
         :type item_id: str
@@ -469,7 +465,7 @@ class ItemService:
         item = self.get_item(item_id)
 
         if item.is_discarded():
-            raise BadRequestException(f"Item '{item.item_number}' is already discarded")
+            raise BadRequestException(f"Item '{item.code}' is already discarded")
 
         # Create 'discard' activity entry
         activity = self._activity_service.log_activity(
@@ -499,7 +495,7 @@ class ItemService:
     @ElnDbManager.transaction()
     def relabel_item(self, item_id: str, dto: RelabelItemDTO) -> ItemActivityResult:
         """
-        Relabel an item (change item_number and/or label) with activity logging.
+        Relabel an item (change its label) with activity logging.
 
         :param item_id: The ID of the item to relabel
         :type item_id: str
@@ -513,31 +509,19 @@ class ItemService:
         # Get existing item
         item = self.get_item(item_id)
 
-        # Validate at least one field is provided
-        if dto.item_number is None and dto.label is None:
-            raise BadRequestException(
-                "At least one of item_number or label must be provided for relabeling"
-            )
+        # Validate the label field is provided
+        if dto.label is None:
+            raise BadRequestException("A label must be provided for relabeling")
 
         # Track what changed for activity notes
         changes = []
 
-        # Update item_number if provided
-        if dto.item_number is not None:
-            self._validate_item_number(dto.item_number)
-            old_item_number = item.item_number
-            new_item_number = dto.item_number.strip()
-            if old_item_number != new_item_number:
-                item.item_number = new_item_number
-                changes.append(f"item_number: '{old_item_number}' -> '{new_item_number}'")
-
-        # Update label if provided
-        if dto.label is not None:
-            old_label = item.label
-            new_label = dto.label.strip() if dto.label else None
-            if old_label != new_label:
-                item.label = new_label
-                changes.append(f"label: '{old_label}' -> '{new_label}'")
+        # Update label
+        old_label = item.label
+        new_label = dto.label.strip() if dto.label else None
+        if old_label != new_label:
+            item.label = new_label
+            changes.append(f"label: '{old_label}' -> '{new_label}'")
 
         # If no actual changes, return item as-is with no activity
         if not changes:
@@ -591,7 +575,7 @@ class ItemService:
         source = self.get_item(item_id)
 
         if source.is_discarded():
-            raise BadRequestException(f"Cannot split discarded item '{source.item_number}'")
+            raise BadRequestException(f"Cannot split discarded item '{source.code}'")
 
         if not source.is_consumable():
             raise BadRequestException(
@@ -609,7 +593,6 @@ class ItemService:
         total_base_quantity = Decimal(0)
         prepared_outputs = []
         for output_dto in dto.outputs:
-            self._validate_item_number(output_dto.item_number)
             validated_quantity = QuantityValidator.validate_quantity(output_dto.quantity)
             base_quantity = self._validate_and_convert_quantity(
                 source, validated_quantity, output_dto.unit
@@ -638,7 +621,6 @@ class ItemService:
             item = Item()
             item.item_sheet = source.item_sheet
             item.code = self._generate_item_code(source.item_sheet)
-            item.item_number = output_dto.item_number.strip()
             item.quantity = base_quantity
             item.unit_type = unit_type
             # Concentration is intensive: children inherit it unchanged
@@ -717,7 +699,6 @@ class ItemService:
             )
 
         # Validate the output item definition up front
-        self._validate_item_number(dto.output_item_number)
         output_sheet = self._validate_item_sheet_exists(dto.output_item_sheet_id)
         output_unit_type = output_sheet.default_unit_type
 
@@ -743,7 +724,7 @@ class ItemService:
             item = self.get_item(input_dto.item_id)
 
             if item.is_discarded():
-                raise BadRequestException(f"Cannot combine discarded item '{item.item_number}'")
+                raise BadRequestException(f"Cannot combine discarded item '{item.code}'")
 
             if not item.is_consumable():
                 raise BadRequestException(
@@ -787,7 +768,6 @@ class ItemService:
         output = Item()
         output.item_sheet = output_sheet
         output.code = self._generate_item_code(output_sheet)
-        output.item_number = dto.output_item_number.strip()
         output.quantity = output_base_quantity
         output.unit_type = output_unit_type
         output.concentration = dto.output_concentration
@@ -825,7 +805,6 @@ class ItemService:
     def _create_concentration_output(
         self,
         reference_item: Item,
-        output_item_number: str,
         output_quantity: Decimal,
         output_unit: str,
         concentration: Decimal | None,
@@ -840,7 +819,6 @@ class ItemService:
         concentration - concentration is identity-defining). Its quantity is
         user-entered (never computed). Returns the saved item and its base quantity.
         """
-        self._validate_item_number(output_item_number)
         self._validate_concentration(concentration, concentration_unit)
 
         validated_quantity = QuantityValidator.validate_quantity(output_quantity)
@@ -856,7 +834,6 @@ class ItemService:
         output = Item()
         output.item_sheet = reference_item.item_sheet
         output.code = self._generate_item_code(reference_item.item_sheet)
-        output.item_number = output_item_number.strip()
         output.quantity = output_base_quantity
         output.unit_type = reference_item.unit_type
         output.concentration = concentration
@@ -897,7 +874,7 @@ class ItemService:
         source = self.get_item(item_id)
 
         if source.is_discarded():
-            raise BadRequestException(f"Cannot concentrate discarded item '{source.item_number}'")
+            raise BadRequestException(f"Cannot concentrate discarded item '{source.code}'")
 
         if not source.is_consumable():
             raise BadRequestException(
@@ -918,7 +895,6 @@ class ItemService:
         # Create the new, more concentrated output item
         output, output_base_quantity = self._create_concentration_output(
             reference_item=source,
-            output_item_number=dto.output_item_number,
             output_quantity=dto.output_quantity,
             output_unit=dto.output_unit,
             concentration=dto.output_concentration,
@@ -985,7 +961,7 @@ class ItemService:
         """
         target = self.get_item(item_id)
         if target.is_discarded():
-            raise BadRequestException(f"Cannot dilute discarded item '{target.item_number}'")
+            raise BadRequestException(f"Cannot dilute discarded item '{target.code}'")
         if not target.is_consumable():
             raise BadRequestException(
                 f"Cannot dilute non-consumable item sheet '{target.item_sheet.name}'."
@@ -994,7 +970,7 @@ class ItemService:
         diluent = self.get_item(dto.diluent_item_id)
         if diluent.is_discarded():
             raise BadRequestException(
-                f"Cannot use discarded item '{diluent.item_number}' as a diluent"
+                f"Cannot use discarded item '{diluent.code}' as a diluent"
             )
         if not diluent.is_consumable():
             raise BadRequestException(
@@ -1023,7 +999,6 @@ class ItemService:
         # Create the new, diluted output item (on the target's sheet)
         output, output_base_quantity = self._create_concentration_output(
             reference_item=target,
-            output_item_number=dto.output_item_number,
             output_quantity=dto.output_quantity,
             output_unit=dto.output_unit,
             concentration=dto.output_concentration,
@@ -1128,7 +1103,7 @@ class ItemService:
 
         # Check if already discarded
         if item.is_discarded():
-            raise BadRequestException(f"Item '{item.item_number}' is already discarded")
+            raise BadRequestException(f"Item '{item.code}' is already discarded")
 
         # Check for child items (aliquots)
         child_count = (
@@ -1139,7 +1114,7 @@ class ItemService:
         )
         if child_count > 0:
             raise BadRequestException(
-                f"Cannot delete item '{item.item_number}' because it has {child_count} "
+                f"Cannot delete item '{item.code}' because it has {child_count} "
                 "active child item(s) (aliquots). Delete all child items first."
             )
 
@@ -1157,7 +1132,7 @@ class ItemService:
         # Item has activity history
         if not allow_discard:
             raise BadRequestException(
-                f"Cannot delete item '{item.item_number}' because it has activity history."
+                f"Cannot delete item '{item.code}' because it has activity history."
             )
 
         # Soft delete (mark as discarded)
@@ -1186,17 +1161,6 @@ class ItemService:
         item.save()
 
         return DeleteItemResultDTO.DISCARDED
-
-    def _validate_item_number(self, item_number: str) -> None:
-        """
-        Validate item number is not empty.
-
-        :param item_number: Item number to validate
-        :type item_number: str
-        :raises BadRequestException: If item number is empty or whitespace only
-        """
-        if not item_number or len(item_number.strip()) == 0:
-            raise BadRequestException("Item number is required")
 
     def _validate_concentration(
         self, concentration: Decimal | None, concentration_unit: str | None
@@ -1310,7 +1274,7 @@ class ItemService:
         if not UnitConverter.is_valid_unit(unit, unit_type):
             valid_units = ", ".join(UnitConverter.get_valid_units(unit_type))
             raise BadRequestException(
-                f"Invalid unit '{unit}' for item '{item.item_number}' "
+                f"Invalid unit '{unit}' for item '{item.code}' "
                 f"(unit type: {unit_type.value}). Valid units: {valid_units}"
             )
 

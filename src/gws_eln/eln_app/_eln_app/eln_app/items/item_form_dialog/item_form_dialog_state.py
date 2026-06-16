@@ -33,7 +33,6 @@ class ItemFormDialogState(FormDialogState, rx.State):
     _item_sheet: ItemSheetDTO | None = None
 
     # Form field default values
-    form_item_number: str = ""
     form_unit_type: str = UnitType.COUNT.value
     form_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
     form_concentration_unit: str = "__none__"
@@ -50,6 +49,17 @@ class ItemFormDialogState(FormDialogState, rx.State):
         """Get the name of the item_sheet for display."""
         if self._item_sheet:
             return self._item_sheet.name
+        return ""
+
+    @rx.var
+    def code_preview(self) -> str:
+        """Best-effort preview of the auto-generated code (informative only).
+
+        The authoritative code is assigned by the backend at creation.
+        This preview shows the sheet prefix + current year pattern.
+        """
+        if self._item_sheet:
+            return f"{self._item_sheet.code}-{date.today().year}-XXXX"
         return ""
 
     @rx.event
@@ -70,7 +80,6 @@ class ItemFormDialogState(FormDialogState, rx.State):
             self._item_sheet = item_sheet.to_dto()
 
         # Reset form fields to defaults
-        self.form_item_number = ""
         self.form_label = ""
         self.form_notes = ""
         self.form_expiry_date = ""
@@ -121,7 +130,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
     def _validate_form_data(
         self, form_data: dict
     ) -> tuple[
-        str, Decimal, str, Decimal | None, str, str | None, date | None, str | None, str | None
+        Decimal, str, Decimal | None, str, str | None, date | None, str | None, str | None
     ]:
         """Validate and parse form data.
 
@@ -129,14 +138,13 @@ class ItemFormDialogState(FormDialogState, rx.State):
             form_data: Dictionary containing form fields
 
         Returns:
-            Tuple of (item_number, quantity, unit, concentration, location_id,
+            Tuple of (quantity, unit, concentration, location_id,
                      supplier_id, expiry_date, label, notes) if validation succeeds
 
         Raises:
             Exception: If validation fails
         """
         # Get values from form data
-        item_number = form_data.get("item_number", "").strip()
         quantity_str = form_data.get("quantity", "").strip()
         concentration_str = form_data.get("concentration", "").strip()
         label = form_data.get("label", "").strip() or None
@@ -160,9 +168,6 @@ class ItemFormDialogState(FormDialogState, rx.State):
                 raise Exception("Invalid expiry date format")
 
         # Validate required fields
-        if not item_number:
-            raise Exception("Item number is required")
-
         if not quantity_str:
             raise Exception("Quantity is required")
 
@@ -190,7 +195,6 @@ class ItemFormDialogState(FormDialogState, rx.State):
             raise Exception("Unit is required")
 
         return (
-            item_number,
             quantity,
             unit,
             concentration,
@@ -215,7 +219,6 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
         # Validate and parse form data
         (
-            item_number,
             quantity,
             unit,
             concentration,
@@ -244,7 +247,6 @@ class ItemFormDialogState(FormDialogState, rx.State):
             item_service = ItemService()
             dto = CreateItemDTO(
                 item_sheet_id=self._item_sheet.id,
-                item_number=item_number,
                 quantity=quantity,
                 unit=unit,
                 concentration=concentration,
@@ -270,7 +272,6 @@ class ItemFormDialogState(FormDialogState, rx.State):
     async def _clear_form_state(self):
         """Clear all form state after successful operation."""
         self._item_sheet = None
-        self.form_item_number = ""
         self.form_unit_type = UnitType.COUNT.value
         self.form_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.form_concentration_unit = self.NO_CONCENTRATION_VALUE

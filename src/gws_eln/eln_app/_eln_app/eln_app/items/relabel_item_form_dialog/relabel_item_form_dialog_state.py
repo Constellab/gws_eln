@@ -16,7 +16,7 @@ FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
     """State management for the relabel item dialog functionality.
 
-    This dialog is used to relabel a item (change item_number and/or label).
+    This dialog is used to relabel a item (change its label).
     The item must be provided when opening the dialog.
     """
 
@@ -24,16 +24,15 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
     _item: ItemDTO | None = None
 
     # Form fields
-    form_item_number: str = ""
     form_label: str = ""
 
     _callback_after_close: FormDialogCloseCallback | None = None
 
     @rx.var
-    def current_item_number(self) -> str:
-        """Get the current item number for display."""
+    def current_code(self) -> str:
+        """Get the current code for display (read-only)."""
         if self._item:
-            return self._item.item_number
+            return self._item.code
         return ""
 
     @rx.var
@@ -61,7 +60,6 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
         self._item = item
 
         # Initialize form fields with current values
-        self.form_item_number = item.item_number
         self.form_label = item.label or ""
 
         # Set to create mode (not update mode for this dialog)
@@ -83,24 +81,15 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
             Exception: If validation fails
         """
         # Get values from form data
-        item_number = form_data.get("item_number", "").strip()
         label = form_data.get("label", "").strip()
 
-        # Validate item_number is not empty
-        if not item_number:
-            raise Exception("Item number is required")
-
-        # Check if anything changed
-        item_number_changed = item_number != self._item.item_number if self._item else True
+        # Check if the label changed
         label_changed = label != (self._item.label or "") if self._item else True
 
-        if not item_number_changed and not label_changed:
+        if not label_changed:
             raise Exception("No changes detected")
 
-        return RelabelItemDTO(
-            item_number=item_number if item_number_changed else None,
-            label=label if label_changed else None,
-        )
+        return RelabelItemDTO(label=label)
 
     async def _create(self, form_data: dict):
         """Relabel the item with form data.
@@ -142,7 +131,6 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
     async def _clear_form_state(self):
         """Clear all form state after successful operation."""
         self._item = None
-        self.form_item_number = ""
         self.form_label = ""
         self.clear_note_context()
         self.is_update_mode = False

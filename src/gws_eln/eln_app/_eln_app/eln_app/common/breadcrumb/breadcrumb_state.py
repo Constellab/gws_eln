@@ -102,7 +102,7 @@ class BreadcrumbState(rx.State):
                 url=ElnAppRouter.get_item_sheet_detail_url(item.item_sheet.id),
             ),
             BreadcrumbItem(
-                label=item.item_number,
+                label=item.code,
                 url=ElnAppRouter.get_item_detail_url(item.id),
             ),
         ]

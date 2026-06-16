@@ -127,13 +127,13 @@ class ActivityService:
         # An activity input (either role) cannot reference a discarded item
         if item.is_discarded():
             raise BadRequestException(
-                f"Cannot use discarded item '{item.item_number}' as an activity input"
+                f"Cannot use discarded item '{item.code}' as an activity input"
             )
 
         # INSTRUMENT inputs must reference a non-consumable item
         if input_dto.role == ActivityInputRole.INSTRUMENT and item.is_consumable():
             raise BadRequestException(
-                f"Item '{item.item_number}' is consumable and cannot be used as an "
+                f"Item '{item.code}' is consumable and cannot be used as an "
                 "INSTRUMENT input. Use a CONSUME activity with a quantity instead."
             )
 

@@ -35,10 +35,10 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
     _callback_after_close: FormDialogCloseCallback | None = None
 
     @rx.var
-    def item_number(self) -> str:
+    def code(self) -> str:
         """Get the item number for display."""
         if self._item:
-            return self._item.item_number
+            return self._item.code
         return ""
 
     @rx.var

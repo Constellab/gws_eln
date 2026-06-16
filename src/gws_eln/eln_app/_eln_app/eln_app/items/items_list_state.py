@@ -99,9 +99,9 @@ class ItemsListState(rx.State):
             # Always filter by item_sheet_id
             search_builder.add_item_sheet_filter(self._item_sheet_id)
 
-            # Apply text search filter (item number)
+            # Apply text search filter (label or code)
             if self.search_text:
-                search_builder.add_item_number_filter(self.search_text)
+                search_builder.add_label_or_code_filter(self.search_text)
 
             # Apply location filter
             if self.filter_location_id and self.filter_location_id != ALL_FILTER_VALUE:

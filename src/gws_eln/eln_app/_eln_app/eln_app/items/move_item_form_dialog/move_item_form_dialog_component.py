@@ -12,7 +12,7 @@ def _form_content() -> rx.Component:
         rx.vstack(
             rx.text("Item", size="2", weight="bold"),
             rx.text(
-                MoveItemFormDialogState.item_number,
+                MoveItemFormDialogState.code,
                 size="2",
                 color="gray",
             ),

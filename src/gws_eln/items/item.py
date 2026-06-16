@@ -35,8 +35,8 @@ class Item(ModelWithUser):
     Attributes:
         item_sheet: Reference to the item sheet catalog entry (required)
         parent_item: Self-reference for aliquots (NULL for original items)
-        item_number: Item number from supplier (NULL for aliquots)
-        label: Custom label for aliquots or identification
+        code: Structured, unique, immutable code (backend-generated)
+        label: Custom human-readable label (free text, optional)
         expiry_date: Expiration date
         quantity: Amount in base units (DECIMAL for precision)
         unit_type: Type of unit for quantity
@@ -61,7 +61,6 @@ class Item(ModelWithUser):
     # Structured, unique, immutable code: "{item_sheet.code}-{year}-{increment}"
     # (e.g. "ETHA-2026-0007"). Backend-generated at creation.
     code = TypedCharField(max_length=50, unique=True, index=True)
-    item_number = TypedCharField(max_length=100, index=True)
     label = NullableCharField(
         max_length=255,
     )
@@ -110,7 +109,7 @@ class Item(ModelWithUser):
         """Check if the item has sufficient quantity for an operation."""
         if self.quantity < required_quantity:
             raise BadRequestException(
-                f"Insufficient quantity in item {self.item_number}. Available: {self.quantity}, Requested: {required_quantity}"
+                f"Insufficient quantity in item {self.code}. Available: {self.quantity}, Requested: {required_quantity}"
             )
 
     def get_pretty_quantity(self) -> str:
@@ -131,7 +130,6 @@ class Item(ModelWithUser):
         return ItemSimpleDTO(
             id=self.id,
             code=self.code,
-            item_number=self.item_number,
             label=self.label,
         )
 
@@ -159,7 +157,7 @@ class Item(ModelWithUser):
             hierarchy.append(
                 HierarchyObjectDTO(
                     id=self.id,
-                    name=self.item_number,
+                    name=self.code,
                     sub_name=self.label,
                 )
             )
@@ -169,7 +167,7 @@ class Item(ModelWithUser):
             hierarchy.append(
                 HierarchyObjectDTO(
                     id=current.id,
-                    name=current.item_number,
+                    name=current.code,
                     sub_name=current.label,
                 )
             )
@@ -200,7 +198,6 @@ class Item(ModelWithUser):
             location=self.location.to_dto(),
             parent_item=self.parent_item.to_simple_dto() if self.parent_item else None,
             supplier=self.supplier.to_dto() if self.supplier else None,
-            item_number=self.item_number,
             label=self.label,
             expiry_date=self.expiry_date,
             quantity=self.quantity,

@@ -21,16 +21,16 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Current Item Number (read-only display)
+        # Current Code (read-only display)
         rx.vstack(
-            rx.text("Current Item Number", size="2", weight="bold"),
-            rx.text(
-                RelabelItemFormDialogState.current_item_number,
+            rx.text("Code", size="2", weight="bold"),
+            rx.code(
+                RelabelItemFormDialogState.current_code,
                 size="2",
-                color="gray",
             ),
             width="100%",
             spacing="1",
+            align="start",
         ),
         # Current Label (read-only display)
         rx.vstack(
@@ -46,7 +46,6 @@ def _form_content() -> rx.Component:
         rx.divider(margin_y="0.5rem"),
         # Reusable relabel form section
         relabel_form_section(
-            form_item_number=RelabelItemFormDialogState.form_item_number,
             form_label=RelabelItemFormDialogState.form_label,
         ),
         width="100%",
@@ -63,7 +62,7 @@ def _dialog() -> rx.Component:
     return form_dialog_component(
         state=RelabelItemFormDialogState,
         title="Relabel Item",
-        description="Change the item number and/or label. This action will be logged in the activity history.",
+        description="Change the item's label. This action will be logged in the activity history.",
         form_content=_form_content(),
         max_width="450px",
     )

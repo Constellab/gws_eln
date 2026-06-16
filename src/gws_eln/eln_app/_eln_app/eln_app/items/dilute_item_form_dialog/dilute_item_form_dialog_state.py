@@ -46,10 +46,10 @@ class DiluteItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Sta
     _callback_after_close: FormDialogCloseCallback | None = None
 
     @rx.var
-    def item_number(self) -> str:
-        """Get the target item number for display."""
+    def code(self) -> str:
+        """Get the target item code for display."""
         if self._item:
-            return self._item.item_number
+            return self._item.code
         return ""
 
     @rx.var
@@ -112,7 +112,7 @@ class DiluteItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Sta
         diluent = result.object
         self.diluent_item_id = diluent.id
         self.diluent_display = (
-            f"{diluent.item_number} ({diluent.label})" if diluent.label else diluent.item_number
+            f"{diluent.code} ({diluent.label})" if diluent.label else diluent.code
         )
         self.diluent_unit_type = diluent.unit_type.value
         self.form_diluent_unit = self._best_unit_for_quantity(diluent.quantity, diluent.unit_type)
@@ -162,10 +162,6 @@ class DiluteItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Sta
         if not self.diluent_item_id:
             raise Exception("A diluent item is required")
 
-        output_item_number = form_data.get("output_item_number", "").strip()
-        if not output_item_number:
-            raise Exception("An output item number is required")
-
         target_quantity = self._parse_quantity(
             form_data.get("draw_quantity", ""), "Target quantity"
         )
@@ -199,7 +195,6 @@ class DiluteItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Sta
             diluent_item_id=self.diluent_item_id,
             diluent_quantity_contributed=diluent_quantity,
             diluent_unit=self.form_diluent_unit,
-            output_item_number=output_item_number,
             output_quantity=output_quantity,
             output_unit=self.form_output_unit,
             output_concentration=output_concentration,
