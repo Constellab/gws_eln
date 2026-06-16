@@ -249,6 +249,7 @@ class ItemSimpleDTO(BaseModelDTO):
     """Simple DTO for item with minimal fields."""
 
     id: str
+    code: str  # Structured "{sheet.code}-{year}-{incr}", unique, immutable.
     item_number: str
     label: str | None
 

@@ -250,6 +250,7 @@ def _header() -> rx.Component:
     """
     return rx.hstack(
         rx.vstack(
+            rx.code(ItemDetailState.item.code, size="2"),
             rx.heading(ItemDetailState.item.item_number, size="6"),
             rx.cond(
                 ItemDetailState.item.label,

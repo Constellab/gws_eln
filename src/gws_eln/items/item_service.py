@@ -7,7 +7,7 @@ Implements Story 5.1 from Epic 5: Service Layer - Items.
 
 from decimal import Decimal
 
-from gws_core import BadRequestException, CurrentUserService
+from gws_core import BadRequestException, CurrentUserService, DateHelper
 from gws_eln.activities.activity import Activity
 from gws_eln.activities.activity_dto import (
     CreateActivityDTO,
@@ -182,6 +182,7 @@ class ItemService:
         # Create item
         item = Item()
         item.item_sheet = item_sheet
+        item.code = self._generate_item_code(item_sheet)
         item.item_number = dto.item_number.strip()
         item.quantity = base_quantity
         item.unit_type = unit_type
@@ -623,7 +624,9 @@ class ItemService:
         source.quantity = source.quantity - total_base_quantity
         source.save()
 
-        # Create the new output items
+        # Create the new output items. Each code is generated just before the
+        # item is saved, so the next iteration sees this increment (sequential
+        # MAX+1, MAX+2, ... within this one action).
         output_items = []
         activity_outputs = []
         for output_dto, base_quantity in prepared_outputs:
@@ -634,6 +637,7 @@ class ItemService:
 
             item = Item()
             item.item_sheet = source.item_sheet
+            item.code = self._generate_item_code(source.item_sheet)
             item.item_number = output_dto.item_number.strip()
             item.quantity = base_quantity
             item.unit_type = unit_type
@@ -782,6 +786,7 @@ class ItemService:
         location = LocationService().get_or_default_location(dto.output_location_id)
         output = Item()
         output.item_sheet = output_sheet
+        output.code = self._generate_item_code(output_sheet)
         output.item_number = dto.output_item_number.strip()
         output.quantity = output_base_quantity
         output.unit_type = output_unit_type
@@ -850,6 +855,7 @@ class ItemService:
 
         output = Item()
         output.item_sheet = reference_item.item_sheet
+        output.code = self._generate_item_code(reference_item.item_sheet)
         output.item_number = output_item_number.strip()
         output.quantity = output_base_quantity
         output.unit_type = reference_item.unit_type
@@ -1256,6 +1262,36 @@ class ItemService:
         if not item_sheet:
             raise BadRequestException(f"Item sheet with ID '{item_sheet_id}' does not exist")
         return item_sheet
+
+    def _generate_item_code(self, item_sheet: ItemSheet) -> str:
+        """Generate one unique item code for the sheet.
+
+        Format ``{item_sheet.code}-{year}-{increment}`` (e.g. ``ETHA-2026-0007``).
+        The increment is the *numeric* ``MAX + 1`` over existing items of that
+        ``(sheet, year)``. It is zero-padded to a minimum width of 4 and overflows
+        naturally past 9999.
+
+        For bulk creation (split), call this once per item *after saving the
+        previous one*, so each call sees the prior increment in the database. The
+        DB unique constraint on ``Item.code`` is the concurrency backstop.
+
+        :param item_sheet: The sheet whose code prefixes the generated code
+        :type item_sheet: ItemSheet
+        :return: A unique item code
+        :rtype: str
+        """
+        year = DateHelper.now_utc().year
+        prefix = f"{item_sheet.code}-{year}-"
+
+        max_increment = 0
+        for item in Item.select(Item.code).where(
+            (Item.item_sheet == item_sheet) & (Item.code.startswith(prefix))
+        ):
+            suffix = item.code[len(prefix) :]
+            if suffix.isdigit():
+                max_increment = max(max_increment, int(suffix))
+
+        return f"{prefix}{max_increment + 1:04d}"
 
     def _validate_and_convert_quantity(self, item: Item, quantity, unit: str):
         """

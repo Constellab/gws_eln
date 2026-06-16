@@ -106,6 +106,7 @@ def _row(item: ItemDTO) -> rx.Component:
         rx.table.cell(
             item_inline(item),
         ),
+        rx.table.cell(rx.code(item.code)),
         rx.table.cell(
             inline_location_component(item.location),
             display=rx.breakpoints(initial="none", md="table-cell"),
@@ -114,6 +115,7 @@ def _row(item: ItemDTO) -> rx.Component:
             rx.cond(
                 item.supplier,
                 inline_supplier_component(item.supplier),
+                rx.text("—", color="gray"),
             ),
             display=rx.breakpoints(initial="none", md="table-cell"),
         ),
@@ -127,7 +129,13 @@ def _row(item: ItemDTO) -> rx.Component:
                 rx.text("—", color="gray"),
             ),
         ),
-        rx.table.cell(expiry_date_badge(item.expiry_date)),
+        rx.table.cell(
+            rx.cond(
+                item.expiry_date,
+                expiry_date_badge(item.expiry_date),
+                rx.text("—", color="gray"),
+            )
+        ),
         rx.table.cell(rx.box(status_badge(item.status), width="fit-content")),
         rx.table.cell(
             item_actions_menu(
@@ -199,6 +207,7 @@ def _items_table() -> rx.Component:
                 rx.table.header(
                     rx.table.row(
                         rx.table.column_header_cell("Item Number"),
+                        rx.table.column_header_cell("Code"),
                         rx.table.column_header_cell(
                             "Location",
                             display=rx.breakpoints(initial="none", md="table-cell"),

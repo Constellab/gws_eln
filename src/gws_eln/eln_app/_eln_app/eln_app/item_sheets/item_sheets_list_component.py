@@ -4,14 +4,14 @@ import reflex as rx
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_reflex_main import main_component, user_with_date_component
 
-from ..items.core.item_components import consumable_badge
 from ..common.page_layout import page_layout
 from ..common.unit.unit_type_select_component import unit_type_select_component
+from ..items.core.item_components import consumable_badge
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from ..suppliers.core.supplier_select_component import supplier_select_component
 from .core.item_sheet_actions_menu import item_sheet_actions_menu
-from .item_sheets_list_state import ALL_FILTER_VALUE, ItemSheetsListState
 from .item_sheet_form_dialog.item_sheet_form_dialog_component import item_sheet_update_dialog
+from .item_sheets_list_state import ALL_FILTER_VALUE, ItemSheetsListState
 
 
 def _filter_bar() -> rx.Component:
@@ -181,7 +181,10 @@ def item_sheets_list_page() -> rx.Component:
                             rx.vstack(
                                 rx.icon("package", size=48, color="gray"),
                                 rx.text(
-                                    "No item_sheets found", size="4", color="gray", margin_top="1rem"
+                                    "No item_sheets found",
+                                    size="4",
+                                    color="gray",
+                                    margin_top="1rem",
                                 ),
                                 spacing="2",
                                 align="center",

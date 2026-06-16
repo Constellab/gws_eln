@@ -58,6 +58,9 @@ class Item(ModelWithUser):
     supplier = NullableForeignKeyField(Supplier, backref="items", on_delete="SET NULL", index=True)
 
     # Item identification
+    # Structured, unique, immutable code: "{item_sheet.code}-{year}-{increment}"
+    # (e.g. "ETHA-2026-0007"). Backend-generated at creation.
+    code = TypedCharField(max_length=50, unique=True, index=True)
     item_number = TypedCharField(max_length=100, index=True)
     label = NullableCharField(
         max_length=255,
@@ -127,6 +130,7 @@ class Item(ModelWithUser):
 
         return ItemSimpleDTO(
             id=self.id,
+            code=self.code,
             item_number=self.item_number,
             label=self.label,
         )
@@ -191,6 +195,7 @@ class Item(ModelWithUser):
 
         return ItemDTO(
             id=self.id,
+            code=self.code,
             item_sheet=self.item_sheet.to_dto(),
             location=self.location.to_dto(),
             parent_item=self.parent_item.to_simple_dto() if self.parent_item else None,
