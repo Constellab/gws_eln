@@ -77,6 +77,10 @@ class Item(ModelWithUser):
     concentration = NullableDecimalField(max_digits=20, decimal_places=12)
     concentration_unit = NullableCharField(max_length=20)
 
+    # Storage condition for the item (free text, e.g. "-20°C"). Inherited from the
+    # item sheet's default at creation, can be overridden per item.
+    storage_conditions = NullableCharField(max_length=255)
+
     # Additional information
     notes = NullableTextField()
 
@@ -205,6 +209,7 @@ class Item(ModelWithUser):
             unit_type=self.unit_type,
             concentration=self.concentration,
             concentration_unit=self.concentration_unit,
+            storage_conditions=self.storage_conditions,
             notes=self.notes,
             status=self.status,
             created_at=self.created_at,

@@ -95,10 +95,27 @@ def _form_content() -> rx.Component:
             rx.cond(
                 ItemSheetFormDialogState.unit_type_locked,
                 rx.text(
-                    "The unit type can no longer be changed because this item sheet already has items.",
+                    "Can't change the unit type because this item sheet already has items.",
                     size="1",
                     color="gray",
                 ),
+            ),
+            width="100%",
+            spacing="1",
+        ),
+        # Storage conditions field (default for items of this sheet)
+        rx.vstack(
+            rx.text("Storage conditions", size="2", weight="bold"),
+            rx.input(
+                placeholder="e.g. -20°C (optional)",
+                name="storage_conditions",
+                width="100%",
+                default_value=ItemSheetFormDialogState.form_storage_conditions,
+            ),
+            rx.text(
+                "Default storage condition for items of this sheet (overridable per item).",
+                size="1",
+                color="gray",
             ),
             width="100%",
             spacing="1",

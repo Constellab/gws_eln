@@ -94,6 +94,16 @@ def _details_sidebar() -> rx.Component:
                 size="2",
                 style={"text_transform": "capitalize"},
             ),
+            # Storage conditions
+            rx.text("Storage conditions", size="2", color="gray", weight="medium"),
+            rx.text(
+                rx.cond(
+                    ItemSheetDetailState.item_sheet.storage_conditions,
+                    ItemSheetDetailState.item_sheet.storage_conditions,
+                    "—",
+                ),
+                size="2",
+            ),
             columns="2",
             spacing="3",
             width="100%",

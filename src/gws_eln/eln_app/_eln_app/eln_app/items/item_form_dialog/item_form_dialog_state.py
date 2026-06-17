@@ -40,6 +40,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
     form_supplier_id: str = "__none__"
     form_expiry_date: str = ""
     form_label: str = ""
+    form_storage_conditions: str = ""
     form_notes: str = ""
 
     _callback_after_close: FormDialogCloseCallback | None = None
@@ -81,6 +82,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
         # Reset form fields to defaults
         self.form_label = ""
+        # Prefill the storage condition with the sheet's default (editable override)
+        self.form_storage_conditions = self._item_sheet.storage_conditions or ""
         self.form_notes = ""
         self.form_expiry_date = ""
         self.form_location_id = ""
@@ -127,10 +130,53 @@ class ItemFormDialogState(FormDialogState, rx.State):
         """Handle expiry date change."""
         self.form_expiry_date = value
 
+    def _parse_expiry_date(self) -> date | None:
+        """Parse the expiry date from state (empty -> None)."""
+        if not self.form_expiry_date:
+            return None
+        try:
+            return date.fromisoformat(self.form_expiry_date)
+        except ValueError as err:
+            raise Exception("Invalid expiry date format") from err
+
+    @staticmethod
+    def _parse_quantity(quantity_str: str) -> Decimal:
+        """Parse a required, strictly-positive quantity."""
+        if not quantity_str:
+            raise Exception("Quantity is required")
+        try:
+            quantity = Decimal(quantity_str)
+        except (ValueError, ArithmeticError) as err:
+            raise Exception("Invalid quantity value") from err
+        if quantity <= 0:
+            raise Exception("Quantity must be positive")
+        return quantity
+
+    @staticmethod
+    def _parse_concentration(concentration_str: str) -> Decimal | None:
+        """Parse an optional, strictly-positive concentration (empty -> None)."""
+        if not concentration_str:
+            return None
+        try:
+            concentration = Decimal(concentration_str)
+        except (ValueError, ArithmeticError) as err:
+            raise Exception("Invalid concentration value") from err
+        if concentration <= 0:
+            raise Exception("Concentration must be positive")
+        return concentration
+
     def _validate_form_data(
         self, form_data: dict
     ) -> tuple[
-        Decimal, str, Decimal | None, str, str | None, date | None, str | None, str | None
+        Decimal,
+        str,
+        Decimal | None,
+        str,
+        str | None,
+        date | None,
+        str | None,
+        str | None,
+        str | None,
     ]:
         """Validate and parse form data.
 
@@ -138,61 +184,33 @@ class ItemFormDialogState(FormDialogState, rx.State):
             form_data: Dictionary containing form fields
 
         Returns:
-            Tuple of (quantity, unit, concentration, location_id,
-                     supplier_id, expiry_date, label, notes) if validation succeeds
+            Tuple of (quantity, unit, concentration, location_id, supplier_id,
+                     expiry_date, label, storage_conditions, notes) if validation succeeds
 
         Raises:
             Exception: If validation fails
         """
-        # Get values from form data
-        quantity_str = form_data.get("quantity", "").strip()
-        concentration_str = form_data.get("concentration", "").strip()
+        quantity = self._parse_quantity(form_data.get("quantity", "").strip())
+        concentration = self._parse_concentration(form_data.get("concentration", "").strip())
+        expiry_date = self._parse_expiry_date()
         label = form_data.get("label", "").strip() or None
+        storage_conditions = form_data.get("storage_conditions", "").strip() or None
         notes = form_data.get("notes", "").strip() or None
 
-        # Get values from state (for select components)
+        # Values from state (select components)
         location_id = self.form_location_id
+        if not location_id:
+            raise Exception("Location is required")
+
+        unit = self.form_unit
+        if not unit:
+            raise Exception("Unit is required")
+
         supplier_id = (
             self.form_supplier_id
             if self.form_supplier_id and self.form_supplier_id != self.NO_SUPPLIER_VALUE
             else None
         )
-        unit = self.form_unit
-
-        # Parse expiry date
-        expiry_date = None
-        if self.form_expiry_date:
-            try:
-                expiry_date = date.fromisoformat(self.form_expiry_date)
-            except ValueError:
-                raise Exception("Invalid expiry date format")
-
-        # Validate required fields
-        if not quantity_str:
-            raise Exception("Quantity is required")
-
-        try:
-            quantity = Decimal(quantity_str)
-            if quantity <= 0:
-                raise Exception("Quantity must be positive")
-        except (ValueError, ArithmeticError):
-            raise Exception("Invalid quantity value")
-
-        # Concentration is optional. Empty string means "no concentration".
-        concentration: Decimal | None = None
-        if concentration_str:
-            try:
-                concentration = Decimal(concentration_str)
-            except (ValueError, ArithmeticError):
-                raise Exception("Invalid concentration value")
-            if concentration <= 0:
-                raise Exception("Concentration must be positive")
-
-        if not location_id:
-            raise Exception("Location is required")
-
-        if not unit:
-            raise Exception("Unit is required")
 
         return (
             quantity,
@@ -202,6 +220,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
             supplier_id,
             expiry_date,
             label,
+            storage_conditions,
             notes,
         )
 
@@ -226,6 +245,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
             supplier_id,
             expiry_date,
             label,
+            storage_conditions,
             notes,
         ) = self._validate_form_data(form_data)
 
@@ -255,6 +275,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
                 supplier_id=supplier_id,
                 expiry_date=expiry_date,
                 label=label,
+                storage_conditions=storage_conditions,
                 notes=notes,
             )
             item = item_service.create_item(dto)
@@ -279,6 +300,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_expiry_date = ""
         self.form_label = ""
+        self.form_storage_conditions = ""
         self.form_notes = ""
         self.is_update_mode = False
 

@@ -187,6 +187,12 @@ class ItemService:
         item.location = location
         item.expiry_date = dto.expiry_date
         item.label = dto.label.strip() if dto.label else None
+        # Storage condition: explicit override if given, else inherit the sheet default
+        item.storage_conditions = (
+            dto.storage_conditions.strip()
+            if dto.storage_conditions
+            else item_sheet.storage_conditions
+        )
         item.notes = dto.notes.strip() if dto.notes else None
         item.parent_item = None  # Original item, not an aliquot
         item.supplier = supplier
@@ -399,6 +405,9 @@ class ItemService:
         self._validate_concentration(dto.concentration, dto.concentration_unit)
         item.concentration = dto.concentration
         item.concentration_unit = dto.concentration_unit or None
+
+        # Update storage condition (free text, None/empty clears it)
+        item.storage_conditions = dto.storage_conditions.strip() if dto.storage_conditions else None
 
         if dto.supplier_id is not None:
             item.supplier = SupplierService().get_supplier(dto.supplier_id)
@@ -631,6 +640,8 @@ class ItemService:
                 output_dto.expiry_date if output_dto.expiry_date is not None else source.expiry_date
             )
             item.label = output_dto.label.strip() if output_dto.label else None
+            # Storage condition inherits the output's own sheet default
+            item.storage_conditions = source.item_sheet.storage_conditions
             item.notes = output_dto.notes.strip() if output_dto.notes else None
             # Single parent: a split child has exactly one source item
             item.parent_item = source
@@ -775,6 +786,8 @@ class ItemService:
         output.location = location
         output.expiry_date = dto.output_expiry_date
         output.label = dto.output_label.strip() if dto.output_label else None
+        # Storage condition inherits the output's own sheet default
+        output.storage_conditions = output_sheet.storage_conditions
         output.notes = dto.notes.strip() if dto.notes else None
         output.parent_item = None
         output.supplier = None
@@ -841,6 +854,8 @@ class ItemService:
         output.location = location
         output.expiry_date = expiry_date if expiry_date is not None else reference_item.expiry_date
         output.label = label.strip() if label else None
+        # Storage condition inherits the output's own sheet default
+        output.storage_conditions = reference_item.item_sheet.storage_conditions
         output.notes = None
         # Single parent: the primary source (target). Full lineage lives in the
         # activity inputs/outputs (the diluent is recorded as a second input).

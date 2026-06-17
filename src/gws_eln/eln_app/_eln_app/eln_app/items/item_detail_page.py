@@ -141,6 +141,16 @@ def _details_sidebar() -> rx.Component:
                     ),
                 ),
             ),
+            # Storage conditions (always shown; "—" when not set)
+            rx.text("Storage conditions", size="2", color="gray", weight="medium"),
+            rx.text(
+                rx.cond(
+                    ItemDetailState.item.storage_conditions,
+                    ItemDetailState.item.storage_conditions,
+                    "—",
+                ),
+                size="2",
+            ),
             # Expiry Date
             rx.text("Expiry Date", size="2", color="gray", weight="medium"),
             rx.box(expiry_date_badge(ItemDetailState.item.expiry_date)),

@@ -1,4 +1,5 @@
 from gws_core import (
+    NullableCharField,
     NullableForeignKeyField,
     NullableTextField,
     TypedBooleanField,
@@ -30,6 +31,8 @@ class ItemSheet(ModelWithUser):
         is_consumable: Whether the item sheet is consumable (affects quantity behavior)
         unit_type: The dimension (volume/mass/length/count) of items of this sheet.
             IMMUTABLE once any Item references the sheet.
+        storage_conditions: Default storage condition for items (free text, e.g.
+            "-20°C"); a property, not a location. Overridable per item.
     """
 
     # Required fields
@@ -54,6 +57,10 @@ class ItemSheet(ModelWithUser):
     # The dimension of items of this sheet (immutable once items exist)
     unit_type = TypedEnumField(choices=UnitType, max_length=20, default=UnitType.COUNT)
 
+    # Default storage condition for items of this sheet (free text, e.g. "-20°C").
+    # Inherited by items, overridable per item.
+    storage_conditions = NullableCharField(max_length=255)
+
     class Meta:
         table_name = "gws_eln_item_sheets"
         database = ElnDbManager.get_instance().db
@@ -75,6 +82,7 @@ class ItemSheet(ModelWithUser):
             default_supplier=self.default_supplier.to_dto() if self.default_supplier else None,
             is_consumable=self.is_consumable,
             unit_type=self.unit_type,
+            storage_conditions=self.storage_conditions,
             created_at=self.created_at,
             last_modified_at=self.last_modified_at,
             created_by=self.created_by.to_dto(),

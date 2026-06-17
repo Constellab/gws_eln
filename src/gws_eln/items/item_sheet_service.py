@@ -151,6 +151,9 @@ class ItemSheetService:
         item_sheet.default_supplier = supplier
         item_sheet.is_consumable = dto.is_consumable
         item_sheet.unit_type = dto.unit_type
+        item_sheet.storage_conditions = (
+            dto.storage_conditions.strip() if dto.storage_conditions else None
+        )
 
         # Save (created_by/last_modified_by set automatically by ModelWithUser)
         item_sheet.save()
@@ -194,6 +197,9 @@ class ItemSheetService:
         item_sheet.description = dto.description.strip() if dto.description else None
         item_sheet.default_supplier = supplier
         item_sheet.unit_type = dto.unit_type
+        item_sheet.storage_conditions = (
+            dto.storage_conditions.strip() if dto.storage_conditions else None
+        )
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         item_sheet.save()

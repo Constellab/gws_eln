@@ -117,6 +117,23 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
+        # Storage conditions field (defaults to the sheet's, overridable here)
+        rx.vstack(
+            rx.text("Storage conditions", size="2", weight="bold"),
+            rx.input(
+                placeholder="e.g. -20°C (optional)",
+                name="storage_conditions",
+                width="100%",
+                default_value=ItemFormDialogState.form_storage_conditions,
+            ),
+            rx.text(
+                "Prefilled from the item sheet's default; edit to override for this item.",
+                size="1",
+                color="gray",
+            ),
+            width="100%",
+            spacing="1",
+        ),
         # Notes field
         rx.vstack(
             rx.text("Notes", size="2", weight="bold"),

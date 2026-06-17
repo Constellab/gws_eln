@@ -35,6 +35,7 @@ class CreateItemDTO(BaseModelDTO):
     supplier_id: str | None = None
     expiry_date: date | None = None
     label: str | None = None
+    storage_conditions: str | None = None  # If None, inherits the item sheet's default
     notes: str | None = None
     note_id: str | None = None  # Link to Constellab Note
 
@@ -92,6 +93,7 @@ class UpdateItemDTO(BaseModelDTO):
     supplier_id: str | None = None
     concentration: Decimal | None = None
     concentration_unit: str | None = None  # Recorded verbatim, no conversion (e.g. 'mM', 'ng/µL')
+    storage_conditions: str | None = None  # Override (free text); None clears it
     note_id: str | None = None  # Link to Constellab Note
 
 
@@ -255,6 +257,7 @@ class ItemDTO(ItemSimpleDTO):
     pretty_quantity: str  # Pre-formatted quantity string for display
     concentration: Decimal | None
     concentration_unit: str | None
+    storage_conditions: str | None
     item_sheet: ItemSheetDTO
     location: LocationDTO
     parent_item: ItemSimpleDTO | None

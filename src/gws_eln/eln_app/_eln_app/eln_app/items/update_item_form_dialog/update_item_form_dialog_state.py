@@ -31,6 +31,7 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
     form_supplier_id: str = ""
     form_concentration: str = ""
     form_concentration_unit: str = ""
+    form_storage_conditions: str = ""
 
     _callback_after_close: FormDialogCloseCallback | None = None
 
@@ -67,6 +68,7 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
             f"{item.concentration.normalize():f}" if item.concentration is not None else ""
         )
         self.form_concentration_unit = item.concentration_unit or "__none__"
+        self.form_storage_conditions = item.storage_conditions or ""
 
         # Set to update mode
         self.is_update_mode = True
@@ -109,8 +111,8 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
         if self.form_expiry_date:
             try:
                 expiry_date = date.fromisoformat(self.form_expiry_date)
-            except ValueError:
-                raise Exception("Invalid expiry date format")
+            except ValueError as err:
+                raise Exception("Invalid expiry date format") from err
 
         # Get supplier_id from state
         supplier_id = self.form_supplier_id if self.form_supplier_id != "__none__" else None
@@ -133,12 +135,15 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
             else None
         )
 
+        storage_conditions = form_data.get("storage_conditions", "").strip() or None
+
         return UpdateItemDTO(
             notes=notes,
             expiry_date=expiry_date,
             supplier_id=supplier_id,
             concentration=concentration,
             concentration_unit=concentration_unit,
+            storage_conditions=storage_conditions,
         )
 
     async def _create(self, form_data: dict):
@@ -183,6 +188,7 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
         self.form_supplier_id = ""
         self.form_concentration = ""
         self.form_concentration_unit = self.NO_CONCENTRATION_VALUE
+        self.form_storage_conditions = ""
         self.is_update_mode = False
 
     def set_callback_after_close(self, callback: FormDialogCloseCallback | None):

@@ -88,6 +88,18 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
+        # Storage conditions field
+        rx.vstack(
+            rx.text("Storage conditions", size="2", weight="bold"),
+            rx.input(
+                placeholder="e.g. -20°C (optional)",
+                name="storage_conditions",
+                width="100%",
+                default_value=UpdateItemFormDialogState.form_storage_conditions,
+            ),
+            width="100%",
+            spacing="1",
+        ),
         # Notes field
         rx.vstack(
             rx.text("Notes", size="2", weight="bold"),

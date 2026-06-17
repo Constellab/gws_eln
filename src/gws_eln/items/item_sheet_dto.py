@@ -18,6 +18,7 @@ class CreateItemSheetDTO(BaseModelDTO):
     supplier_id: str | None = None
     is_consumable: bool = True
     unit_type: UnitType = UnitType.COUNT
+    storage_conditions: str | None = None
 
 
 class UpdateItemSheetDTO(BaseModelDTO):
@@ -28,6 +29,7 @@ class UpdateItemSheetDTO(BaseModelDTO):
     supplier_id: str | None = None
     is_consumable: bool = True
     unit_type: UnitType = UnitType.COUNT
+    storage_conditions: str | None = None
 
 
 class ItemSheetDTO(ModelDTO):
@@ -39,5 +41,6 @@ class ItemSheetDTO(ModelDTO):
     default_supplier: SupplierDTO | None
     is_consumable: bool
     unit_type: UnitType
+    storage_conditions: str | None
     created_by: UserDTO
     last_modified_by: UserDTO

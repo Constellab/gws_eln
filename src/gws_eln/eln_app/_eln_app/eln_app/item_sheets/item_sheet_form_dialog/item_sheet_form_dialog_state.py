@@ -29,6 +29,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
     form_supplier_id: str = "__none__"
     form_is_consumable: bool = True
     form_unit_type: str = UnitType.COUNT.value
+    form_storage_conditions: str = ""
 
     # In update mode, the unit_type is locked once the sheet already has items
     # (it is immutable then). Drives the disabled state of the selector.
@@ -73,6 +74,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_is_consumable = True
         self.form_unit_type = UnitType.COUNT.value
+        self.form_storage_conditions = ""
         self.unit_type_locked = False
 
         # Reset to create mode
@@ -111,6 +113,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         )
         self.form_is_consumable = item_sheet.is_consumable
         self.form_unit_type = item_sheet.unit_type.value
+        self.form_storage_conditions = item_sheet.storage_conditions or ""
 
         # Mark as editing
         self.is_update_mode = True
@@ -163,14 +166,15 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
 
     def _validate_form_data(
         self, form_data: dict
-    ) -> tuple[str, str | None, str | None, bool, UnitType]:
+    ) -> tuple[str, str | None, str | None, bool, UnitType, str | None]:
         """Validate and parse form data.
 
         Args:
             form_data: Dictionary containing form fields
 
         Returns:
-            Tuple of (name, description, supplier_id, is_consumable, unit_type) if validation succeeds
+            Tuple of (name, description, supplier_id, is_consumable, unit_type,
+                     storage_conditions) if validation succeeds
 
         Raises:
             Exception: If validation fails
@@ -178,6 +182,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         # Get values from form data
         name = form_data.get("name", "").strip()
         description = form_data.get("description", "").strip() or None
+        storage_conditions = form_data.get("storage_conditions", "").strip() or None
 
         # Get values from state (for select/checkbox components)
         # Convert __none__ back to None for the service
@@ -193,7 +198,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         if not name:
             raise Exception("ItemSheet name is required")
 
-        return name, description, supplier_id, is_consumable, unit_type
+        return name, description, supplier_id, is_consumable, unit_type, storage_conditions
 
     async def _create(self, form_data: dict):
         """Create a new item_sheet using the form data.
@@ -205,8 +210,8 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
             Reflex events (rx.toast)
         """
         # Validate and parse form data
-        name, description, supplier_id, is_consumable, unit_type = self._validate_form_data(
-            form_data
+        name, description, supplier_id, is_consumable, unit_type, storage_conditions = (
+            self._validate_form_data(form_data)
         )
 
         main_state: ReflexMainState
@@ -224,6 +229,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
                 supplier_id=supplier_id,
                 is_consumable=is_consumable,
                 unit_type=unit_type,
+                storage_conditions=storage_conditions,
             )
             item_sheet = item_sheet_service.create_item_sheet(dto)
 
@@ -243,8 +249,8 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
             Reflex events (rx.toast)
         """
         # Validate and parse form data
-        name, description, supplier_id, is_consumable, unit_type = self._validate_form_data(
-            form_data
+        name, description, supplier_id, is_consumable, unit_type, storage_conditions = (
+            self._validate_form_data(form_data)
         )
 
         main_state: ReflexMainState
@@ -260,6 +266,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
                 description=description,
                 supplier_id=supplier_id,
                 unit_type=unit_type,
+                storage_conditions=storage_conditions,
             )
             item_sheet = item_sheet_service.update_item_sheet(self._editing_item_sheet.id, dto)
 
@@ -278,6 +285,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_is_consumable = True
         self.form_unit_type = UnitType.COUNT.value
+        self.form_storage_conditions = ""
         self.unit_type_locked = False
         self.is_update_mode = False
 
