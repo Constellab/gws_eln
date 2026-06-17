@@ -1,4 +1,12 @@
-from gws_core import Model, TypedBooleanField, TypedCharField, TypedEnumField, UserDTO, UserGroup
+from gws_core import (
+    Model,
+    NullableCharField,
+    TypedBooleanField,
+    TypedCharField,
+    TypedEnumField,
+    UserDTO,
+    UserGroup,
+)
 from gws_core import User as GwsCoreUser
 
 from gws_eln.core.eln_db_manager import ElnDbManager
@@ -11,7 +19,9 @@ class User(Model):
     group = TypedEnumField(choices=UserGroup, default=UserGroup.USER)
     is_active = TypedBooleanField(default=True)
 
-    photo = TypedCharField(null=True)
+    # NullableCharField, not TypedCharField: TypedCharField forces null=False
+    # (it ignores null=True), which would break user sync for users without a photo.
+    photo = NullableCharField()
 
     def to_dto(self) -> UserDTO:
         return UserDTO(
