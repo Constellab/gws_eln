@@ -87,10 +87,10 @@ def _details_sidebar() -> rx.Component:
             # Type
             rx.text("Type", size="2", color="gray", weight="medium"),
             rx.box(consumable_badge(ItemSheetDetailState.item_sheet.is_consumable), width="fit-content"),
-            # Default Unit Type
-            rx.text("Default Unit Type", size="2", color="gray", weight="medium"),
+            # Unit Type
+            rx.text("Unit Type", size="2", color="gray", weight="medium"),
             rx.text(
-                ItemSheetDetailState.item_sheet.default_unit_type,
+                ItemSheetDetailState.item_sheet.unit_type,
                 size="2",
                 style={"text_transform": "capitalize"},
             ),

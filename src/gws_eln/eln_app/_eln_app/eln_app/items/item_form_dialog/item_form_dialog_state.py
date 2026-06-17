@@ -87,8 +87,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
         self.form_concentration_unit = self.NO_CONCENTRATION_VALUE
 
         # Set unit type and default unit from item_sheet
-        self.form_unit_type = self._item_sheet.default_unit_type.value
-        self.form_unit = UnitConverter.get_default_unit(self._item_sheet.default_unit_type)
+        self.form_unit_type = self._item_sheet.unit_type.value
+        self.form_unit = UnitConverter.get_default_unit(self._item_sheet.unit_type)
 
         # Use item_sheet's default supplier if available
         if self._item_sheet.default_supplier:

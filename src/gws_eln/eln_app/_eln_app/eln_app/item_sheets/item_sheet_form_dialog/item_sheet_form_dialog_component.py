@@ -76,9 +76,9 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Unit Type field
+        # Unit Type field (immutable once the sheet has at least an item)
         rx.vstack(
-            rx.text("Default unit type to use for quantity", size="2", weight="bold"),
+            rx.text("Unit type to use for quantity", size="2", weight="bold"),
             rx.select.root(
                 rx.select.trigger(placeholder="Select unit type", width="100%"),
                 rx.select.content(
@@ -89,7 +89,16 @@ def _form_content() -> rx.Component:
                 ),
                 value=ItemSheetFormDialogState.form_unit_type,
                 on_change=ItemSheetFormDialogState.set_unit_type,
+                disabled=ItemSheetFormDialogState.unit_type_locked,
                 width="100%",
+            ),
+            rx.cond(
+                ItemSheetFormDialogState.unit_type_locked,
+                rx.text(
+                    "The unit type can no longer be changed because this item sheet already has items.",
+                    size="1",
+                    color="gray",
+                ),
             ),
             width="100%",
             spacing="1",

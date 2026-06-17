@@ -33,5 +33,5 @@ class ItemSheetSearchBuilder(SearchBuilder):
 
     def add_unit_type_filter(self, unit_type: UnitType) -> "ItemSheetSearchBuilder":
         """Filter the search query by default unit type"""
-        self.add_expression(ItemSheet.default_unit_type == unit_type)
+        self.add_expression(ItemSheet.unit_type == unit_type)
         return self

@@ -22,7 +22,7 @@ class CreateItemDTO(BaseModelDTO):
     """DTO for creating a new item.
 
     The unit field accepts any valid unit string (e.g., 'mL', 'g', 'kg').
-    The unit_type is automatically determined from the item sheet's default_unit_type.
+    The unit_type is automatically determined from the item sheet's unit_type.
     The quantity is converted from the given unit to the base unit for storage.
     """
 

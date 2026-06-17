@@ -30,6 +30,10 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
     form_is_consumable: bool = True
     form_unit_type: str = UnitType.COUNT.value
 
+    # In update mode, the unit_type is locked once the sheet already has items
+    # (it is immutable then). Drives the disabled state of the selector.
+    unit_type_locked: bool = False
+
     # Available suppliers for dropdown
     available_suppliers: list[SupplierDTO] = []
 
@@ -69,6 +73,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_is_consumable = True
         self.form_unit_type = UnitType.COUNT.value
+        self.unit_type_locked = False
 
         # Reset to create mode
         self.is_update_mode = False
@@ -89,6 +94,14 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         # Store the item_sheet being edited
         self._editing_item_sheet = item_sheet
 
+        # The unit_type is immutable once items reference the sheet: lock
+        # the selector in that case.
+        main_state: ReflexMainState
+        async with self:
+            main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            self.unit_type_locked = ItemSheetService().has_items(item_sheet.id)
+
         # Initialize form fields with item_sheet data
         self.form_name = item_sheet.name
         self.form_code = item_sheet.code
@@ -97,7 +110,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
             item_sheet.default_supplier.id if item_sheet.default_supplier else self.NO_SUPPLIER_VALUE
         )
         self.form_is_consumable = item_sheet.is_consumable
-        self.form_unit_type = item_sheet.default_unit_type.value
+        self.form_unit_type = item_sheet.unit_type.value
 
         # Mark as editing
         self.is_update_mode = True
@@ -210,7 +223,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
                 description=description,
                 supplier_id=supplier_id,
                 is_consumable=is_consumable,
-                default_unit_type=unit_type,
+                unit_type=unit_type,
             )
             item_sheet = item_sheet_service.create_item_sheet(dto)
 
@@ -246,7 +259,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
                 name=name,
                 description=description,
                 supplier_id=supplier_id,
-                default_unit_type=unit_type,
+                unit_type=unit_type,
             )
             item_sheet = item_sheet_service.update_item_sheet(self._editing_item_sheet.id, dto)
 
@@ -265,6 +278,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_is_consumable = True
         self.form_unit_type = UnitType.COUNT.value
+        self.unit_type_locked = False
         self.is_update_mode = False
 
     def set_callback_after_close(self, callback: FormDialogCloseCallback | None):

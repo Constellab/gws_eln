@@ -60,6 +60,19 @@ class ItemSheetService:
 
         return list(query.order_by(ItemSheet.name))
 
+    def has_items(self, item_sheet_id: str) -> bool:
+        """Whether at least one Item references the given item sheet.
+
+        Used by the frontend to lock the immutable ``unit_type`` field once
+        items exist.
+
+        :param item_sheet_id: The ID of the item sheet to check
+        :type item_sheet_id: str
+        :return: True if any item references the sheet
+        :rtype: bool
+        """
+        return self._has_items(self.get_item_sheet(item_sheet_id))
+
     def is_code_available(self, code: str) -> bool:
         """Whether a normalized 4-char code is not yet used by any sheet.
 
@@ -137,7 +150,7 @@ class ItemSheetService:
         item_sheet.description = dto.description.strip() if dto.description else None
         item_sheet.default_supplier = supplier
         item_sheet.is_consumable = dto.is_consumable
-        item_sheet.default_unit_type = dto.default_unit_type
+        item_sheet.unit_type = dto.unit_type
 
         # Save (created_by/last_modified_by set automatically by ModelWithUser)
         item_sheet.save()
@@ -155,13 +168,21 @@ class ItemSheetService:
         :return: The updated item sheet
         :rtype: ItemSheet
         :raises NotFoundException: If item sheet not found
-        :raises BadRequestException: If validation fails or supplier doesn't exist
+        :raises BadRequestException: If validation fails, supplier doesn't exist,
+                                     or the unit_type is changed while items exist
         """
         # Get existing item sheet
         item_sheet = self.get_item_sheet(item_sheet_id)
 
         # Validate input
         self._validate_item_sheet_name(dto.name)
+
+        # The unit_type is immutable once any Item references this sheet.
+        if dto.unit_type != item_sheet.unit_type and self._has_items(item_sheet):
+            raise BadRequestException(
+                "Cannot change the unit type of item sheet "
+                f"'{item_sheet.name}' because it already has items."
+            )
 
         # Validate supplier exists if provided
         supplier = None
@@ -172,7 +193,7 @@ class ItemSheetService:
         item_sheet.name = dto.name.strip()
         item_sheet.description = dto.description.strip() if dto.description else None
         item_sheet.default_supplier = supplier
-        item_sheet.default_unit_type = dto.default_unit_type
+        item_sheet.unit_type = dto.unit_type
 
         # Save (last_modified_by updated automatically by ModelWithUser)
         item_sheet.save()
@@ -254,6 +275,16 @@ class ItemSheetService:
             raise BadRequestException(f"Supplier with ID '{supplier_id}' does not exist")
         return supplier
 
+    def _has_items(self, item_sheet: ItemSheet) -> bool:
+        """Whether at least one Item references this item sheet.
+
+        :param item_sheet: Item sheet to check
+        :type item_sheet: ItemSheet
+        :return: True if any item references the sheet
+        :rtype: bool
+        """
+        return Item.select().where(Item.item_sheet == item_sheet).exists()
+
     def _check_no_item_references(self, item_sheet: ItemSheet) -> None:
         """
         Check that item sheet is not referenced by any items.
@@ -262,7 +293,7 @@ class ItemSheetService:
         :type item_sheet: ItemSheet
         :raises BadRequestException: If item sheet is referenced
         """
-        if Item.select().where(Item.item_sheet == item_sheet).exists():
+        if self._has_items(item_sheet):
             raise BadRequestException(
                 f"Cannot delete item sheet '{item_sheet.name}' because it has existing items. "
                 "Delete all items first."

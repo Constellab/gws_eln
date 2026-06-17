@@ -153,8 +153,8 @@ class ItemService:
         # Validate item sheet exists
         item_sheet = self._validate_item_sheet_exists(dto.item_sheet_id)
 
-        # Get unit_type from the item sheet's default_unit_type
-        unit_type = item_sheet.default_unit_type
+        # Get unit_type from the item sheet's unit_type
+        unit_type = item_sheet.unit_type
 
         # Validate unit is valid for the item sheet's unit type
         if not UnitConverter.is_valid_unit(dto.unit, unit_type):
@@ -700,7 +700,7 @@ class ItemService:
 
         # Validate the output item definition up front
         output_sheet = self._validate_item_sheet_exists(dto.output_item_sheet_id)
-        output_unit_type = output_sheet.default_unit_type
+        output_unit_type = output_sheet.unit_type
 
         if not UnitConverter.is_valid_unit(dto.output_unit, output_unit_type):
             valid_units = ", ".join(UnitConverter.get_valid_units(output_unit_type))

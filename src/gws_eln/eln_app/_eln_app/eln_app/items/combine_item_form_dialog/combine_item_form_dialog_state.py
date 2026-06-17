@@ -164,8 +164,8 @@ class CombineItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
         sheet = result.object
         self.output_sheet_id = sheet.id
         self.output_sheet_name = sheet.name
-        self.output_unit_type = sheet.default_unit_type.value
-        self.output_unit = UnitConverter.get_default_unit(sheet.default_unit_type)
+        self.output_unit_type = sheet.unit_type.value
+        self.output_unit = UnitConverter.get_default_unit(sheet.unit_type)
 
     @rx.event
     def set_output_unit(self, value: str):
