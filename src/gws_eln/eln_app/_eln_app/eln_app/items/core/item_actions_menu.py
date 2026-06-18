@@ -29,6 +29,7 @@ def item_actions_menu(
     item: ItemDTO,
     on_receive: EventHandlerOrCallable,
     on_consume: EventHandlerOrCallable,
+    on_use: EventHandlerOrCallable,
     on_move: EventHandlerOrCallable,
     on_update: EventHandlerOrCallable,
     on_relabel: EventHandlerOrCallable,
@@ -40,8 +41,9 @@ def item_actions_menu(
 
     :param item: The item DTO to determine which actions to show
     :type item: ItemDTO
-    :param on_receive: Event handler for receive stock action
+    :param on_receive: Event handler for receive stock action (consumable only)
     :param on_consume: Event handler for consume stock action (consumable only)
+    :param on_use: Event handler for use action (non-consumable only)
     :param on_move: Event handler for move item action
     :param on_update: Event handler for update item action
     :param on_relabel: Event handler for relabel item action
@@ -73,6 +75,14 @@ def item_actions_menu(
             rx.fragment(),
         )
 
+    def _non_consumable_item(handler: EventHandlerOrCallable, icon: str, label: str) -> rx.Component:
+        """A menu entry shown only when the item is non-consumable (instrument)."""
+        return rx.cond(
+            is_consumable,
+            rx.fragment(),
+            rx.menu.item(rx.icon(icon, size=16), label, on_click=_wrap_click(handler)),
+        )
+
     # Optional transform entries (shown only when their handler is provided)
     transform_specs = [
         (transforms.on_split, "split", "Split Item"),
@@ -97,8 +107,10 @@ def item_actions_menu(
         rx.menu.content(
             _consumable_item(on_receive, "package-plus", "Receive Stock"),
             _consumable_item(on_consume, "flame", "Consume Stock"),
-            # Separator only when the consumable-only stock actions above are shown
-            rx.cond(is_consumable, rx.menu.separator(), rx.fragment()),
+            _non_consumable_item(on_use, "microscope", "Use Item"),
+            # The group above always has one entry (consumable -> receive/consume,
+            # non-consumable -> use), so the separator is always shown.
+            rx.menu.separator(),
             rx.menu.item(
                 rx.icon("arrow-right-from-line", size=16),
                 "Move Item",

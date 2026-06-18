@@ -40,6 +40,9 @@ from .split_item_form_dialog.split_item_form_dialog_component import (
 from .update_item_form_dialog.update_item_form_dialog_component import (
     update_item_dialog,
 )
+from .use_item_form_dialog.use_item_form_dialog_component import (
+    use_item_dialog,
+)
 
 
 def _filter_bar() -> rx.Component:
@@ -141,6 +144,7 @@ def _row(item: ItemDTO) -> rx.Component:
                 item=item,
                 on_receive=lambda: ItemsListState.open_receive_dialog(item),
                 on_consume=lambda: ItemsListState.open_consume_dialog(item),
+                on_use=lambda: ItemsListState.open_use_dialog(item),
                 on_move=lambda: ItemsListState.open_move_dialog(item),
                 on_update=lambda: ItemsListState.open_update_dialog(item),
                 on_relabel=lambda: ItemsListState.open_relabel_dialog(item),
@@ -264,6 +268,7 @@ def items_list_component(item_sheet_id: rx.Var[str]) -> rx.Component:
             move_item_dialog(),
             update_item_dialog(),
             relabel_item_dialog(),
+            use_item_dialog(),
             split_item_dialog(),
             combine_item_dialog(),
             concentrate_item_dialog(),

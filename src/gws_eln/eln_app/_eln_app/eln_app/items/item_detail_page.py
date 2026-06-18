@@ -43,6 +43,9 @@ from .split_item_form_dialog.split_item_form_dialog_component import (
 from .update_item_form_dialog.update_item_form_dialog_component import (
     update_item_dialog,
 )
+from .use_item_form_dialog.use_item_form_dialog_component import (
+    use_item_dialog,
+)
 
 
 def _sidebar_section_label(label: str) -> rx.Component:
@@ -239,6 +242,7 @@ def _actions_menu() -> rx.Component:
         item=ItemDetailState.item,
         on_receive=ItemDetailState.open_receive_dialog,
         on_consume=ItemDetailState.open_consume_dialog,
+        on_use=ItemDetailState.open_use_dialog,
         on_move=ItemDetailState.open_move_dialog,
         on_update=ItemDetailState.open_update_dialog,
         on_relabel=ItemDetailState.open_relabel_dialog,
@@ -338,6 +342,7 @@ def item_detail_page() -> rx.Component:
         move_item_dialog(),
         update_item_dialog(),
         relabel_item_dialog(),
+        use_item_dialog(),
         split_item_dialog(),
         combine_item_dialog(),
         concentrate_item_dialog(),

@@ -41,6 +41,9 @@ from .split_item_form_dialog.split_item_form_dialog_state import (
 from .update_item_form_dialog.update_item_form_dialog_state import (
     UpdateItemFormDialogState,
 )
+from .use_item_form_dialog.use_item_form_dialog_state import (
+    UseItemFormDialogState,
+)
 
 # Constants for "all" filter options
 ALL_FILTER_VALUE = "__all__"
@@ -292,6 +295,17 @@ class ItemsListState(rx.State):
         dialog_state = await self.get_state(RelabelItemFormDialogState)
         dialog_state.set_callback_after_close(self._reload_items)
         await dialog_state.open_relabel_dialog(item)
+
+    @rx.event
+    async def open_use_dialog(self, item: ItemDTO):
+        """Open the use item dialog for a item.
+
+        :param item: The item to use
+        :type item: ItemDTO
+        """
+        dialog_state = await self.get_state(UseItemFormDialogState)
+        dialog_state.set_callback_after_close(self._reload_items)
+        await dialog_state.open_use_dialog(item)
 
     @rx.event
     async def open_split_dialog(self, item: ItemDTO):

@@ -36,6 +36,9 @@ from .split_item_form_dialog.split_item_form_dialog_state import (
 from .update_item_form_dialog.update_item_form_dialog_state import (
     UpdateItemFormDialogState,
 )
+from .use_item_form_dialog.use_item_form_dialog_state import (
+    UseItemFormDialogState,
+)
 
 
 class ItemDetailState(rx.State):
@@ -195,6 +198,15 @@ class ItemDetailState(rx.State):
         dialog_state = await self.get_state(RelabelItemFormDialogState)
         dialog_state.set_callback_after_close(self._on_item_event_success)
         await dialog_state.open_relabel_dialog(self.item)
+
+    @rx.event
+    async def open_use_dialog(self):
+        """Open the use item dialog for the current item."""
+        if not self.item:
+            return
+        dialog_state = await self.get_state(UseItemFormDialogState)
+        dialog_state.set_callback_after_close(self._on_item_event_success)
+        await dialog_state.open_use_dialog(self.item)
 
     async def _on_item_delete_success(self, result: DeleteItemResultDTO):
         """Callback invoked when delete_item completes successfully.
