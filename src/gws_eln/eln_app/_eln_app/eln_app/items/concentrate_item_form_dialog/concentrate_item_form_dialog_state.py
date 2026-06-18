@@ -12,6 +12,7 @@ from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+from ..core.instrument_picker_mixin import InstrumentPickerMixin
 
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
@@ -19,7 +20,9 @@ FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 NO_CONCENTRATION_VALUE = "__none__"
 
 
-class ConcentrateItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
+class ConcentrateItemFormDialogState(
+    InstrumentPickerMixin, NoteLinkableDialogState, FormDialogState, rx.State
+):
     """State for the concentrate item dialog.
 
     Concentrates a source item into a new, more concentrated item: the source is
@@ -154,6 +157,7 @@ class ConcentrateItemFormDialogState(NoteLinkableDialogState, FormDialogState, r
             output_unit=self.form_output_unit,
             output_concentration=output_concentration,
             output_concentration_unit=concentration_unit,
+            instrument_item_ids=self.selected_instrument_ids,
             output_label=output_label,
             notes=notes,
         )
@@ -184,6 +188,7 @@ class ConcentrateItemFormDialogState(NoteLinkableDialogState, FormDialogState, r
         self.form_draw_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.form_output_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.form_concentration_unit = NO_CONCENTRATION_VALUE
+        self.clear_instruments()
         self.clear_note_context()
         self.is_update_mode = False
 

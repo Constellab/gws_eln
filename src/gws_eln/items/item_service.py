@@ -386,7 +386,8 @@ class ItemService:
                         role=ActivityInputRole.INGREDIENT,
                         quantity_contributed=base_quantity,
                         unit_type=item.unit_type,
-                    )
+                    ),
+                    *self._build_instrument_inputs(dto.instrument_item_ids),
                 ],
             )
         )
@@ -618,6 +619,20 @@ class ItemService:
 
         return ItemActivityResult(item=item, activity=activity)
 
+    def _build_instrument_inputs(
+        self, instrument_item_ids: list[str]
+    ) -> list[CreateActivityInputDTO]:
+        """Build INSTRUMENT activity inputs from a list of item ids.
+
+        Each id is recorded as an INSTRUMENT input (no quantity). The activity
+        layer validates that every referenced item is a non-consumable,
+        non-discarded item.
+        """
+        return [
+            CreateActivityInputDTO(item_id=instrument_id, role=ActivityInputRole.INSTRUMENT)
+            for instrument_id in instrument_item_ids
+        ]
+
     @ElnDbManager.transaction()
     def split_item(self, item_id: str, dto: SplitItemDTO) -> TransformResult:
         """
@@ -712,7 +727,17 @@ class ItemService:
                 )
             )
 
-        # One split activity: 1 ingredient input (source) -> N outputs
+        # One split activity: 1 ingredient input (source) + optional INSTRUMENTs -> N outputs
+        split_inputs = [
+            CreateActivityInputDTO(
+                item_id=source.id,
+                role=ActivityInputRole.INGREDIENT,
+                quantity_contributed=total_base_quantity,
+                unit_type=unit_type,
+            )
+        ]
+        split_inputs.extend(self._build_instrument_inputs(dto.instrument_item_ids))
+
         activity = self._activity_service.log_activity(
             CreateActivityDTO(
                 activity_type=ActivityType.SPLIT,
@@ -721,14 +746,7 @@ class ItemService:
                 unit_type=unit_type,
                 notes=dto.notes,
                 note_id=dto.note_id,
-                inputs=[
-                    CreateActivityInputDTO(
-                        item_id=source.id,
-                        role=ActivityInputRole.INGREDIENT,
-                        quantity_contributed=total_base_quantity,
-                        unit_type=unit_type,
-                    )
-                ],
+                inputs=split_inputs,
                 outputs=activity_outputs,
             )
         )
@@ -814,13 +832,7 @@ class ItemService:
             )
 
         # Optional instrument inputs (non-consumable; validated by ActivityService)
-        for instrument_id in dto.instrument_item_ids:
-            activity_inputs.append(
-                CreateActivityInputDTO(
-                    item_id=instrument_id,
-                    role=ActivityInputRole.INSTRUMENT,
-                )
-            )
+        activity_inputs.extend(self._build_instrument_inputs(dto.instrument_item_ids))
 
         # Create the new output item.
         # Lineage lives entirely in the activity inputs/outputs.
@@ -977,7 +989,8 @@ class ItemService:
                         role=ActivityInputRole.INGREDIENT,
                         quantity_contributed=base_drawn,
                         unit_type=source.unit_type,
-                    )
+                    ),
+                    *self._build_instrument_inputs(dto.instrument_item_ids),
                 ],
                 outputs=[
                     CreateActivityOutputDTO(
@@ -1080,6 +1093,7 @@ class ItemService:
                         quantity_contributed=base_diluent,
                         unit_type=diluent.unit_type,
                     ),
+                    *self._build_instrument_inputs(dto.instrument_item_ids),
                 ],
                 outputs=[
                     CreateActivityOutputDTO(

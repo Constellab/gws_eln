@@ -4,6 +4,7 @@ import reflex as rx
 from gws_reflex_main import form_dialog_component
 
 from ...common.unit.unit_components import quantity_unit_input
+from ..core.instrument_picker_component import instrument_picker_component
 from .split_item_form_dialog_state import SplitItemFormDialogState, SplitOutputRow
 
 
@@ -91,6 +92,8 @@ def _form_content() -> rx.Component:
             on_click=SplitItemFormDialogState.add_row,
             width="100%",
         ),
+        # Optional instruments used
+        instrument_picker_component(SplitItemFormDialogState),
         # Notes (optional) - read from the HTML form on submit
         rx.vstack(
             rx.text("Notes", size="2", weight="bold"),

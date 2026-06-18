@@ -5,6 +5,7 @@ from gws_reflex_main import form_dialog_component
 
 from ...common.unit.concentration_unit_components import concentration_unit_select
 from ...common.unit.unit_components import quantity_unit_input
+from ..core.instrument_picker_component import instrument_picker_component
 from .concentrate_item_form_dialog_state import ConcentrateItemFormDialogState
 
 
@@ -88,6 +89,8 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
+        # Optional instruments used
+        instrument_picker_component(ConcentrateItemFormDialogState),
         # Notes (optional)
         rx.vstack(
             rx.text("Notes", size="2", weight="bold"),

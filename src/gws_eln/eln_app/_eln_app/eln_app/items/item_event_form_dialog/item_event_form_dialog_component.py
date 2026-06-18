@@ -4,6 +4,7 @@ import reflex as rx
 from gws_reflex_main import form_dialog_component
 
 from ...activities.activity_form_sections import receive_consume_form_section
+from ..core.instrument_picker_component import instrument_picker_component
 from .item_event_form_dialog_state import ItemEventFormDialogState
 
 
@@ -39,6 +40,11 @@ def _form_content() -> rx.Component:
             on_unit_change=ItemEventFormDialogState.set_unit,
             quantity_label=ItemEventFormDialogState.quantity_label,
             form_notes=ItemEventFormDialogState.form_notes,
+        ),
+        # Optional instruments used (consume only - receive is a 0-input activity)
+        rx.cond(
+            ItemEventFormDialogState.is_consume,
+            instrument_picker_component(ItemEventFormDialogState),
         ),
         width="100%",
         spacing="3",

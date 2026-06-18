@@ -15,6 +15,7 @@ from gws_reflex_main import FormDialogState, ReflexMainState
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+from ..core.instrument_picker_mixin import InstrumentPickerMixin
 
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
@@ -48,7 +49,9 @@ class CombineIngredientRow:
     unit_type: str = UnitType.COUNT.value
 
 
-class CombineItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
+class CombineItemFormDialogState(
+    InstrumentPickerMixin, NoteLinkableDialogState, FormDialogState, rx.State
+):
     """State for the combine item dialog.
 
     Combines 2..N ingredient items into one new output item. Each ingredient is
@@ -252,6 +255,7 @@ class CombineItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
             output_unit=self.output_unit,
             output_concentration=output_concentration,
             output_concentration_unit=concentration_unit,
+            instrument_item_ids=self.selected_instrument_ids,
             output_label=output_label,
             notes=notes,
         )
@@ -293,6 +297,7 @@ class CombineItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
         self.output_unit_type = UnitType.COUNT.value
         self.output_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.output_concentration_unit = NO_CONCENTRATION_VALUE
+        self.clear_instruments()
         self.clear_note_context()
         self.is_update_mode = False
 

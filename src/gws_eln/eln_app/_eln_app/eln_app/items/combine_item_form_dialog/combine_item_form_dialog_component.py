@@ -6,6 +6,7 @@ from gws_reflex_main import form_dialog_component
 from ...common.unit.concentration_unit_components import concentration_unit_select
 from ...common.unit.unit_components import quantity_unit_input
 from ...item_sheets.core.item_sheet_select_component import item_sheet_select_component
+from ..core.instrument_picker_component import instrument_picker_component
 from ..core.item_select_component import item_select_component
 from .combine_item_form_dialog_state import (
     CombineIngredientRow,
@@ -158,6 +159,8 @@ def _form_content() -> rx.Component:
         rx.divider(margin_y="0.25rem"),
         # Output
         _output_section(),
+        # Optional instruments used
+        instrument_picker_component(CombineItemFormDialogState),
         # Notes (optional)
         rx.vstack(
             rx.text("Notes", size="2", weight="bold"),

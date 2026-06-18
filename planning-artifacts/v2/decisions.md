@@ -363,12 +363,12 @@ activity_outputs           (NEW items the activity created)
 | type | inputs (role) | outputs | quantity effect |
 |------|---------------|---------|-----------------|
 | `receive` | 0 | 1..N | creates items (Item.reception_id set); ONE activity per reception (§8) |
-| `consume` | 1 INGREDIENT | 0 | item.qty −= input; status recompute → EXHAUSTED if 0 (used productively) |
+| `consume` | 1 INGREDIENT (+0..N INSTRUMENT) | 0 | item.qty −= input; status recompute → EXHAUSTED if 0 (used productively) |
 | `use` | 1..N INSTRUMENT | 0 | none (reference only) |
 | `move` | 1 INGREDIENT | 0 | none; from/to location on activity |
 | `relabel` | 1 INGREDIENT | 0 | none |
 | `discard` | 1 INGREDIENT | 0 | item.qty −= input (partial or full); latches DISCARDED if 0 (wasted); `reason` set |
-| `split` | 1 INGREDIENT | 1..N | parent −= Σ outputs (mutate in place); → EXHAUSTED iff remainder=0 (§18) |
+| `split` | 1 INGREDIENT (+0..N INSTRUMENT) | 1..N | parent −= Σ outputs (mutate in place); → EXHAUSTED iff remainder=0 (§18) |
 | `combine` | 2..N INGREDIENT (+0..N INSTRUMENT) | 1 | each input reduced by its contribution (→EXHAUSTED if 0); output created; needs output_item_sheet_id |
 | `dilute` | 2 INGREDIENT (target+diluent) (+INSTRUMENT) | 1 | BOTH inputs reduced (target + diluent); output created w/ concentration |
 | `concentrate` | 1 INGREDIENT (+INSTRUMENT) | 1 | input reduced; output created |

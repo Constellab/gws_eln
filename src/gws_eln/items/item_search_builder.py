@@ -1,5 +1,6 @@
 from gws_core import SearchBuilder
 from gws_eln.items.item import Item
+from gws_eln.items.item_sheet import ItemSheet
 from gws_eln.items.item_status import ItemStatus
 
 
@@ -10,6 +11,16 @@ class ItemSearchBuilder(SearchBuilder):
     def add_item_sheet_filter(self, item_sheet_id: str) -> "ItemSearchBuilder":
         """Filter the search query by item sheet ID"""
         self.add_expression(Item.item_sheet == item_sheet_id)
+        return self
+
+    def add_consumable_filter(self, is_consumable: bool) -> "ItemSearchBuilder":
+        """Filter by the item sheet's consumable flag (joins ItemSheet).
+
+        Use ``add_consumable_filter(False)`` to restrict to non-consumable items
+        (instruments/equipment), e.g. when picking INSTRUMENT inputs.
+        """
+        self.add_join(ItemSheet, on=(Item.item_sheet == ItemSheet.id))
+        self.add_expression(ItemSheet.is_consumable == is_consumable)
         return self
 
     def add_location_filter(self, location_id: str) -> "ItemSearchBuilder":

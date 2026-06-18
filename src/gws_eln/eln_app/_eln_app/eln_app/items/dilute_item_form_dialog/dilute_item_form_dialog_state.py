@@ -13,6 +13,7 @@ from gws_reflex_main import FormDialogState, ReflexMainState
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+from ..core.instrument_picker_mixin import InstrumentPickerMixin
 
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
@@ -20,7 +21,9 @@ FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 NO_CONCENTRATION_VALUE = "__none__"
 
 
-class DiluteItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
+class DiluteItemFormDialogState(
+    InstrumentPickerMixin, NoteLinkableDialogState, FormDialogState, rx.State
+):
     """State for the dilute item dialog.
 
     Dilutes a target item with a diluent into a new, less concentrated item:
@@ -199,6 +202,7 @@ class DiluteItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Sta
             output_unit=self.form_output_unit,
             output_concentration=output_concentration,
             output_concentration_unit=concentration_unit,
+            instrument_item_ids=self.selected_instrument_ids,
             output_label=output_label,
             notes=notes,
         )
@@ -233,6 +237,7 @@ class DiluteItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Sta
         self.diluent_display = ""
         self.diluent_unit_type = UnitType.COUNT.value
         self.form_diluent_unit = UnitConverter.get_default_unit(UnitType.COUNT)
+        self.clear_instruments()
         self.clear_note_context()
         self.is_update_mode = False
 

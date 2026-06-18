@@ -97,6 +97,7 @@ class DecrementQuantityDTO(BaseModelDTO):
 
     quantity: Decimal
     unit: str  # Exact unit (e.g., 'mL', 'g', 'kg') - converted to base unit for storage
+    instrument_item_ids: list[str] = []  # Optional instrument inputs (non-consumable)
     notes: str | None = None
     note_id: str | None = None  # Link to Constellab Note
 
@@ -166,6 +167,7 @@ class SplitItemDTO(BaseModelDTO):
     """
 
     outputs: list[SplitOutputDTO]
+    instrument_item_ids: list[str] = []  # Optional instrument inputs (non-consumable)
     notes: str | None = None
     note_id: str | None = None  # Link to Constellab Note
 
@@ -221,6 +223,7 @@ class ConcentrateItemDTO(BaseModelDTO):
     output_concentration: Decimal | None = None
     output_concentration_unit: str | None = None
     dilution_factor: Decimal | None = None  # Store-only audit
+    instrument_item_ids: list[str] = []  # Optional instrument inputs (non-consumable)
     output_location_id: str | None = None  # Defaults to the source's location if None
     output_label: str | None = None
     output_expiry_date: date | None = None  # Defaults to the source's expiry_date if None
@@ -250,6 +253,7 @@ class DiluteItemDTO(BaseModelDTO):
     output_concentration: Decimal | None = None
     output_concentration_unit: str | None = None
     dilution_factor: Decimal | None = None  # Store-only audit
+    instrument_item_ids: list[str] = []  # Optional instrument inputs (non-consumable)
     output_location_id: str | None = None  # Defaults to the target's location if None
     output_label: str | None = None
     output_expiry_date: date | None = None  # Defaults to the target's expiry_date if None

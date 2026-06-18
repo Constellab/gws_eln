@@ -10,6 +10,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from gws_core import BadRequestException, BaseTestCase, DateHelper
+from gws_eln.activities.activity_input_role import ActivityInputRole
 from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item import Item
 from gws_eln.items.item_dto import (
@@ -416,6 +417,126 @@ class TestItemService(BaseTestCase):
         # Both the target and the diluent are reduced in place
         self.assertEqual(ItemService().get_item(target.id).quantity, Decimal(5))
         self.assertEqual(ItemService().get_item(diluent.id).quantity, Decimal(5))
+
+    # ----------------------------------------------------- transform instruments
+
+    def _instrument(self, code: str, serial: str) -> Item:
+        """Create a non-consumable item usable as an INSTRUMENT input."""
+        sheet = self._sheet(code, is_consumable=False, unit_type=UnitType.COUNT)
+        return ItemService().create_items_bulk(
+            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=[serial])
+        )[0]
+
+    def _instrument_input_ids(self, activity) -> set[str]:
+        """Return the item ids recorded as INSTRUMENT inputs of an activity."""
+        return {
+            inp.item.id
+            for inp in activity.inputs
+            if inp.role == ActivityInputRole.INSTRUMENT
+        }
+
+    def test_consume_records_instruments(self):
+        source = self._count_item("INCS", "10")
+        balance = self._instrument("INSB", "BAL-1")
+        result = ItemService().consume_quantity(
+            source.id,
+            DecrementQuantityDTO(
+                quantity=Decimal(3), unit="units", instrument_item_ids=[balance.id]
+            ),
+        )
+        self.assertEqual(self._instrument_input_ids(result.activity), {balance.id})
+
+    def test_split_records_instruments(self):
+        sheet = self._sheet("INS1", unit_type=UnitType.COUNT)
+        source = self._create_consumable(sheet, quantity="10", unit="units")
+        pipette = self._instrument("INSP", "PIP-1")
+        result = ItemService().split_item(
+            source.id,
+            SplitItemDTO(
+                outputs=[SplitOutputDTO(quantity=Decimal(3), unit="units")],
+                instrument_item_ids=[pipette.id],
+            ),
+        )
+        self.assertEqual(self._instrument_input_ids(result.activity), {pipette.id})
+
+    def test_combine_records_instruments(self):
+        item_a = self._count_item("INCA", "10")
+        item_b = self._count_item("INCB", "10")
+        out_sheet = self._sheet("INCO", unit_type=UnitType.COUNT)
+        centrifuge = self._instrument("INCI", "CEN-1")
+        result = ItemService().combine_items(
+            CombineItemDTO(
+                inputs=[
+                    CombineInputDTO(item_id=item_a.id, quantity=Decimal(4), unit="units"),
+                    CombineInputDTO(item_id=item_b.id, quantity=Decimal(6), unit="units"),
+                ],
+                output_item_sheet_id=out_sheet.id,
+                output_quantity=Decimal(10),
+                output_unit="units",
+                instrument_item_ids=[centrifuge.id],
+            )
+        )
+        self.assertEqual(self._instrument_input_ids(result.activity), {centrifuge.id})
+
+    def test_concentrate_records_instruments(self):
+        source = self._count_item("INCC", "10")
+        rotovap = self._instrument("INCR", "ROT-1")
+        result = ItemService().concentrate_item(
+            source.id,
+            ConcentrateItemDTO(
+                quantity_contributed=Decimal(5),
+                unit="units",
+                output_quantity=Decimal(4),
+                output_unit="units",
+                instrument_item_ids=[rotovap.id],
+            ),
+        )
+        self.assertEqual(self._instrument_input_ids(result.activity), {rotovap.id})
+
+    def test_dilute_records_instruments(self):
+        target = self._count_item("INDT", "10")
+        diluent = self._count_item("INDD", "10")
+        vortex = self._instrument("INDV", "VTX-1")
+        result = ItemService().dilute_item(
+            target.id,
+            DiluteItemDTO(
+                quantity_contributed=Decimal(5),
+                unit="units",
+                diluent_item_id=diluent.id,
+                diluent_quantity_contributed=Decimal(5),
+                diluent_unit="units",
+                output_quantity=Decimal(10),
+                output_unit="units",
+                instrument_item_ids=[vortex.id],
+            ),
+        )
+        self.assertEqual(self._instrument_input_ids(result.activity), {vortex.id})
+
+    def test_transform_instrument_must_be_non_consumable(self):
+        # A consumable item cannot be recorded as an INSTRUMENT input.
+        source = self._count_item("INMA", "10")
+        consumable = self._count_item("INMB", "10")
+        with self.assertRaises(BadRequestException):
+            ItemService().split_item(
+                source.id,
+                SplitItemDTO(
+                    outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units")],
+                    instrument_item_ids=[consumable.id],
+                ),
+            )
+
+    def test_transform_instrument_discarded_rejected(self):
+        source = self._count_item("INDA", "10")
+        instrument = self._instrument("INDI", "DIS-1")
+        ItemService().discard_item(instrument.id, DiscardItemDTO())
+        with self.assertRaises(BadRequestException):
+            ItemService().split_item(
+                source.id,
+                SplitItemDTO(
+                    outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units")],
+                    instrument_item_ids=[instrument.id],
+                ),
+            )
 
     # -------------------------------------------------------------- move / update
 

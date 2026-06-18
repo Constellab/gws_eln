@@ -17,6 +17,7 @@ from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+from ..core.instrument_picker_mixin import InstrumentPickerMixin
 
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
@@ -28,7 +29,9 @@ class ItemEventType(str, Enum):
     CONSUME = "consume"
 
 
-class ItemEventFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
+class ItemEventFormDialogState(
+    InstrumentPickerMixin, NoteLinkableDialogState, FormDialogState, rx.State
+):
     """State management for the item event dialog functionality.
 
     This dialog handles Receive and Consume operations on items.
@@ -66,6 +69,11 @@ class ItemEventFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Stat
     def event_type_value(self) -> str:
         """Get the event type value as string."""
         return self._event_type.value
+
+    @rx.var
+    def is_consume(self) -> bool:
+        """Whether the dialog is a consume event (the only one taking instruments)."""
+        return self._event_type == ItemEventType.CONSUME
 
     @rx.var
     def dialog_title(self) -> str:
@@ -132,6 +140,7 @@ class ItemEventFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Stat
 
         # Reset form fields
         self.form_notes = ""
+        self.clear_instruments()
 
         # Set unit type from item
         self.form_unit_type = item.unit_type.value
@@ -219,7 +228,11 @@ class ItemEventFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Stat
 
             elif self._event_type == ItemEventType.CONSUME:
                 dto = DecrementQuantityDTO(
-                    quantity=quantity, unit=unit, notes=notes, note_id=self.note_dto_id
+                    quantity=quantity,
+                    unit=unit,
+                    instrument_item_ids=self.selected_instrument_ids,
+                    notes=notes,
+                    note_id=self.note_dto_id,
                 )
                 result = item_service.consume_quantity(self._item.id, dto)
                 linked_note = self._link_note_activity(result.activity.id)
@@ -241,6 +254,7 @@ class ItemEventFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Stat
         self.form_unit_type = UnitType.COUNT.value
         self.form_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.form_notes = ""
+        self.clear_instruments()
         self.clear_note_context()
         self.is_update_mode = False
 

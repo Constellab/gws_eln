@@ -13,6 +13,7 @@ from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+from ..core.instrument_picker_mixin import InstrumentPickerMixin
 
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
@@ -31,7 +32,9 @@ class SplitOutputRow:
     label: str = ""
 
 
-class SplitItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
+class SplitItemFormDialogState(
+    InstrumentPickerMixin, NoteLinkableDialogState, FormDialogState, rx.State
+):
     """State for the split item dialog.
 
     Splits one source item into 1..N new output items. The source quantity is
@@ -171,7 +174,12 @@ class SplitItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Stat
 
         outputs_dto = self._build_outputs_dto()
         notes = form_data.get("notes", "").strip() or None
-        dto = SplitItemDTO(outputs=outputs_dto, notes=notes, note_id=self.note_dto_id)
+        dto = SplitItemDTO(
+            outputs=outputs_dto,
+            instrument_item_ids=self.selected_instrument_ids,
+            notes=notes,
+            note_id=self.note_dto_id,
+        )
 
         main_state: ReflexMainState
         async with self:
@@ -198,6 +206,7 @@ class SplitItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.Stat
         self.form_unit_type = UnitType.COUNT.value
         self.form_default_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.outputs = []
+        self.clear_instruments()
         self.clear_note_context()
         self.is_update_mode = False
 
