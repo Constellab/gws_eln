@@ -2,7 +2,6 @@
 Item Service for managing Item entities.
 
 Handles CRUD operations, validation, and business logic for items.
-Implements Story 5.1 from Epic 5: Service Layer - Items.
 """
 
 from decimal import Decimal
@@ -45,6 +44,7 @@ from gws_eln.locations.location_service import LocationService
 from gws_eln.suppliers.supplier_service import SupplierService
 from gws_eln.utils.units_converter import UnitConverter
 from gws_eln.utils.validators import QuantityValidator
+from peewee import IntegrityError
 
 # A combine merges several items, so it needs at least this many ingredient inputs.
 MIN_COMBINE_INGREDIENTS = 2
@@ -157,7 +157,6 @@ class ItemService:
         # Create item
         item = Item()
         item.item_sheet = item_sheet
-        item.code = self._generate_item_code(item_sheet)
         item.quantity = base_quantity
         item.unit_type = unit_type
         item.concentration = dto.concentration
@@ -172,8 +171,8 @@ class ItemService:
         item.notes = dto.notes.strip() if dto.notes else None
         item.supplier = supplier
 
-        # Save (created_by/last_modified_by set automatically by ModelWithUser)
-        item.save()
+        # Save with a unique code (created_by/last_modified_by set by ModelWithUser)
+        self._save_with_unique_code(item, item_sheet)
 
         # Create 'receive' activity entry using ActivityService
         # Entering an item into inventory (new or existing) is always a RECEIVE.
@@ -232,9 +231,7 @@ class ItemService:
             serial = raw.strip() if raw else None
             if serial:
                 if serial in seen:
-                    raise BadRequestException(
-                        f"Duplicate serial number '{serial}' in the batch"
-                    )
+                    raise BadRequestException(f"Duplicate serial number '{serial}' in the batch")
                 seen.add(serial)
                 self._validate_serial_number_unique(serial)
             serials.append(serial)
@@ -253,7 +250,6 @@ class ItemService:
         for serial in serials:
             item = Item()
             item.item_sheet = item_sheet
-            item.code = self._generate_item_code(item_sheet)
             item.quantity = Decimal(1)
             item.unit_type = unit_type
             item.concentration = dto.concentration
@@ -265,7 +261,7 @@ class ItemService:
             item.storage_conditions = storage_conditions
             item.notes = notes
             item.supplier = supplier
-            item.save()
+            self._save_with_unique_code(item, item_sheet)
 
             # One RECEIVE activity per unit (0 inputs, 1 output) so each unit has
             # its own history.
@@ -690,7 +686,6 @@ class ItemService:
 
             item = Item()
             item.item_sheet = source.item_sheet
-            item.code = self._generate_item_code(source.item_sheet)
             item.quantity = base_quantity
             item.unit_type = unit_type
             # Concentration is intensive: children inherit it unchanged
@@ -706,7 +701,7 @@ class ItemService:
             item.notes = output_dto.notes.strip() if output_dto.notes else None
             item.supplier = source.supplier
             # Lineage (source -> output) is recorded in the activity inputs/outputs
-            item.save()
+            self._save_with_unique_code(item, source.item_sheet)
 
             output_items.append(item)
             activity_outputs.append(
@@ -832,7 +827,6 @@ class ItemService:
         location = LocationService().get_or_default_location(dto.output_location_id)
         output = Item()
         output.item_sheet = output_sheet
-        output.code = self._generate_item_code(output_sheet)
         output.quantity = output_base_quantity
         output.unit_type = output_unit_type
         output.concentration = dto.output_concentration
@@ -844,7 +838,7 @@ class ItemService:
         output.storage_conditions = output_sheet.storage_conditions
         output.notes = dto.notes.strip() if dto.notes else None
         output.supplier = None
-        output.save()
+        self._save_with_unique_code(output, output_sheet)
 
         # One combine activity: N ingredient inputs (+ optional INSTRUMENTs) -> 1 output
         activity = self._activity_service.log_activity(
@@ -899,7 +893,6 @@ class ItemService:
 
         output = Item()
         output.item_sheet = reference_item.item_sheet
-        output.code = self._generate_item_code(reference_item.item_sheet)
         output.quantity = output_base_quantity
         output.unit_type = reference_item.unit_type
         output.concentration = concentration
@@ -911,7 +904,7 @@ class ItemService:
         output.storage_conditions = reference_item.item_sheet.storage_conditions
         output.notes = None
         output.supplier = reference_item.supplier
-        output.save()
+        self._save_with_unique_code(output, reference_item.item_sheet)
 
         return output, output_base_quantity
 
@@ -1028,9 +1021,7 @@ class ItemService:
 
         diluent = self.get_item(dto.diluent_item_id)
         if diluent.is_discarded():
-            raise BadRequestException(
-                f"Cannot use discarded item '{diluent.code}' as a diluent"
-            )
+            raise BadRequestException(f"Cannot use discarded item '{diluent.code}' as a diluent")
         diluent.assert_can_consume()
 
         # Concentration of the target before the operation
@@ -1320,6 +1311,48 @@ class ItemService:
             raise BadRequestException(
                 f"Serial number '{serial_number}' is already used by another item"
             )
+
+    def _save_with_unique_code(
+        self, item: Item, item_sheet: ItemSheet, max_attempts: int = 5
+    ) -> None:
+        """Save a new item, (re)generating its code until it is unique.
+
+        The code is ``MAX + 1`` over existing items of the ``(sheet, year)``. Under
+        concurrency two inserts can pick the same code; the unique index rejects the
+        loser, which then recomputes ``MAX + 1`` and retries.
+
+        :param item: The new item to save (its ``code`` is assigned here)
+        :type item: Item
+        :param item_sheet: The sheet whose code prefixes the generated code
+        :type item_sheet: ItemSheet
+        :param max_attempts: Maximum number of code (re)generation attempts
+        :type max_attempts: int
+        :raises IntegrityError: If a unique code cannot be assigned within
+            ``max_attempts``, or for any non-code integrity violation.
+        """
+        for attempt in range(1, max_attempts + 1):
+            item.code = self._generate_item_code(item_sheet)
+            try:
+                item.save()
+                return
+            except IntegrityError as err:
+                if attempt >= max_attempts or not self._is_duplicate_code_error(err):
+                    raise
+
+    @staticmethod
+    def _is_duplicate_code_error(error: Exception) -> bool:
+        """Whether an IntegrityError is a duplicate on the item code column.
+
+        Distinguishes a code collision (which we recover from by recomputing the
+        code) from other unique violations (e.g. serial number), which must surface.
+
+        :param error: The integrity error raised by the database
+        :type error: Exception
+        :return: True if the error is a duplicate-entry on the code
+        :rtype: bool
+        """
+        message = str(error).lower()
+        return "duplicate" in message and "code" in message
 
     def _generate_item_code(self, item_sheet: ItemSheet) -> str:
         """Generate one unique item code for the sheet.
