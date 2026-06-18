@@ -127,6 +127,14 @@ def _details_sidebar() -> rx.Component:
                     inline_supplier_component(ItemDetailState.item.supplier),
                 ),
             ),
+            # Serial number (non-consumable serialized units)
+            rx.cond(
+                ItemDetailState.item.serial_number,
+                rx.fragment(
+                    rx.text("Serial number", size="2", color="gray", weight="medium"),
+                    rx.code(ItemDetailState.item.serial_number, size="2"),
+                ),
+            ),
             # Quantity
             rx.text("Quantity", size="2", color="gray", weight="medium"),
             rx.text(ItemDetailState.item.pretty_quantity, size="2"),

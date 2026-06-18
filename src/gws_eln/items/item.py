@@ -59,6 +59,10 @@ class Item(ModelWithUser):
         max_length=255,
     )
 
+    # Serial number for non-consumable serialized units. Unique lab-wide; the
+    # unique index allows multiple NULLs - uniqueness applies only to non-null values.
+    serial_number = NullableCharField(max_length=255, unique=True, index=True)
+
     # Dates
     expiry_date = NullableDateField(index=True)
 
@@ -164,6 +168,7 @@ class Item(ModelWithUser):
             location=self.location.to_dto(),
             supplier=self.supplier.to_dto() if self.supplier else None,
             label=self.label,
+            serial_number=self.serial_number,
             expiry_date=self.expiry_date,
             quantity=self.quantity,
             pretty_quantity=self.get_pretty_quantity(),

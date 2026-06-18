@@ -40,6 +40,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
     form_supplier_id: str = "__none__"
     form_expiry_date: str = ""
     form_label: str = ""
+    form_serial_number: str = ""
     form_storage_conditions: str = ""
     form_notes: str = ""
 
@@ -51,6 +52,17 @@ class ItemFormDialogState(FormDialogState, rx.State):
         if self._item_sheet:
             return self._item_sheet.name
         return ""
+
+    @rx.var
+    def is_consumable(self) -> bool:
+        """Whether the item sheet is consumable.
+
+        Serial numbers only apply to non-consumable (serialized) units, so the
+        serial input is shown only when this is False.
+        """
+        if self._item_sheet:
+            return self._item_sheet.is_consumable
+        return True
 
     @rx.var
     def code_preview(self) -> str:
@@ -82,6 +94,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
         # Reset form fields to defaults
         self.form_label = ""
+        self.form_serial_number = ""
         # Prefill the storage condition with the sheet's default (editable override)
         self.form_storage_conditions = self._item_sheet.storage_conditions or ""
         self.form_notes = ""
@@ -177,6 +190,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         str | None,
         str | None,
         str | None,
+        str | None,
     ]:
         """Validate and parse form data.
 
@@ -185,7 +199,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
         Returns:
             Tuple of (quantity, unit, concentration, location_id, supplier_id,
-                     expiry_date, label, storage_conditions, notes) if validation succeeds
+                     expiry_date, label, serial_number, storage_conditions, notes)
+                     if validation succeeds
 
         Raises:
             Exception: If validation fails
@@ -194,6 +209,10 @@ class ItemFormDialogState(FormDialogState, rx.State):
         concentration = self._parse_concentration(form_data.get("concentration", "").strip())
         expiry_date = self._parse_expiry_date()
         label = form_data.get("label", "").strip() or None
+        # Serial number only applies to non-consumable units; ignored otherwise.
+        serial_number = form_data.get("serial_number", "").strip() or None
+        if self.is_consumable:
+            serial_number = None
         storage_conditions = form_data.get("storage_conditions", "").strip() or None
         notes = form_data.get("notes", "").strip() or None
 
@@ -220,6 +239,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
             supplier_id,
             expiry_date,
             label,
+            serial_number,
             storage_conditions,
             notes,
         )
@@ -245,6 +265,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
             supplier_id,
             expiry_date,
             label,
+            serial_number,
             storage_conditions,
             notes,
         ) = self._validate_form_data(form_data)
@@ -275,6 +296,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
                 supplier_id=supplier_id,
                 expiry_date=expiry_date,
                 label=label,
+                serial_number=serial_number,
                 storage_conditions=storage_conditions,
                 notes=notes,
             )
@@ -300,6 +322,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_expiry_date = ""
         self.form_label = ""
+        self.form_serial_number = ""
         self.form_storage_conditions = ""
         self.form_notes = ""
         self.is_update_mode = False

@@ -46,6 +46,21 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
+        # Serial number (non-consumable / serialized units only)
+        rx.cond(
+            ~ItemFormDialogState.is_consumable,
+            rx.vstack(
+                rx.text("Serial number", size="2", weight="bold"),
+                rx.input(
+                    placeholder="Unique serial number (optional)",
+                    name="serial_number",
+                    width="100%",
+                    default_value=ItemFormDialogState.form_serial_number,
+                ),
+                width="100%",
+                spacing="1",
+            ),
+        ),
         quantity_unit_input(
             unit_type=ItemFormDialogState.form_unit_type,
             unit_value=ItemFormDialogState.form_unit,

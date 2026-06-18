@@ -140,6 +140,10 @@ class ItemService:
         # Validate concentration (value + unit) if provided
         self._validate_concentration(dto.concentration, dto.concentration_unit)
 
+        # Normalize and validate the serial number (unique lab-wide when set)
+        serial_number = dto.serial_number.strip() if dto.serial_number else None
+        self._validate_serial_number_unique(serial_number)
+
         # Validate/get location (default to "labo" if not provided)
         location = LocationService().get_or_default_location(dto.location_id)
 
@@ -160,6 +164,7 @@ class ItemService:
         item.location = location
         item.expiry_date = dto.expiry_date
         item.label = dto.label.strip() if dto.label else None
+        item.serial_number = serial_number
         # Storage condition: explicit override if given, else inherit the sheet default
         item.storage_conditions = (
             dto.storage_conditions.strip()
@@ -1210,6 +1215,25 @@ class ItemService:
         if not item_sheet:
             raise BadRequestException(f"Item sheet with ID '{item_sheet_id}' does not exist")
         return item_sheet
+
+    def _validate_serial_number_unique(self, serial_number: str | None) -> None:
+        """Validate that a serial number is not already used by another item.
+
+        A serial number identifies one physical unit lab-wide; it must be unique
+        across all items. NULL serials are exempt.
+        The DB unique index is the concurrency backstop; this check gives a clean
+        error message.
+
+        :param serial_number: The serial number to check (None is always valid)
+        :type serial_number: str | None
+        :raises BadRequestException: If the serial number is already in use
+        """
+        if not serial_number:
+            return
+        if Item.select().where(Item.serial_number == serial_number).exists():
+            raise BadRequestException(
+                f"Serial number '{serial_number}' is already used by another item"
+            )
 
     def _generate_item_code(self, item_sheet: ItemSheet) -> str:
         """Generate one unique item code for the sheet.

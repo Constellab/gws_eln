@@ -35,6 +35,7 @@ class CreateItemDTO(BaseModelDTO):
     supplier_id: str | None = None
     expiry_date: date | None = None
     label: str | None = None
+    serial_number: str | None = None  # Non-consumable serialized units only; unique lab-wide
     storage_conditions: str | None = None  # If None, inherits the item sheet's default
     notes: str | None = None
     note_id: str | None = None  # Link to Constellab Note
@@ -261,6 +262,7 @@ class ItemDTO(ItemSimpleDTO):
     item_sheet: ItemSheetDTO
     location: LocationDTO
     supplier: SupplierDTO | None
+    serial_number: str | None
     expiry_date: date | None
     notes: str | None
     status: ItemStatus
