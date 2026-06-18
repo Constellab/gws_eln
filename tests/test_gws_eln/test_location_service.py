@@ -14,13 +14,17 @@ Tests cover:
 - List all locations
 """
 
-from gws_core import BadRequestException, BaseTestCase
-from gws_eln.core.unit_type import UnitType
+from decimal import Decimal
+
+from gws_core import BadRequestException, BaseTestCase, NotFoundException
+from gws_eln.items.item import Item
+from gws_eln.items.item_dto import CreateItemDTO
+from gws_eln.items.item_service import ItemService
+from gws_eln.items.item_sheet_dto import CreateItemSheetDTO
+from gws_eln.items.item_sheet_service import ItemSheetService
 from gws_eln.locations.location import Location
 from gws_eln.locations.location_dto import CreateLocationDTO, UpdateLocationDTO
 from gws_eln.locations.location_service import DEFAULT_LOCATION_NAME, LocationService
-from gws_eln.materials.material import Material
-from gws_eln.materials.material_batch import MaterialBatch
 from gws_eln.user.eln_user_sync_service import ElnUserSyncService
 
 
@@ -152,7 +156,7 @@ class TestLocationService(BaseTestCase):
         service = LocationService()
 
         # Act & Assert
-        with self.assertRaises(Exception):  # NotFoundException
+        with self.assertRaises(NotFoundException):
             service.get_location("non-existent-id")
 
     def test_get_default_location(self):
@@ -172,10 +176,9 @@ class TestLocationService(BaseTestCase):
 
         # Remove default location if it exists
         existing = Location.select().where(Location.name == DEFAULT_LOCATION_NAME).first()
-        if existing:
-            # Need to check for references first
-            if not MaterialBatch.select().where(MaterialBatch.location == existing).exists():
-                existing.delete_instance()
+        # Remove it only if it isn't referenced by any item
+        if existing and not Item.select().where(Item.location == existing).exists():
+            existing.delete_instance()
 
         # Act
         default_location = service.get_default_location()
@@ -345,34 +348,28 @@ class TestLocationService(BaseTestCase):
         # Create location
         location = service.create_location(CreateLocationDTO(name="Referenced Location"))
 
-        # Create a material first (needed for batch)
-        material = Material()
-        material.name = "Test Material for Location"
-        material.is_consumable = True
-        material.default_unit_type = UnitType.COUNT
-        material.save()
-
-        # Create batch that references the location
-        batch = MaterialBatch()
-        batch.material = material
-        batch.location = location
-        batch.batch_number = "TEST-001"
-        batch.save()
+        # Create an item that references the location
+        sheet = ItemSheetService().create_item_sheet(
+            CreateItemSheetDTO(name="Sheet LOCR", code="LOCR")
+        )
+        ItemService().create_item(
+            CreateItemDTO(
+                item_sheet_id=sheet.id,
+                quantity=Decimal(1),
+                unit="units",
+                location_id=location.id,
+            )
+        )
 
         # Act & Assert
         with self.assertRaises(BadRequestException) as context:
             service.delete_location(location.id)
 
         self.assertIn("Cannot delete", str(context.exception))
-        self.assertIn("batch", str(context.exception).lower())
+        self.assertIn("item", str(context.exception).lower())
 
         # Verify location still exists
         self.assertTrue(Location.select().where(Location.id == location.id).exists())
-
-        # Cleanup
-        batch.delete_instance()
-        material.delete_instance()
-        location.delete_instance()
 
     def test_delete_default_location_fails(self):
         """Test deleting the default 'labo' location fails"""
@@ -396,7 +393,7 @@ class TestLocationService(BaseTestCase):
         service = LocationService()
 
         # Act & Assert
-        with self.assertRaises(Exception):  # NotFoundException
+        with self.assertRaises(NotFoundException):
             service.delete_location("non-existent-id")
 
     def test_audit_fields_on_create(self):

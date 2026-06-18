@@ -12,9 +12,9 @@ Tests cover:
 - List all suppliers
 """
 
-from gws_core import BadRequestException, BaseTestCase
-from gws_eln.core.unit_type import UnitType
-from gws_eln.materials.material import Material
+from gws_core import BadRequestException, BaseTestCase, NotFoundException
+from gws_eln.items.item_sheet_dto import CreateItemSheetDTO
+from gws_eln.items.item_sheet_service import ItemSheetService
 from gws_eln.suppliers.supplier import Supplier
 from gws_eln.suppliers.supplier_dto import CreateSupplierDTO, UpdateSupplierDTO
 from gws_eln.suppliers.supplier_service import SupplierService
@@ -149,7 +149,7 @@ class TestSupplierService(BaseTestCase):
         service = SupplierService()
 
         # Act & Assert
-        with self.assertRaises(Exception):  # NotFoundException
+        with self.assertRaises(NotFoundException):
             service.get_supplier("non-existent-id")
 
     def test_list_suppliers(self):
@@ -314,34 +314,27 @@ class TestSupplierService(BaseTestCase):
         # Create supplier
         supplier = service.create_supplier(CreateSupplierDTO(name="Referenced Supplier"))
 
-        # Create material that references the supplier
-        material = Material()
-        material.name = "Test Material"
-        material.default_supplier = supplier
-        material.is_consumable = True
-        material.default_unit_type = UnitType.COUNT
-        material.save()
+        # Create an item sheet that references the supplier
+        ItemSheetService().create_item_sheet(
+            CreateItemSheetDTO(name="Sheet SUPR", code="SUPR", supplier_id=supplier.id)
+        )
 
         # Act & Assert
         with self.assertRaises(BadRequestException) as context:
             service.delete_supplier(supplier.id)
 
         self.assertIn("Cannot delete", str(context.exception))
-        self.assertIn("material", str(context.exception).lower())
+        self.assertIn("sheet", str(context.exception).lower())
 
         # Verify supplier still exists
         self.assertTrue(Supplier.select().where(Supplier.id == supplier.id).exists())
-
-        # Cleanup
-        material.delete_instance()
-        supplier.delete_instance()
 
     def test_delete_supplier_not_found(self):
         """Test deleting a non-existent supplier raises NotFoundException"""
         service = SupplierService()
 
         # Act & Assert
-        with self.assertRaises(Exception):  # NotFoundException
+        with self.assertRaises(NotFoundException):
             service.delete_supplier("non-existent-id")
 
     def test_audit_fields_on_create(self):
