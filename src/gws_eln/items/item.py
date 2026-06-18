@@ -89,10 +89,12 @@ class Item(ModelWithUser):
 
     def _before_insert(self) -> None:
         super()._before_insert()
+        self.validate_field_coupling()
         self.recompute_status()
 
     def _before_update(self) -> None:
         super()._before_update()
+        self.validate_field_coupling()
         self.recompute_status()
 
     def is_consumable(self) -> bool:
@@ -154,6 +156,29 @@ class Item(ModelWithUser):
             self.status = ItemStatus.EXHAUSTED
         else:
             self.status = ItemStatus.ACTIVE
+
+    def validate_field_coupling(self) -> None:
+        """Enforce the consumable / non-consumable field coupling on save.
+
+        - Consumable: must not carry a serial number (serials are for serialized
+          non-consumable units).
+        - Non-consumable: exactly one physical unit per item (quantity == 1);
+          received in bulk as N separate items, never as a quantity.
+          (Never EXHAUSTED is enforced by recompute_status.)
+
+        :raises BadRequestException: If the coupling is violated.
+        """
+        if self.is_consumable():
+            if self.serial_number:
+                raise BadRequestException(
+                    f"Consumable item '{self.code}' cannot have a serial number "
+                    "(serial numbers are for non-consumable serialized units)."
+                )
+        elif self.quantity != 1:
+            raise BadRequestException(
+                f"Non-consumable item '{self.code}' must have quantity 1 "
+                "(one item per physical unit); create several units instead of a quantity."
+            )
 
     def validate_sufficient_quantity(self, required_quantity) -> None:
         """Check if the item has sufficient quantity for an operation."""

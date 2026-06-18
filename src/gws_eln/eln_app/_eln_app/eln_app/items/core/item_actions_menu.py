@@ -95,13 +95,10 @@ def item_actions_menu(
             ),
         ),
         rx.menu.content(
-            rx.menu.item(
-                rx.icon("package-plus", size=16),
-                "Receive Stock",
-                on_click=_wrap_click(on_receive),
-            ),
+            _consumable_item(on_receive, "package-plus", "Receive Stock"),
             _consumable_item(on_consume, "flame", "Consume Stock"),
-            rx.menu.separator(),
+            # Separator only when the consumable-only stock actions above are shown
+            rx.cond(is_consumable, rx.menu.separator(), rx.fragment()),
             rx.menu.item(
                 rx.icon("arrow-right-from-line", size=16),
                 "Move Item",
