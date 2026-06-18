@@ -18,5 +18,6 @@ class ItemStatusSelectState(rx.State):
         """Get all item statuses for the select dropdown."""
         return [
             ItemStatusSelectDTO(value=ItemStatus.ACTIVE.value, label="Active"),
+            ItemStatusSelectDTO(value=ItemStatus.EXHAUSTED.value, label="Exhausted"),
             ItemStatusSelectDTO(value=ItemStatus.DISCARDED.value, label="Discarded"),
         ]

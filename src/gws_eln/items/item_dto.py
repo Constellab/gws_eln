@@ -260,7 +260,6 @@ class ItemDTO(ItemSimpleDTO):
     storage_conditions: str | None
     item_sheet: ItemSheetDTO
     location: LocationDTO
-    parent_item: ItemSimpleDTO | None
     supplier: SupplierDTO | None
     expiry_date: date | None
     notes: str | None
@@ -269,11 +268,3 @@ class ItemDTO(ItemSimpleDTO):
     last_modified_at: datetime
     created_by: UserDTO
     last_modified_by: UserDTO
-
-
-class HierarchyObjectDTO(BaseModelDTO):
-    """DTO for representing an item in a hierarchy view."""
-
-    id: str
-    name: str
-    sub_name: str | None

@@ -20,7 +20,7 @@ from .concentrate_item_form_dialog.concentrate_item_form_dialog_component import
     concentrate_item_dialog,
 )
 from .core.item_actions_menu import ItemTransformActions, item_actions_menu
-from .core.item_components import expiry_date_badge, item_inline_link, status_badge
+from .core.item_components import expiry_date_badge, status_badge
 from .delete_item_form_dialog.delete_item_form_dialog_component import (
     delete_item_dialog,
 )
@@ -157,14 +157,6 @@ def _details_sidebar() -> rx.Component:
             # Status
             rx.text("Status", size="2", color="gray", weight="medium"),
             rx.box(status_badge(ItemDetailState.item.status), width="fit-content"),
-            # Parent Item
-            rx.cond(
-                ItemDetailState.item.parent_item,
-                rx.fragment(
-                    rx.text("Parent Item", size="2", color="gray", weight="medium"),
-                    item_inline_link(ItemDetailState.item.parent_item),
-                ),
-            ),
             columns="2",
             spacing="3",
             width="100%",

@@ -14,6 +14,7 @@ from gws_eln.activities.activity_dto import (
     CreateActivityInputDTO,
     CreateActivityOutputDTO,
 )
+from gws_eln.activities.activity_input import ActivityInput
 from gws_eln.activities.activity_input_role import ActivityInputRole
 from gws_eln.activities.activity_service import ActivityService
 from gws_eln.activities.activity_type import ActivityType
@@ -29,7 +30,6 @@ from gws_eln.items.item_dto import (
     DeleteItemResultDTO,
     DiluteItemDTO,
     DiscardItemDTO,
-    HierarchyObjectDTO,
     MoveItemDTO,
     ReceiveItemDTO,
     RelabelItemDTO,
@@ -74,34 +74,6 @@ class ItemService:
         CurrentUserService.get_and_check_current_user()
         return Item.get_by_id_and_check(item_id)
 
-    def get_parent_hierarchy(
-        self,
-        item_id: str,
-        include_self: bool = False,
-        include_item_sheet: bool = False,
-    ) -> list[HierarchyObjectDTO]:
-        """
-        Get the full hierarchy of parent items for a given item.
-
-        Returns a list of all parent items from the immediate parent
-        up to the root (original item), ordered from closest to furthest ancestor.
-
-        :param item_id: The ID of the item to get parent hierarchy for
-        :type item_id: str
-        :param include_self: If True, include the current item at the beginning.
-        :type include_self: bool
-        :param include_item_sheet: If True, include the item sheet at the end.
-        :type include_item_sheet: bool
-        :return: List as HierarchyObjectDTO, ordered from current item (if include_self)
-                 -> immediate parent -> root -> item sheet (if include_item_sheet).
-        :rtype: list[HierarchyObjectDTO]
-        :raises NotFoundException: If item not found
-        """
-        return self.get_item(item_id).get_parent_hierarchy(
-            include_self=include_self,
-            include_item_sheet=include_item_sheet,
-        )
-
     def list_items(
         self,
         item_sheet_id: str | None = None,
@@ -124,9 +96,10 @@ class ItemService:
 
         query = Item.select()
 
-        # By default, only show active items
+        # By default, hide only discarded (soft-deleted) items.
+        # Exhausted items still exist physically and remain visible.
         if not include_discarded:
-            query = query.where(Item.status == ItemStatus.ACTIVE)
+            query = query.where(Item.status != ItemStatus.DISCARDED)
 
         if item_sheet_id is not None:
             query = query.where(Item.item_sheet == item_sheet_id)
@@ -194,7 +167,6 @@ class ItemService:
             else item_sheet.storage_conditions
         )
         item.notes = dto.notes.strip() if dto.notes else None
-        item.parent_item = None  # Original item, not an aliquot
         item.supplier = supplier
 
         # Save (created_by/last_modified_by set automatically by ModelWithUser)
@@ -643,9 +615,8 @@ class ItemService:
             # Storage condition inherits the output's own sheet default
             item.storage_conditions = source.item_sheet.storage_conditions
             item.notes = output_dto.notes.strip() if output_dto.notes else None
-            # Single parent: a split child has exactly one source item
-            item.parent_item = source
             item.supplier = source.supplier
+            # Lineage (source -> output) is recorded in the activity inputs/outputs
             item.save()
 
             output_items.append(item)
@@ -773,8 +744,7 @@ class ItemService:
             )
 
         # Create the new output item.
-        # No parent_item: combine has many parents, which a single FK cannot hold -
-        # the multi-parent lineage lives entirely in the activity inputs/outputs.
+        # Lineage lives entirely in the activity inputs/outputs.
         location = LocationService().get_or_default_location(dto.output_location_id)
         output = Item()
         output.item_sheet = output_sheet
@@ -789,7 +759,6 @@ class ItemService:
         # Storage condition inherits the output's own sheet default
         output.storage_conditions = output_sheet.storage_conditions
         output.notes = dto.notes.strip() if dto.notes else None
-        output.parent_item = None
         output.supplier = None
         output.save()
 
@@ -857,9 +826,6 @@ class ItemService:
         # Storage condition inherits the output's own sheet default
         output.storage_conditions = reference_item.item_sheet.storage_conditions
         output.notes = None
-        # Single parent: the primary source (target). Full lineage lives in the
-        # activity inputs/outputs (the diluent is recorded as a second input).
-        output.parent_item = reference_item
         output.supplier = reference_item.supplier
         output.save()
 
@@ -1002,7 +968,7 @@ class ItemService:
         target.quantity = target.quantity - base_target
         target.save()
 
-        # Reduce the diluent (its own dimension - not enforced, §23)
+        # Reduce the diluent (its own dimension - not enforced)
         diluent_quantity = QuantityValidator.validate_quantity(dto.diluent_quantity_contributed)
         base_diluent = self._validate_and_convert_quantity(
             diluent, diluent_quantity, dto.diluent_unit
@@ -1067,7 +1033,7 @@ class ItemService:
 
         An item is deletable if:
         - It only has the initial 'create' activity (no other activities)
-        - It has no active child items (aliquots)
+        - It has not contributed to any other item's lineage
 
         This is intended for canceling an item creation that was started but
         should be discarded (e.g., user changed their mind, made an error, etc.).
@@ -1093,10 +1059,11 @@ class ItemService:
         allow_discard: bool = True,
     ) -> DeleteItemResultDTO:
         """
-        Delete or discard an item if it has no child items (aliquots).
+        Delete or discard an item.
 
-        - If item only has the initial 'create' activity from creation: hard delete
+        - If item only has the initial 'create' activity and fed no lineage: hard delete
         - If item has other activities (usage history): soft delete (set status to DISCARDED)
+        - Descendants never block a discard - they remain intact
 
         :param item_id: The ID of the item to delete
         :type item_id: str
@@ -1110,8 +1077,8 @@ class ItemService:
         :return: Result indicating whether item was deleted or discarded
         :rtype: DeleteItemResultDTO
         :raises NotFoundException: If item not found
-        :raises BadRequestException: If item has child items, is already discarded,
-                                     or has activity history when allow_discard=False
+        :raises BadRequestException: If item is already discarded, or has activity
+                                     history when allow_discard=False
         """
         # Get existing item
         item = self.get_item(item_id)
@@ -1120,24 +1087,26 @@ class ItemService:
         if item.is_discarded():
             raise BadRequestException(f"Item '{item.code}' is already discarded")
 
-        # Check for child items (aliquots)
-        child_count = (
-            Item.select()
-            .where(Item.parent_item == item)
-            .where(Item.status == ItemStatus.ACTIVE)
-            .count()
-        )
-        if child_count > 0:
-            raise BadRequestException(
-                f"Cannot delete item '{item.code}' because it has {child_count} "
-                "active child item(s) (aliquots). Delete all child items first."
-            )
-
-        # Count activities for this item
+        # Count activities where this item is the primary subject.
         activity_count = Activity.count_by_item_id(item.id)
 
-        # If only 1 activity (the creation 'create'), hard delete
-        if activity_count <= 1:
+        # An item that fed another item's lineage (an INGREDIENT input of some other
+        # activity, e.g. a combine/dilute/concentrate source) must never be hard-deleted.
+        contributed_to_lineage = (
+            ActivityInput.select()
+            .join(Activity)
+            .where(
+                (ActivityInput.item == item)
+                & (ActivityInput.role == ActivityInputRole.INGREDIENT)
+                & (Activity.item != item.id)
+            )
+            .count()
+            > 0
+        )
+
+        # If it only has the initial 'create' activity and fed no lineage, hard delete.
+        # (Descendants do NOT block a discard - they stay intact.)
+        if activity_count <= 1 and not contributed_to_lineage:
             # Delete associated activities first
             Activity.delete().where(Activity.item == item).execute()
             # Hard delete the item

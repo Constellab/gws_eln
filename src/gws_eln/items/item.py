@@ -13,7 +13,7 @@ from gws_core import (
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
 from gws_eln.core.unit_type import UnitType
-from gws_eln.items.item_dto import HierarchyObjectDTO, ItemDTO, ItemSimpleDTO
+from gws_eln.items.item_dto import ItemDTO, ItemSimpleDTO
 from gws_eln.items.item_sheet import ItemSheet
 from gws_eln.items.item_status import ItemStatus
 from gws_eln.locations.location import Location
@@ -23,18 +23,17 @@ from gws_eln.utils.units_converter import UnitConverter
 
 class Item(ModelWithUser):
     """
-    Item entity - represents physical inventory (items and aliquots).
+    Item entity - represents physical inventory.
 
-    Handles: received items, aliquots, instrument instances, sample instances.
+    Handles: received items, transform outputs, instrument instances, sample instances.
 
     Key behaviors:
-    - parent_item_id NULL = original item/instance
-    - parent_item_id NOT NULL = aliquot/sub-item (inherits supplier from parent's item sheet)
     - Quantity stored in BASE UNITS (L, kg, m, units)
+    - Provenance/lineage is NOT stored on the item; it is derived from the
+      Activity inputs/outputs.
 
     Attributes:
         item_sheet: Reference to the item sheet catalog entry (required)
-        parent_item: Self-reference for aliquots (NULL for original items)
         code: Structured, unique, immutable code (backend-generated)
         label: Custom human-readable label (free text, optional)
         expiry_date: Expiration date
@@ -48,11 +47,6 @@ class Item(ModelWithUser):
     item_sheet = TypedForeignKeyField(ItemSheet, backref="items", on_delete="RESTRICT", index=True)
 
     location = TypedForeignKeyField(Location, backref="+", on_delete="RESTRICT", index=True)
-
-    # Self-reference for aliquots (parent-child relationship)
-    parent_item = NullableForeignKeyField["Item"](
-        "self", backref="child_items", on_delete="CASCADE", index=True
-    )
 
     # Supplier relationship (optional FK to suppliers table)
     supplier = NullableForeignKeyField(Supplier, backref="items", on_delete="SET NULL", index=True)
@@ -89,13 +83,13 @@ class Item(ModelWithUser):
         choices=ItemStatus, max_length=20, default=ItemStatus.ACTIVE, index=True
     )
 
-    def is_aliquot(self) -> bool:
-        """Check if this item is an aliquot (has a parent item)."""
-        return self.parent_item is not None
+    def _before_insert(self) -> None:
+        super()._before_insert()
+        self.recompute_status()
 
-    def is_original_item(self) -> bool:
-        """Check if this is an original item (no parent)."""
-        return self.parent_item is None
+    def _before_update(self) -> None:
+        super()._before_update()
+        self.recompute_status()
 
     def is_consumable(self) -> bool:
         """Check if the item sheet of this item is consumable."""
@@ -108,6 +102,25 @@ class Item(ModelWithUser):
     def is_discarded(self) -> bool:
         """Check if this item has been discarded."""
         return bool(self.status == ItemStatus.DISCARDED)
+
+    def is_exhausted(self) -> bool:
+        """Check if this item is exhausted (consumable fully used up)."""
+        return bool(self.status == ItemStatus.EXHAUSTED)
+
+    def recompute_status(self) -> None:
+        """Recompute the stored status from the current quantity.
+
+        Rules:
+        - DISCARDED is terminal and user-set: never recomputed.
+        - Consumable with quantity == 0 -> EXHAUSTED.
+        - Otherwise -> ACTIVE. Non-consumable items never become EXHAUSTED.
+        """
+        if self.status == ItemStatus.DISCARDED:
+            return
+        if self.is_consumable() and self.quantity == 0:
+            self.status = ItemStatus.EXHAUSTED
+        else:
+            self.status = ItemStatus.ACTIVE
 
     def validate_sufficient_quantity(self, required_quantity) -> None:
         """Check if the item has sufficient quantity for an operation."""
@@ -137,57 +150,6 @@ class Item(ModelWithUser):
             label=self.label,
         )
 
-    def get_parent_hierarchy(
-        self,
-        include_self: bool = False,
-        include_item_sheet: bool = False,
-    ) -> list[HierarchyObjectDTO]:
-        """Get the full hierarchy of parent items.
-
-        Returns a list of all parent items from the immediate parent
-        up to the root (original item), ordered from closest to furthest ancestor.
-
-        :param include_self: If True, include the current item at the beginning of the list.
-        :type include_self: bool
-        :param include_item_sheet: If True, include the item sheet at the end of the hierarchy.
-        :type include_item_sheet: bool
-        :return: List of parent items as HierarchyObjectDTO, ordered from
-                 current item (if include_self) -> immediate parent -> root -> item sheet (if include_item_sheet).
-        :rtype: list[HierarchyObjectDTO]
-        """
-        hierarchy: list[HierarchyObjectDTO] = []
-
-        if include_self:
-            hierarchy.append(
-                HierarchyObjectDTO(
-                    id=self.id,
-                    name=self.code,
-                    sub_name=self.label,
-                )
-            )
-
-        current = self.parent_item
-        while current is not None:
-            hierarchy.append(
-                HierarchyObjectDTO(
-                    id=current.id,
-                    name=current.code,
-                    sub_name=current.label,
-                )
-            )
-            current = current.parent_item
-
-        if include_item_sheet:
-            hierarchy.append(
-                HierarchyObjectDTO(
-                    id=self.item_sheet.id,
-                    name=self.item_sheet.name,
-                    sub_name=None,
-                )
-            )
-
-        return hierarchy
-
     def to_dto(self) -> ItemDTO:
         """Convert the Item model to a ItemDTO.
 
@@ -200,7 +162,6 @@ class Item(ModelWithUser):
             code=self.code,
             item_sheet=self.item_sheet.to_dto(),
             location=self.location.to_dto(),
-            parent_item=self.parent_item.to_simple_dto() if self.parent_item else None,
             supplier=self.supplier.to_dto() if self.supplier else None,
             label=self.label,
             expiry_date=self.expiry_date,

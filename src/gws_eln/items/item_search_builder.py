@@ -17,21 +17,6 @@ class ItemSearchBuilder(SearchBuilder):
         self.add_expression(Item.location == location_id)
         return self
 
-    def add_parent_item_filter(self, parent_item_id: str) -> "ItemSearchBuilder":
-        """Filter the search query by parent item ID"""
-        self.add_expression(Item.parent_item == parent_item_id)
-        return self
-
-    def add_original_items_only_filter(self) -> "ItemSearchBuilder":
-        """Filter to only include original items (no parent)"""
-        self.add_expression(Item.parent_item.is_null(True))
-        return self
-
-    def add_aliquots_only_filter(self) -> "ItemSearchBuilder":
-        """Filter to only include aliquots (has parent)"""
-        self.add_expression(Item.parent_item.is_null(False))
-        return self
-
     def add_supplier_filter(self, supplier_id: str) -> "ItemSearchBuilder":
         """Filter the search query by supplier ID"""
         self.add_expression(Item.supplier == supplier_id)

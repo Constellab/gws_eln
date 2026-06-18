@@ -96,9 +96,16 @@ def status_badge(status: ItemStatus) -> rx.Component:
     :return: The badge component
     :rtype: rx.Component
     """
-    return rx.cond(
-        status == ItemStatus.ACTIVE.value,
-        rx.badge("Active", color_scheme=ReflexTheme.SECONDARY, size="1"),
+    return rx.match(
+        status,
+        (
+            ItemStatus.ACTIVE.value,
+            rx.badge("Active", color_scheme=ReflexTheme.SECONDARY, size="1"),
+        ),
+        (
+            ItemStatus.EXHAUSTED.value,
+            rx.badge("Exhausted", color_scheme="amber", size="1"),
+        ),
         rx.badge("Discarded", color_scheme=ReflexTheme.TERTIARY, size="1"),
     )
 
