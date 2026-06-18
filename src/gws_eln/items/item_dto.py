@@ -41,6 +41,28 @@ class CreateItemDTO(BaseModelDTO):
     note_id: str | None = None  # Link to Constellab Note
 
 
+class CreateItemsBulkDTO(BaseModelDTO):
+    """DTO for creating several serialized non-consumable items in one action.
+
+    One Item is created per entry in ``serial_numbers`` (one physical unit each,
+    quantity 1, unit type from the item sheet). Entries may be None/empty for
+    units received without a serial yet. All other fields are shared by every
+    created item.
+    """
+
+    item_sheet_id: str
+    serial_numbers: list[str | None] = []  # One per unit; None/empty allowed
+    concentration: Decimal | None = None
+    concentration_unit: str | None = None
+    location_id: str | None = None  # Default to "labo" if None
+    supplier_id: str | None = None
+    expiry_date: date | None = None
+    label: str | None = None  # Shared label applied to every created unit
+    storage_conditions: str | None = None  # If None, inherits the item sheet's default
+    notes: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
+
+
 class ReceiveItemDTO(BaseModelDTO):
     """DTO for receiving additional stock to an existing item.
 

@@ -6,7 +6,7 @@ from typing import Any
 import reflex as rx
 from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item import Item
-from gws_eln.items.item_dto import CreateItemDTO, ItemDTO
+from gws_eln.items.item_dto import CreateItemDTO, CreateItemsBulkDTO, ItemDTO
 from gws_eln.items.item_service import ItemService
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_eln.items.item_sheet_service import ItemSheetService
@@ -40,9 +40,12 @@ class ItemFormDialogState(FormDialogState, rx.State):
     form_supplier_id: str = "__none__"
     form_expiry_date: str = ""
     form_label: str = ""
-    form_serial_number: str = ""
     form_storage_conditions: str = ""
     form_notes: str = ""
+
+    # Non-consumable bulk creation: N units, one serial per unit.
+    form_unit_count: int = 1
+    form_serials: list[str] = [""]
 
     _callback_after_close: FormDialogCloseCallback | None = None
 
@@ -94,7 +97,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
         # Reset form fields to defaults
         self.form_label = ""
-        self.form_serial_number = ""
+        self.form_unit_count = 1
+        self.form_serials = [""]
         # Prefill the storage condition with the sheet's default (editable override)
         self.form_storage_conditions = self._item_sheet.storage_conditions or ""
         self.form_notes = ""
@@ -143,6 +147,31 @@ class ItemFormDialogState(FormDialogState, rx.State):
         """Handle expiry date change."""
         self.form_expiry_date = value
 
+    @rx.event
+    def set_unit_count(self, value: str):
+        """Set the number of non-consumable units to create and resize serials."""
+        try:
+            count = int(value)
+        except (ValueError, TypeError):
+            count = 1
+        count = max(1, min(count, 100))
+        self.form_unit_count = count
+
+        serials = list(self.form_serials)
+        if count > len(serials):
+            serials += [""] * (count - len(serials))
+        else:
+            serials = serials[:count]
+        self.form_serials = serials
+
+    @rx.event
+    def set_serial(self, index: int, value: str):
+        """Set the serial number of the unit at the given index."""
+        serials = list(self.form_serials)
+        if 0 <= index < len(serials):
+            serials[index] = value
+            self.form_serials = serials
+
     def _parse_expiry_date(self) -> date | None:
         """Parse the expiry date from state (empty -> None)."""
         if not self.form_expiry_date:
@@ -190,17 +219,15 @@ class ItemFormDialogState(FormDialogState, rx.State):
         str | None,
         str | None,
         str | None,
-        str | None,
     ]:
-        """Validate and parse form data.
+        """Validate and parse form data for a single (consumable) item.
 
         Args:
             form_data: Dictionary containing form fields
 
         Returns:
             Tuple of (quantity, unit, concentration, location_id, supplier_id,
-                     expiry_date, label, serial_number, storage_conditions, notes)
-                     if validation succeeds
+                     expiry_date, label, storage_conditions, notes) if validation succeeds
 
         Raises:
             Exception: If validation fails
@@ -209,10 +236,6 @@ class ItemFormDialogState(FormDialogState, rx.State):
         concentration = self._parse_concentration(form_data.get("concentration", "").strip())
         expiry_date = self._parse_expiry_date()
         label = form_data.get("label", "").strip() or None
-        # Serial number only applies to non-consumable units; ignored otherwise.
-        serial_number = form_data.get("serial_number", "").strip() or None
-        if self.is_consumable:
-            serial_number = None
         storage_conditions = form_data.get("storage_conditions", "").strip() or None
         notes = form_data.get("notes", "").strip() or None
 
@@ -239,23 +262,32 @@ class ItemFormDialogState(FormDialogState, rx.State):
             supplier_id,
             expiry_date,
             label,
-            serial_number,
             storage_conditions,
             notes,
         )
 
     async def _create(self, form_data: dict):
-        """Create a new item_sheet item using the form data.
+        """Create item(s) from the form.
 
-        Args:
-            form_data: Dictionary containing form fields
-
-        Yields:
-            Reflex events (rx.toast)
+        Consumable sheets create a single item (with a quantity); non-consumable
+        sheets create N serialized units in one action (the bulk path).
         """
         if not self._item_sheet:
             raise Exception("ItemSheet is required")
 
+        if self._item_sheet.is_consumable:
+            async for event in self._create_single(form_data):
+                yield event
+        else:
+            async for event in self._create_bulk(form_data):
+                yield event
+
+    async def _create_single(self, form_data: dict):
+        """Create one consumable item using the form data.
+
+        Yields:
+            Reflex events (rx.toast)
+        """
         # Validate and parse form data
         (
             quantity,
@@ -265,7 +297,6 @@ class ItemFormDialogState(FormDialogState, rx.State):
             supplier_id,
             expiry_date,
             label,
-            serial_number,
             storage_conditions,
             notes,
         ) = self._validate_form_data(form_data)
@@ -296,7 +327,6 @@ class ItemFormDialogState(FormDialogState, rx.State):
                 supplier_id=supplier_id,
                 expiry_date=expiry_date,
                 label=label,
-                serial_number=serial_number,
                 storage_conditions=storage_conditions,
                 notes=notes,
             )
@@ -307,6 +337,56 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
         if self._callback_after_close:
             await self._callback_after_close(item.to_dto())
+
+    async def _create_bulk(self, form_data: dict):
+        """Create N serialized non-consumable units in one action.
+
+        Yields:
+            Reflex events (rx.toast)
+        """
+        # Shared fields (one value applied to every created unit)
+        label = form_data.get("label", "").strip() or None
+        storage_conditions = form_data.get("storage_conditions", "").strip() or None
+        notes = form_data.get("notes", "").strip() or None
+        expiry_date = self._parse_expiry_date()
+
+        location_id = self.form_location_id
+        if not location_id:
+            raise Exception("Location is required")
+
+        supplier_id = (
+            self.form_supplier_id
+            if self.form_supplier_id and self.form_supplier_id != self.NO_SUPPLIER_VALUE
+            else None
+        )
+
+        # One serial per unit (empty -> None for not-yet-serialized units)
+        serial_numbers = [serial.strip() or None for serial in self.form_serials]
+        if not serial_numbers:
+            raise Exception("At least one unit is required")
+
+        main_state: ReflexMainState
+        async with self:
+            main_state = await self.get_state(ReflexMainState)
+
+        with await main_state.authenticate_user():
+            item_service = ItemService()
+            dto = CreateItemsBulkDTO(
+                item_sheet_id=self._item_sheet.id,
+                serial_numbers=serial_numbers,
+                location_id=location_id,
+                supplier_id=supplier_id,
+                expiry_date=expiry_date,
+                label=label,
+                storage_conditions=storage_conditions,
+                notes=notes,
+            )
+            items = item_service.create_items_bulk(dto)
+
+        yield rx.toast.success(f"{len(items)} item(s) created successfully")
+
+        if self._callback_after_close and items:
+            await self._callback_after_close(items[0].to_dto())
 
     async def _update(self, form_data: dict):
         """Not implemented - update is handled by a separate dialog."""
@@ -322,7 +402,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_expiry_date = ""
         self.form_label = ""
-        self.form_serial_number = ""
+        self.form_unit_count = 1
+        self.form_serials = [""]
         self.form_storage_conditions = ""
         self.form_notes = ""
         self.is_update_mode = False

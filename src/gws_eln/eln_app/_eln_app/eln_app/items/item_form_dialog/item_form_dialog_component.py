@@ -12,6 +12,77 @@ from ...suppliers.core.supplier_select_component import (
 from .item_form_dialog_state import ItemFormDialogState
 
 
+def _consumable_quantity_section() -> rx.Component:
+    """Quantity + concentration inputs for a consumable item (single item)."""
+    return rx.vstack(
+        quantity_unit_input(
+            unit_type=ItemFormDialogState.form_unit_type,
+            unit_value=ItemFormDialogState.form_unit,
+            on_unit_change=ItemFormDialogState.set_unit,
+        ),
+        # Concentration value + unit (optional, recorded verbatim)
+        rx.hstack(
+            rx.vstack(
+                rx.text("Concentration", size="2", weight="bold"),
+                rx.input(
+                    placeholder="Enter concentration (optional)",
+                    name="concentration",
+                    type="number",
+                    min="0",
+                    step="any",
+                    width="100%",
+                ),
+                width="60%",
+                spacing="1",
+            ),
+            rx.vstack(
+                rx.text("Unit", size="2", weight="bold"),
+                concentration_unit_select(
+                    name="concentration_unit",
+                    value=ItemFormDialogState.form_concentration_unit,
+                    on_change=ItemFormDialogState.set_concentration_unit,
+                ),
+                width="40%",
+                spacing="1",
+            ),
+            width="100%",
+            spacing="3",
+        ),
+        width="100%",
+        spacing="3",
+    )
+
+
+def _bulk_units_section() -> rx.Component:
+    """Number of units + one serial input per unit (non-consumable, qty 1 each)."""
+    return rx.vstack(
+        rx.vstack(
+            rx.text("Number of units", size="2", weight="bold"),
+            rx.input(
+                type="number",
+                min="1",
+                width="100%",
+                value=ItemFormDialogState.form_unit_count.to_string(),
+                on_change=ItemFormDialogState.set_unit_count,
+            ),
+            width="100%",
+            spacing="1",
+        ),
+        rx.text("Serial numbers", size="2", weight="bold"),
+        rx.foreach(
+            ItemFormDialogState.form_serials,
+            lambda serial, index: rx.input(
+                placeholder="Serial number (optional)",
+                width="100%",
+                value=serial,
+                on_change=lambda value: ItemFormDialogState.set_serial(index, value),
+            ),
+        ),
+        width="100%",
+        spacing="2",
+    )
+
+
 def _form_content() -> rx.Component:
     """Form content for entering item_sheet item details."""
     return rx.vstack(
@@ -46,53 +117,11 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Serial number (non-consumable / serialized units only)
+        # Consumable: quantity + concentration. Non-consumable: N units + serials.
         rx.cond(
-            ~ItemFormDialogState.is_consumable,
-            rx.vstack(
-                rx.text("Serial number", size="2", weight="bold"),
-                rx.input(
-                    placeholder="Unique serial number (optional)",
-                    name="serial_number",
-                    width="100%",
-                    default_value=ItemFormDialogState.form_serial_number,
-                ),
-                width="100%",
-                spacing="1",
-            ),
-        ),
-        quantity_unit_input(
-            unit_type=ItemFormDialogState.form_unit_type,
-            unit_value=ItemFormDialogState.form_unit,
-            on_unit_change=ItemFormDialogState.set_unit,
-        ),
-        # Concentration value + unit (optional, recorded verbatim)
-        rx.hstack(
-            rx.vstack(
-                rx.text("Concentration", size="2", weight="bold"),
-                rx.input(
-                    placeholder="Enter concentration (optional)",
-                    name="concentration",
-                    type="number",
-                    min="0",
-                    step="any",
-                    width="100%",
-                ),
-                width="60%",
-                spacing="1",
-            ),
-            rx.vstack(
-                rx.text("Unit", size="2", weight="bold"),
-                concentration_unit_select(
-                    name="concentration_unit",
-                    value=ItemFormDialogState.form_concentration_unit,
-                    on_change=ItemFormDialogState.set_concentration_unit,
-                ),
-                width="40%",
-                spacing="1",
-            ),
-            width="100%",
-            spacing="3",
+            ItemFormDialogState.is_consumable,
+            _consumable_quantity_section(),
+            _bulk_units_section(),
         ),
         # Location field
         rx.vstack(

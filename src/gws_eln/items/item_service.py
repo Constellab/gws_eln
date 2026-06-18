@@ -26,6 +26,7 @@ from gws_eln.items.item_dto import (
     CombineItemDTO,
     ConcentrateItemDTO,
     CreateItemDTO,
+    CreateItemsBulkDTO,
     DecrementQuantityDTO,
     DeleteItemResultDTO,
     DiluteItemDTO,
@@ -165,11 +166,8 @@ class ItemService:
         item.expiry_date = dto.expiry_date
         item.label = dto.label.strip() if dto.label else None
         item.serial_number = serial_number
-        # Storage condition: explicit override if given, else inherit the sheet default
-        item.storage_conditions = (
-            dto.storage_conditions.strip()
-            if dto.storage_conditions
-            else item_sheet.storage_conditions
+        item.storage_conditions = self._resolve_storage_conditions(
+            dto.storage_conditions, item_sheet
         )
         item.notes = dto.notes.strip() if dto.notes else None
         item.supplier = supplier
@@ -198,6 +196,99 @@ class ItemService:
         )
 
         return ItemActivityResult(item=item, activity=activity)
+
+    @ElnDbManager.transaction()
+    def create_items_bulk(self, dto: CreateItemsBulkDTO) -> list[Item]:
+        """Create several serialized non-consumable items in one atomic action.
+
+        One Item is created per entry in ``dto.serial_numbers`` (quantity 1 each,
+        unit type from the sheet), with sequential codes (MAX+1, MAX+2, ...). Each
+        unit gets its own RECEIVE activity so it has an independent history.
+
+        :param dto: Shared fields + one serial number per unit (None/empty allowed)
+        :type dto: CreateItemsBulkDTO
+        :return: The created items
+        :rtype: list[Item]
+        :raises BadRequestException: If the sheet is consumable, no unit is requested,
+                                     or a serial is duplicated (in the batch or lab-wide)
+        """
+        CurrentUserService.get_and_check_current_user()
+
+        item_sheet = self._validate_item_sheet_exists(dto.item_sheet_id)
+        if item_sheet.is_consumable:
+            raise BadRequestException(
+                f"Bulk creation is only for non-consumable (serialized) items; "
+                f"'{item_sheet.name}' is consumable. Create a single item with a quantity instead."
+            )
+
+        if not dto.serial_numbers:
+            raise BadRequestException("At least one unit is required")
+
+        # Normalize serials (strip, empty -> None) and reject duplicates within the
+        # batch and against existing items (lab-wide uniqueness).
+        serials: list[str | None] = []
+        seen: set[str] = set()
+        for raw in dto.serial_numbers:
+            serial = raw.strip() if raw else None
+            if serial:
+                if serial in seen:
+                    raise BadRequestException(
+                        f"Duplicate serial number '{serial}' in the batch"
+                    )
+                seen.add(serial)
+                self._validate_serial_number_unique(serial)
+            serials.append(serial)
+
+        self._validate_concentration(dto.concentration, dto.concentration_unit)
+
+        # Shared fields resolved once for every created unit
+        location = LocationService().get_or_default_location(dto.location_id)
+        supplier = SupplierService().get_supplier(dto.supplier_id) if dto.supplier_id else None
+        label = dto.label.strip() if dto.label else None
+        storage_conditions = self._resolve_storage_conditions(dto.storage_conditions, item_sheet)
+        notes = dto.notes.strip() if dto.notes else None
+        unit_type = item_sheet.unit_type
+
+        created: list[Item] = []
+        for serial in serials:
+            item = Item()
+            item.item_sheet = item_sheet
+            item.code = self._generate_item_code(item_sheet)
+            item.quantity = Decimal(1)
+            item.unit_type = unit_type
+            item.concentration = dto.concentration
+            item.concentration_unit = dto.concentration_unit or None
+            item.location = location
+            item.expiry_date = dto.expiry_date
+            item.label = label
+            item.serial_number = serial
+            item.storage_conditions = storage_conditions
+            item.notes = notes
+            item.supplier = supplier
+            item.save()
+
+            # One RECEIVE activity per unit (0 inputs, 1 output) so each unit has
+            # its own history.
+            self._activity_service.log_activity(
+                CreateActivityDTO(
+                    activity_type=ActivityType.RECEIVE,
+                    item_id=item.id,
+                    quantity=Decimal(1),
+                    unit_type=unit_type,
+                    notes=dto.notes,
+                    note_id=dto.note_id,
+                    outputs=[
+                        CreateActivityOutputDTO(
+                            item_id=item.id,
+                            quantity=Decimal(1),
+                            unit_type=unit_type,
+                        )
+                    ],
+                )
+            )
+            created.append(item)
+
+        return created
 
     @ElnDbManager.transaction()
     def receive_item(self, item_id: str, dto: ReceiveItemDTO) -> ItemActivityResult:
@@ -1194,6 +1285,22 @@ class ItemService:
         if not item_sheet:
             raise BadRequestException(f"Item sheet with ID '{item_sheet_id}' does not exist")
         return item_sheet
+
+    @staticmethod
+    def _resolve_storage_conditions(value: str | None, item_sheet: ItemSheet) -> str | None:
+        """Resolve an item's storage condition.
+
+        Uses the explicit per-item value when given, otherwise inherits the
+        item sheet's default.
+
+        :param value: The per-item storage condition override (may be None/empty)
+        :type value: str | None
+        :param item_sheet: The item sheet to inherit the default from
+        :type item_sheet: ItemSheet
+        :return: The resolved storage condition
+        :rtype: str | None
+        """
+        return value.strip() if value else item_sheet.storage_conditions
 
     def _validate_serial_number_unique(self, serial_number: str | None) -> None:
         """Validate that a serial number is not already used by another item.
