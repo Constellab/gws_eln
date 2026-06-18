@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 import reflex as rx
 from gws_eln.items.item_dto import ItemDTO
+from gws_eln.items.item_status import ItemStatus
 
 EventHandlerOrCallable = rx.EventHandler | Callable
 
@@ -85,7 +86,7 @@ def item_actions_menu(
         if handler is not None
     ]
 
-    return rx.menu.root(
+    menu = rx.menu.root(
         rx.menu.trigger(
             rx.button(
                 rx.icon("ellipsis-vertical", size=18),
@@ -125,4 +126,11 @@ def item_actions_menu(
                 on_click=_wrap_click(on_delete),
             ),
         ),
+    )
+
+    # no activity can be recorded on a discarded item - hide the menu entirely.
+    return rx.cond(
+        item.status == ItemStatus.DISCARDED.value,
+        rx.fragment(),
+        menu,
     )
