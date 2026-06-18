@@ -268,11 +268,7 @@ class ItemService:
         item = self.get_item(item_id)
 
         # Validate item is consumable
-        if not item.is_consumable():
-            raise BadRequestException(
-                f"Cannot decrement non-consumable item sheet '{item.item_sheet.name}'. "
-                "Non-consumable items cannot have their quantity reduced."
-            )
+        item.assert_can_consume()
 
         # Validate quantity is positive
         validated_quantity = QuantityValidator.validate_quantity(dto.quantity)
@@ -404,8 +400,7 @@ class ItemService:
         """
         Record a USE activity on an item (reference only, no state change).
 
-        USE is for non-consumable item sheets or when you just want to log
-        that an item was used without changing its quantity.
+        USE references a non-consumable instrument without changing its quantity.
 
         :param item_id: The ID of the item
         :type item_id: str
@@ -413,9 +408,11 @@ class ItemService:
         :type dto: UseItemDTO
         :return: The item and the created activity
         :rtype: ItemActivityResult
+        :raises BadRequestException: If the item is consumable or discarded
         """
-        # Validate item exists
+        # Validate item exists and is usable (non-consumable)
         item = self.get_item(item_id)
+        item.assert_can_use()
 
         activity = self._activity_service.log_activity(
             CreateActivityDTO(
@@ -563,11 +560,7 @@ class ItemService:
         if source.is_discarded():
             raise BadRequestException(f"Cannot split discarded item '{source.code}'")
 
-        if not source.is_consumable():
-            raise BadRequestException(
-                f"Cannot split non-consumable item sheet '{source.item_sheet.name}'. "
-                "Splitting reduces quantity, which only applies to consumable items."
-            )
+        source.assert_can_consume()
 
         if not dto.outputs:
             raise BadRequestException("Split requires at least one output item")
@@ -713,12 +706,7 @@ class ItemService:
             if item.is_discarded():
                 raise BadRequestException(f"Cannot combine discarded item '{item.code}'")
 
-            if not item.is_consumable():
-                raise BadRequestException(
-                    f"Cannot draw from non-consumable item sheet '{item.item_sheet.name}'. "
-                    "Combine ingredients must be consumable. Record an instrument via "
-                    "instrument_item_ids instead."
-                )
+            item.assert_can_consume()
 
             validated_quantity = QuantityValidator.validate_quantity(input_dto.quantity)
             base_quantity = self._validate_and_convert_quantity(
@@ -862,10 +850,7 @@ class ItemService:
         if source.is_discarded():
             raise BadRequestException(f"Cannot concentrate discarded item '{source.code}'")
 
-        if not source.is_consumable():
-            raise BadRequestException(
-                f"Cannot concentrate non-consumable item sheet '{source.item_sheet.name}'."
-            )
+        source.assert_can_consume()
 
         # Reduce the source by the drawn amount
         validated_quantity = QuantityValidator.validate_quantity(dto.quantity_contributed)
@@ -948,20 +933,14 @@ class ItemService:
         target = self.get_item(item_id)
         if target.is_discarded():
             raise BadRequestException(f"Cannot dilute discarded item '{target.code}'")
-        if not target.is_consumable():
-            raise BadRequestException(
-                f"Cannot dilute non-consumable item sheet '{target.item_sheet.name}'."
-            )
+        target.assert_can_consume()
 
         diluent = self.get_item(dto.diluent_item_id)
         if diluent.is_discarded():
             raise BadRequestException(
                 f"Cannot use discarded item '{diluent.code}' as a diluent"
             )
-        if not diluent.is_consumable():
-            raise BadRequestException(
-                f"Cannot use non-consumable item sheet '{diluent.item_sheet.name}' as a diluent."
-            )
+        diluent.assert_can_consume()
 
         # Concentration of the target before the operation
         initial_concentration = target.concentration

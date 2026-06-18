@@ -99,6 +99,35 @@ class Item(ModelWithUser):
         """Check if the item sheet of this item is consumable."""
         return self.item_sheet.is_consumable
 
+    def assert_can_consume(self) -> None:
+        """Ensure this item supports quantity-reducing operations.
+
+        Consume, split, combine-from, dilute and concentrate all draw a quantity,
+        which only applies to consumable items.
+
+        :raises BadRequestException: If the item is non-consumable.
+        """
+        if not self.is_consumable():
+            raise BadRequestException(
+                f"Cannot draw a quantity from non-consumable item '{self.code}' "
+                f"(item sheet '{self.item_sheet.name}'). Quantity-reducing operations "
+                "(consume, split, combine, dilute, concentrate) only apply to consumable items."
+            )
+
+    def assert_can_use(self) -> None:
+        """Ensure this item can be recorded as 'used' (instrument reference).
+
+        USE references a non-consumable instrument without changing quantity.
+        Consumables must be consumed (quantity drawn) instead.
+
+        :raises BadRequestException: If the item is consumable.
+        """
+        if self.is_consumable():
+            raise BadRequestException(
+                f"Cannot 'use' consumable item '{self.code}' "
+                f"(item sheet '{self.item_sheet.name}'). Use 'consume' to draw a quantity instead."
+            )
+
     def is_active(self) -> bool:
         """Check if this item is active (not discarded)."""
         return bool(self.status == ItemStatus.ACTIVE)
