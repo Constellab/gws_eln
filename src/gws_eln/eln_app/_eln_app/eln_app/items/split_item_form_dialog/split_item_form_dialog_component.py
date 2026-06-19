@@ -126,6 +126,7 @@ def _dialog() -> rx.Component:
         ),
         form_content=_form_content(),
         max_width="520px",
+        dismissable=False,
     )
 
 

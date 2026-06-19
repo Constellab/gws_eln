@@ -222,6 +222,7 @@ def _dialog() -> rx.Component:
         description="Fill in the details below to create a new item_sheet item.",
         form_content=_form_content(),
         max_width="550px",
+        dismissable=False,
     )
 
 
