@@ -19,39 +19,51 @@ def item_sheet_form_content() -> rx.Component:
 def _form_content() -> rx.Component:
     """Form content for entering item_sheet details."""
     return rx.vstack(
-        # ItemSheet Name field
-        rx.vstack(
-            rx.text("ItemSheet Name*", size="2", weight="bold"),
-            rx.input(
-                placeholder="Enter item_sheet name",
-                name="name",
-                required=True,
-                width="100%",
-                value=ItemSheetFormDialogState.form_name,
-                on_change=ItemSheetFormDialogState.set_form_name,
-                on_blur=ItemSheetFormDialogState.suggest_code_from_name,
-            ),
-            width="100%",
-            spacing="1",
-        ),
-        # Code field (create only - the code is immutable once the sheet exists)
-        rx.cond(
-            ItemSheetFormDialogState.is_update_mode,
-            rx.fragment(),
+        # ItemSheet Name (70%) + Code (30%, create only) on one line.
+        # In update mode the code is hidden, so the name fills the row.
+        rx.hstack(
             rx.vstack(
-                rx.text("Code* (4 characters, A-Z / 0-9)", size="2", weight="bold"),
-                rx.input(
-                    placeholder="e.g. ETHA",
-                    name="code",
-                    required=True,
-                    max_length=4,
-                    width="100%",
-                    value=ItemSheetFormDialogState.form_code,
-                    on_change=ItemSheetFormDialogState.set_form_code,
+                rx.text("ItemSheet Name*", size="2", weight="bold"),
+                rx.debounce_input(
+                    rx.input(
+                        placeholder="Enter item_sheet name",
+                        name="name",
+                        required=True,
+                        width="100%",
+                        value=ItemSheetFormDialogState.form_name,
+                        on_change=[
+                            ItemSheetFormDialogState.set_form_name,
+                            ItemSheetFormDialogState.suggest_code_from_name,
+                        ],
+                    ),
+                    debounce_timeout=500,
                 ),
-                width="100%",
+                flex="7",
+                min_width="0",
                 spacing="1",
             ),
+            rx.cond(
+                ItemSheetFormDialogState.is_update_mode,
+                rx.fragment(),
+                rx.vstack(
+                    rx.text("Code*", size="2", weight="bold"),
+                    rx.input(
+                        placeholder="e.g. ETHA",
+                        name="code",
+                        required=True,
+                        max_length=4,
+                        width="100%",
+                        value=ItemSheetFormDialogState.form_code,
+                        on_change=ItemSheetFormDialogState.set_form_code,
+                    ),
+                    flex="3",
+                    min_width="0",
+                    spacing="1",
+                ),
+            ),
+            width="100%",
+            spacing="3",
+            align="end",
         ),
         # Description field
         rx.vstack(
@@ -66,48 +78,57 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Default Supplier field
-        rx.vstack(
-            rx.text("Default Supplier", size="2", weight="bold"),
-            rx.select.root(
-                rx.select.trigger(placeholder="Select a supplier (optional)", width="100%"),
-                rx.select.content(
-                    rx.select.item("No supplier", value="__none__"),
-                    rx.foreach(ItemSheetFormDialogState.available_suppliers, _supplier_option),
+        # Default Supplier (50%) + Unit type (50%) on one line.
+        rx.hstack(
+            rx.vstack(
+                rx.text("Default Supplier", size="2", weight="bold"),
+                rx.select.root(
+                    rx.select.trigger(placeholder="Select a supplier (optional)", width="100%"),
+                    rx.select.content(
+                        rx.select.item("No supplier", value="__none__"),
+                        rx.foreach(
+                            ItemSheetFormDialogState.available_suppliers, _supplier_option
+                        ),
+                    ),
+                    value=ItemSheetFormDialogState.form_supplier_id,
+                    on_change=ItemSheetFormDialogState.set_supplier_id,
+                    width="100%",
                 ),
-                value=ItemSheetFormDialogState.form_supplier_id,
-                on_change=ItemSheetFormDialogState.set_supplier_id,
-                width="100%",
+                flex="1",
+                min_width="0",
+                spacing="1",
             ),
-            width="100%",
-            spacing="1",
-        ),
-        # Unit Type field (immutable once the sheet has at least an item)
-        rx.vstack(
-            rx.text("Unit type to use for quantity", size="2", weight="bold"),
-            rx.select.root(
-                rx.select.trigger(placeholder="Select unit type", width="100%"),
-                rx.select.content(
-                    rx.foreach(
-                        ItemSheetFormDialogState.unit_type_options,
-                        lambda opt: rx.select.item(opt["label"], value=opt["value"]),
+            # Unit Type (immutable once the sheet has at least an item)
+            rx.vstack(
+                rx.text("Unit type to use for quantity", size="2", weight="bold"),
+                rx.select.root(
+                    rx.select.trigger(placeholder="Select unit type", width="100%"),
+                    rx.select.content(
+                        rx.foreach(
+                            ItemSheetFormDialogState.unit_type_options,
+                            lambda opt: rx.select.item(opt["label"], value=opt["value"]),
+                        ),
+                    ),
+                    value=ItemSheetFormDialogState.form_unit_type,
+                    on_change=ItemSheetFormDialogState.set_unit_type,
+                    disabled=ItemSheetFormDialogState.unit_type_locked,
+                    width="100%",
+                ),
+                rx.cond(
+                    ItemSheetFormDialogState.unit_type_locked,
+                    rx.text(
+                        "Can't change the unit type because this item sheet already has items.",
+                        size="1",
+                        color="gray",
                     ),
                 ),
-                value=ItemSheetFormDialogState.form_unit_type,
-                on_change=ItemSheetFormDialogState.set_unit_type,
-                disabled=ItemSheetFormDialogState.unit_type_locked,
-                width="100%",
-            ),
-            rx.cond(
-                ItemSheetFormDialogState.unit_type_locked,
-                rx.text(
-                    "Can't change the unit type because this item sheet already has items.",
-                    size="1",
-                    color="gray",
-                ),
+                flex="1",
+                min_width="0",
+                spacing="1",
             ),
             width="100%",
-            spacing="1",
+            spacing="3",
+            align="start",
         ),
         # Storage conditions field (default for items of this sheet)
         rx.vstack(

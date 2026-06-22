@@ -31,6 +31,10 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
     form_unit_type: str = UnitType.COUNT.value
     form_storage_conditions: str = ""
 
+    # True once the user types in the code field: stops the live name->code
+    # suggestion from overwriting a manually entered code.
+    code_manually_edited: bool = False
+
     # In update mode, the unit_type is locked once the sheet already has items
     # (it is immutable then). Drives the disabled state of the selector.
     unit_type_locked: bool = False
@@ -80,6 +84,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         self.form_unit_type = UnitType.COUNT.value
         self.form_storage_conditions = ""
         self.unit_type_locked = False
+        self.code_manually_edited = False
 
         # Reset to create mode
         self.is_update_mode = False
@@ -139,18 +144,21 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
     def set_form_code(self, value: str):
         """Handle code change (kept uppercase to match the stored format)."""
         self.form_code = value.upper()
+        # A manual edit disables the live name->code suggestion.
+        self.code_manually_edited = True
 
     @rx.event
     async def suggest_code_from_name(self, name_value: str = ""):
-        """Auto-suggest a code from the name when leaving the name field.
+        """Live-suggest a code from the name as the user types it.
 
-        Only fills in create mode and when the user hasn't already entered a
-        code, so a manual entry is never overwritten.
+        Regenerates the code on every name change in create mode, unless the
+        user has manually edited the code (then it is never overwritten).
         """
-        if self.is_update_mode or self.form_code.strip():
+        if self.is_update_mode or self.code_manually_edited:
             return
-        name = (name_value or self.form_name).strip()
+        name = name_value.strip()
         if not name:
+            self.form_code = ""
             return
         main_state: ReflexMainState
         async with self:
