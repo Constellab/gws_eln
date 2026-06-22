@@ -8,6 +8,7 @@ persisting) so the Transform itself creates the output items on save.
 
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from enum import IntEnum
 from typing import Any
@@ -383,7 +384,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
                 location_id=dto.location_id or "",
                 conc=str(dto.concentration) if dto.concentration is not None else "",
                 conc_unit=dto.concentration_unit or "",
-                code_preview=f"{self.out_sheet_code}-XXXX",
+                code_preview=f"{self.out_sheet_code}-{date.today().year}-XXXX",
                 produced=f"{dto.quantity} {dto.unit}",
             )
         ]
