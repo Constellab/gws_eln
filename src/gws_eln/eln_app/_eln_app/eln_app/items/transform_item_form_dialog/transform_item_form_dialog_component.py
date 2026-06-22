@@ -127,18 +127,18 @@ def _create_button(label: str, handler) -> rx.Component:
 
 def _input_draft() -> rx.Component:
     return _draft_card(
-        rx.text("Ajouter un input", size="2", weight="bold"),
+        rx.text("Add an input", size="2", weight="bold"),
         rx.vstack(
-            rx.text("Item / instrument", size="2", weight="medium", color="gray"),
             item_select_component(
-                placeholder="Rechercher un item ou instrument…",
+                placeholder="Search for an item or instrument…",
                 item_selected=_S.select_input_item,
             ),
             rx.cond(
                 _S.input_has_sel,
                 rx.text(
                     rx.cond(
-                        _S.input_is_instrument, "Instrument — pas de quantité", _S.in_item_label
+                        _S.input_is_consumable,
+                        f"Available quantity : {_S.in_item_available}"
                     ),
                     size="1",
                     color="gray",
@@ -149,26 +149,26 @@ def _input_draft() -> rx.Component:
             align="start",
         ),
         rx.cond(
-            ~_S.input_is_instrument,
+            _S.input_is_consumable,
             quantity_unit_input(
                 unit_type=_S.in_unit_type,
                 quantity_value=_S.in_qty,
                 unit_value=_S.in_unit,
                 on_quantity_change=_S.set_input_qty,
                 on_unit_change=_S.set_input_unit,
-                quantity_label="Quantité consommée",
+                quantity_label="Consumed quantity",
                 quantity_required=False,
             ),
         ),
         rx.hstack(
             rx.button(
-                "Annuler",
+                "Cancel",
                 type="button",
                 variant="soft",
                 color_scheme="gray",
                 on_click=_S.cancel_input,
             ),
-            rx.button("Ajouter l'input", type="button", on_click=_S.commit_input),
+            rx.button("Add input", type="button", on_click=_S.commit_input),
             justify="end",
             spacing="3",
             width="100%",
@@ -180,11 +180,11 @@ def _output_draft() -> rx.Component:
     """Output draft: choose a destination ItemSheet (or create one), then open
     the item dialog (collect mode) to define the produced item."""
     return _draft_card(
-        rx.text("Nouvel output", size="2", weight="bold"),
+        rx.text("New output", size="2", weight="bold"),
         rx.vstack(
-            rx.text("ItemSheet de destination", size="2", weight="medium", color="gray"),
+            rx.text("Destination ItemSheet", size="2", weight="medium", color="gray"),
             item_sheet_select_component(
-                placeholder="Rechercher un ItemSheet…",
+                placeholder="Search for an ItemSheet…",
                 item_selected=_S.select_output_sheet,
             ),
             rx.cond(
@@ -202,7 +202,7 @@ def _output_draft() -> rx.Component:
         ),
         rx.button(
             rx.icon("plus", size=16),
-            "Créer un nouvel ItemSheet",
+            "Create a new ItemSheet",
             type="button",
             variant="outline",
             width="100%",
@@ -211,7 +211,7 @@ def _output_draft() -> rx.Component:
         rx.divider(),
         rx.hstack(
             rx.button(
-                "Annuler",
+                "Cancel",
                 type="button",
                 variant="soft",
                 color_scheme="gray",
@@ -219,7 +219,7 @@ def _output_draft() -> rx.Component:
             ),
             rx.button(
                 rx.icon("arrow-right", size=15),
-                "Définir l'item produit",
+                "Define the produced item",
                 type="button",
                 disabled=~_S.has_output_sheet,
                 on_click=_S.open_output_item_dialog,
@@ -238,7 +238,7 @@ def _inputs_section() -> rx.Component:
         rx.cond(
             _S.inputs_empty_hint,
             rx.text(
-                "Aucun input. Ajoutez les items ou instruments consommés.",
+                "No input yet. Add the consumed items or instruments.",
                 size="2",
                 color="gray",
                 text_align="center",
@@ -265,7 +265,7 @@ def _outputs_section() -> rx.Component:
         rx.cond(
             _S.outputs_empty_hint,
             rx.text(
-                "Aucun output. Créez les items produits par la transformation.",
+                "No output yet. Create the items produced by the transform.",
                 size="2",
                 color="gray",
                 text_align="center",
@@ -329,7 +329,7 @@ def _form_content() -> rx.Component:
             rx.hstack(
                 rx.text(_S.summary_str, size="2", color="gray"),
                 rx.button(
-                    "Tout effacer",
+                    "Clear all",
                     type="button",
                     variant="ghost",
                     color_scheme="gray",
@@ -350,8 +350,7 @@ def _dialog() -> rx.Component:
         state=_S,
         title="Transform",
         description=(
-            "Consommez des items ou instruments en entrée pour produire de "
-            "nouveaux items en sortie."
+            "Consume input items or instruments to produce new output items."
         ),
         form_content=_form_content(),
         max_width="980px",

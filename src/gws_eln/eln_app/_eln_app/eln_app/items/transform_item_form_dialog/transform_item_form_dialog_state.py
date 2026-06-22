@@ -82,6 +82,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     in_item_id: str = ""
     in_item_code: str = ""
     in_item_label: str = ""
+    in_item_available: str = ""  # available quantity of the selected item (display)
+    in_item_qty_base: str = ""  # available quantity in base unit (raw, for validation)
     in_item_consumable: bool = True
     in_unit_type: str = UnitType.COUNT.value
     in_qty: str = ""
@@ -133,6 +135,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         return bool(self.in_item_id) and not self.in_item_consumable
 
     @rx.var
+    def input_is_consumable(self) -> bool:
+        return bool(self.in_item_id) and self.in_item_consumable
+
+    @rx.var
     def has_output_sheet(self) -> bool:
         return bool(self.out_sheet_id)
 
@@ -173,6 +179,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_item_id = ""
         self.in_item_code = ""
         self.in_item_label = ""
+        self.in_item_available = ""
+        self.in_item_qty_base = ""
         self.in_item_consumable = True
         self.in_unit_type = UnitType.COUNT.value
         self.in_qty = ""
@@ -185,7 +193,9 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         item = result.object
         self.in_item_id = item.id
         self.in_item_code = item.code
-        self.in_item_label = item.label or "(sans label)"
+        self.in_item_label = item.label
+        self.in_item_available = item.pretty_quantity
+        self.in_item_qty_base = str(item.quantity)
         self.in_item_consumable = item.item_sheet.is_consumable
         self.in_unit_type = item.unit_type.value
         self.in_unit = UnitConverter.get_default_unit(item.unit_type)
@@ -202,6 +212,25 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     def cancel_input(self):
         self.show_input_draft = False
 
+    def _validate_input_quantity(self):
+        """Validate the draft consumed quantity against the item's availability.
+
+        :raises Exception: if the quantity is invalid, non-positive, or exceeds
+            the available quantity of the selected item.
+        """
+        try:
+            qty = Decimal(self.in_qty.strip())
+        except (ArithmeticError, ValueError):
+            raise Exception("Invalid quantity") from None
+        if qty <= 0:
+            raise Exception("Quantity must be positive")
+        base_qty = UnitConverter.to_base_unit(qty, self.in_unit, UnitType(self.in_unit_type))
+        if base_qty > Decimal(self.in_item_qty_base):
+            raise Exception(
+                f"Consumed quantity ({self.in_qty.strip()} {self.in_unit}) "
+                f"exceeds the available quantity ({self.in_item_available})"
+            )
+
     @rx.event
     def commit_input(self):
         """Validate the draft and append it to the inputs list."""
@@ -209,6 +238,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             return
         if self.in_item_consumable and not self.in_qty.strip():
             return
+        if self.in_item_consumable and self.in_qty.strip():
+            self._validate_input_quantity()
         consumed = (
             "instrument"
             if not self.in_item_consumable
@@ -288,7 +319,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
                 sheet_id=dto.item_sheet_id,
                 sheet_code=self.out_sheet_code,
                 sheet_name=self.out_sheet_name,
-                label=dto.label or "(sans label)",
+                label=dto.label,
                 loc=loc_name,
                 qty=str(dto.quantity),
                 unit=dto.unit,
@@ -334,7 +365,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
                 quantity=Decimal(row.qty),
                 unit=row.unit,
                 location_id=row.location_id or None,
-                label=row.label if row.label != "(sans label)" else None,
+                label=row.label,
                 concentration=Decimal(row.conc) if row.conc else None,
                 concentration_unit=row.conc_unit or None,
             )
@@ -354,7 +385,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             linked_note = self._link_note_activity(result.activity.id)
 
         yield rx.toast.success(
-            f"Transform enregistré — {len(input_dtos)} input(s) → {len(output_dtos)} output(s)"
+            f"Transform saved — {len(input_dtos)} input(s) → {len(output_dtos)} output(s)"
         )
         await self._after_note_link(linked_note)
 
