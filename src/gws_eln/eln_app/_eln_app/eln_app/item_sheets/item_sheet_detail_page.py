@@ -3,13 +3,13 @@
 import reflex as rx
 from gws_reflex_main import main_component, right_sidebar_close_button, user_inline_component
 
-from ..items.items_list_component import items_list_component
-from ..items.items_list_state import ItemsListState
-from ..items.core.item_components import consumable_badge
 from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
 from ..common.detail_page_layout import detail_content_layout
 from ..common.page_layout import page_layout
+from ..items.core.item_components import consumable_badge
+from ..items.items_list_component import items_list_component
+from ..items.items_list_state import ItemsListState
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from .core.item_sheet_actions_menu import item_sheet_actions_menu
 from .item_sheet_detail_state import ItemSheetDetailState

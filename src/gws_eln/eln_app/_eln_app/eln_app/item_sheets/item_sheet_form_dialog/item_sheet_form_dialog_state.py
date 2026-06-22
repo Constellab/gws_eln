@@ -61,9 +61,13 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
             suppliers = search_builder.search_all()
             self.available_suppliers = [supplier.to_dto() for supplier in suppliers]
 
-    @rx.event
-    async def open_create_dialog(self):
-        """Open the dialog in create mode."""
+    async def prepare_create_form(self):
+        """Load data and reset the form for create mode, WITHOUT opening the dialog.
+
+        Split out from :meth:`open_create_dialog` so the form can be reused inside
+        another container (e.g. the Transform output wizard) without popping this
+        dialog's own modal.
+        """
         # Load suppliers for dropdown
         await self._load_suppliers()
 
@@ -79,6 +83,11 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
 
         # Reset to create mode
         self.is_update_mode = False
+
+    @rx.event
+    async def open_create_dialog(self):
+        """Open the dialog in create mode."""
+        await self.prepare_create_form()
 
         # Open the dialog
         self.dialog_opened = True

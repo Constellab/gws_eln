@@ -10,6 +10,12 @@ def _supplier_option(supplier: SupplierDTO) -> rx.Component:
     return rx.select.item(supplier.name, value=supplier.id)
 
 
+def item_sheet_form_content() -> rx.Component:
+    """Public alias of :func:`_form_content`, for reuse outside this module
+    (e.g. the Transform output wizard)."""
+    return _form_content()
+
+
 def _form_content() -> rx.Component:
     """Form content for entering item_sheet details."""
     return rx.vstack(

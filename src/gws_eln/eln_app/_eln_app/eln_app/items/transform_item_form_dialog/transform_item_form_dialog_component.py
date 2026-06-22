@@ -10,13 +10,13 @@ import reflex as rx
 from gws_reflex_main import form_dialog_component
 
 from ...common.unit.unit_components import quantity_unit_input
-from ...item_sheets.core.item_sheet_select_component import item_sheet_select_component
 from ..core.item_select_component import item_select_component
 from .transform_item_form_dialog_state import (
     TransformInputRow,
     TransformItemFormDialogState,
     TransformOutputRow,
 )
+from .transform_output_wizard_component import transform_output_wizard
 
 _S = TransformItemFormDialogState
 
@@ -134,12 +134,9 @@ def _input_draft() -> rx.Component:
                 item_selected=_S.select_input_item,
             ),
             rx.cond(
-                _S.input_has_sel,
+                _S.input_is_consumable,
                 rx.text(
-                    rx.cond(
-                        _S.input_is_consumable,
-                        f"Available quantity : {_S.in_item_available}"
-                    ),
+                    f"Available quantity : {_S.in_item_available}",
                     size="1",
                     color="gray",
                 ),
@@ -169,61 +166,6 @@ def _input_draft() -> rx.Component:
                 on_click=_S.cancel_input,
             ),
             rx.button("Add input", type="button", on_click=_S.commit_input),
-            justify="end",
-            spacing="3",
-            width="100%",
-        ),
-    )
-
-
-def _output_draft() -> rx.Component:
-    """Output draft: choose a destination ItemSheet (or create one), then open
-    the item dialog (collect mode) to define the produced item."""
-    return _draft_card(
-        rx.text("New output", size="2", weight="bold"),
-        rx.vstack(
-            rx.text("Destination ItemSheet", size="2", weight="medium", color="gray"),
-            item_sheet_select_component(
-                placeholder="Search for an ItemSheet…",
-                item_selected=_S.select_output_sheet,
-            ),
-            rx.cond(
-                _S.has_output_sheet,
-                rx.hstack(
-                    rx.box(rx.text(_S.out_sheet_code, style=_CODE_BADGE)),
-                    rx.text(_S.out_sheet_name, size="2"),
-                    align="center",
-                    spacing="2",
-                ),
-            ),
-            spacing="1",
-            width="100%",
-            align="start",
-        ),
-        rx.button(
-            rx.icon("plus", size=16),
-            "Create a new ItemSheet",
-            type="button",
-            variant="outline",
-            width="100%",
-            on_click=_S.open_create_sheet_dialog,
-        ),
-        rx.divider(),
-        rx.hstack(
-            rx.button(
-                "Cancel",
-                type="button",
-                variant="soft",
-                color_scheme="gray",
-                on_click=_S.cancel_output,
-            ),
-            rx.button(
-                rx.icon("arrow-right", size=15),
-                "Define the produced item",
-                type="button",
-                disabled=~_S.has_output_sheet,
-                on_click=_S.open_output_item_dialog,
-            ),
             justify="end",
             spacing="3",
             width="100%",
@@ -272,8 +214,7 @@ def _outputs_section() -> rx.Component:
                 padding="3",
             ),
         ),
-        rx.cond(_S.show_output_draft, _output_draft()),
-        rx.cond(_S.create_output_visible, _create_button("Create output", _S.start_output)),
+        _create_button("Create output", _S.open_output_wizard),
         spacing="3",
         flex="1",
         min_width="0",
@@ -362,6 +303,7 @@ def transform_item_dialog() -> rx.Component:
     """Dialog for the generic Transform activity (N inputs -> M outputs).
 
     Controlled by TransformItemFormDialogState.dialog_opened. Open it via
-    TransformItemFormDialogState.open_transform_dialog(item).
+    TransformItemFormDialogState.open_transform_dialog(item). Bundles the output
+    wizard (stacked on top) so every mount site gets it automatically.
     """
-    return _dialog()
+    return rx.fragment(_dialog(), transform_output_wizard())

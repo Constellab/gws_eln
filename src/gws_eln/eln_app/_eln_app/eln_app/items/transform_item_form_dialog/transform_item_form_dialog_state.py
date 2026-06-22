@@ -9,6 +9,7 @@ persisting) so the Transform itself creates the output items on save.
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from decimal import Decimal
+from enum import IntEnum
 from typing import Any
 
 import reflex as rx
@@ -34,6 +35,13 @@ from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
 from ..item_form_dialog.item_form_dialog_state import ItemFormDialogState
 
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
+
+
+class OutputStep(IntEnum):
+    """Steps of the output wizard (serializes as int for the frontend)."""
+
+    SHEET = 1  # choose or create the destination ItemSheet
+    ITEM = 2  # create the produced item
 
 
 @dataclass
@@ -89,11 +97,14 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     in_qty: str = ""
     in_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
 
-    # ---- output draft (sheet selection only; item fields live in the item dialog) ----
-    show_output_draft: bool = False
+    # ---- output wizard (2-step dialog: select/create sheet -> create item) ----
+    # The selected (or freshly created) destination sheet for the current output.
     out_sheet_id: str = ""
     out_sheet_code: str = ""
     out_sheet_name: str = ""
+    output_dialog_opened: bool = False
+    output_step: OutputStep = OutputStep.SHEET
+    output_create_sheet_mode: bool = False  # step 1 morphed into the sheet creation form
 
     # id (str) -> name, to display the location on committed output rows
     _loc_names: dict[str, str] = {}
@@ -116,15 +127,19 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
     @rx.var
     def outputs_empty_hint(self) -> bool:
-        return len(self.outputs) == 0 and not self.show_output_draft
+        return len(self.outputs) == 0
 
     @rx.var
     def create_input_visible(self) -> bool:
         return not self.show_input_draft
 
     @rx.var
-    def create_output_visible(self) -> bool:
-        return not self.show_output_draft
+    def output_step1_active(self) -> bool:
+        return self.output_step == OutputStep.SHEET
+
+    @rx.var
+    def output_step2_active(self) -> bool:
+        return self.output_step == OutputStep.ITEM
 
     @rx.var
     def input_has_sel(self) -> bool:
@@ -268,20 +283,25 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     # ------------------------------------------------------------------ outputs
 
     @rx.event
-    def start_output(self):
-        """Open the output draft (sheet selection)."""
-        self.show_output_draft = True
+    def open_output_wizard(self):
+        """Open the output wizard fresh at step 1 (sheet selection)."""
         self.out_sheet_id = ""
         self.out_sheet_code = ""
         self.out_sheet_name = ""
+        self.output_step = OutputStep.SHEET
+        self.output_create_sheet_mode = False
+        self.output_dialog_opened = True
 
     @rx.event
-    def cancel_output(self):
-        self.show_output_draft = False
+    def close_output_wizard(self):
+        """Close the output wizard and reset its step/mode."""
+        self.output_dialog_opened = False
+        self.output_step = OutputStep.SHEET
+        self.output_create_sheet_mode = False
 
     @rx.event
     def select_output_sheet(self, event_data: dict):
-        """Set the output sheet from the item-sheet search component."""
+        """Set the output sheet from the item-sheet search component (step 1)."""
         result = InputSearchResultDTO.from_json_object(event_data, ItemSheetDTO)
         sheet = result.object
         self.out_sheet_id = sheet.id
@@ -289,29 +309,76 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.out_sheet_name = sheet.name
 
     @rx.event
-    async def open_create_sheet_dialog(self):
-        """Open the existing ItemSheet creation dialog; its result is selected."""
-        dialog_state = await self.get_state(ItemSheetFormDialogState)
-        dialog_state.set_callback_after_close(self._on_sheet_created)
-        await dialog_state.open_create_dialog()
+    async def output_enter_create_sheet(self):
+        """Step 1 morphs into the ItemSheet creation form (still step 1).
+
+        Prepares the ItemSheet form (load + reset) WITHOUT opening its own modal.
+        """
+        self.output_create_sheet_mode = True
+        sheet_state = await self.get_state(ItemSheetFormDialogState)
+        await sheet_state.prepare_create_form()
+        sheet_state.set_callback_after_close(self._on_sheet_created)
+
+    @rx.event
+    def output_back_to_select_sheet(self):
+        """Back from the create-sheet form to plain sheet selection (still step 1)."""
+        self.output_create_sheet_mode = False
+
+    @rx.event
+    async def output_next_from_existing(self):
+        """Advance to step 2 with the already-selected sheet."""
+        if not self.out_sheet_id:
+            return
+        await self._advance_to_item_step()
+
+    @rx.event
+    def output_back_to_sheet_step(self):
+        """Back from step 2 to step 1 (sheet selection)."""
+        self.output_step = OutputStep.SHEET
+
+    async def _advance_to_item_step(self):
+        """Prepare the item form (collect mode) for the chosen sheet and go to step 2.
+
+        Calls ItemFormDialogState.prepare_create_form (load + reset, no modal) THEN
+        arms collect mode (order matters: prepare clears the collect callback).
+        """
+        item_state = await self.get_state(ItemFormDialogState)
+        await item_state.prepare_create_form(self.out_sheet_id)
+        item_state.set_collect_callback(self._on_output_item_collected)
+        self.output_create_sheet_mode = False
+        self.output_step = OutputStep.ITEM
+
+    @rx.event
+    async def submit_create_sheet(self, form_data: dict):
+        """Step 1 (create mode): create the sheet via the reused ItemSheet form.
+
+        On success ItemSheetFormDialogState._create fires `_on_sheet_created`, which
+        selects the new sheet and auto-advances to step 2.
+        """
+        sheet_state = await self.get_state(ItemSheetFormDialogState)
+        async for event in sheet_state._create(form_data):
+            yield event
+
+    @rx.event
+    async def submit_collect_item(self, form_data: dict):
+        """Step 2: build the output item via the reused item form (collect mode).
+
+        ItemFormDialogState._create routes to `_collect_single` (collect mode), which
+        fires `_on_output_item_collected` to append the output row and close the wizard.
+        """
+        item_state = await self.get_state(ItemFormDialogState)
+        async for event in item_state._create(form_data):
+            yield event
 
     async def _on_sheet_created(self, sheet: ItemSheetDTO):
-        """Callback after a new ItemSheet is created: select it for the output."""
+        """Callback after a new ItemSheet is created: select it and advance to step 2."""
         self.out_sheet_id = sheet.id
         self.out_sheet_code = sheet.code
         self.out_sheet_name = sheet.name
-
-    @rx.event
-    async def open_output_item_dialog(self):
-        """Open the item creation dialog in collect mode for the chosen sheet."""
-        if not self.out_sheet_id:
-            return
-        dialog_state = await self.get_state(ItemFormDialogState)
-        await dialog_state.open_create_dialog(self.out_sheet_id)
-        dialog_state.set_collect_callback(self._on_output_item_collected)
+        await self._advance_to_item_step()
 
     async def _on_output_item_collected(self, dto: CreateItemDTO):
-        """Callback from the item dialog (collect mode): add the output row."""
+        """Callback from the item form (collect mode): add the output row, close wizard."""
         loc_name = self._loc_names.get(dto.location_id, "—") if dto.location_id else "—"
         self.outputs = self.outputs + [
             TransformOutputRow(
@@ -330,7 +397,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
                 produced=f"{dto.quantity} {dto.unit}",
             )
         ]
-        self.show_output_draft = False
+        self.output_dialog_opened = False
+        self.output_step = OutputStep.SHEET
 
     @rx.event
     def remove_output(self, index: int):
@@ -344,7 +412,6 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.inputs = []
         self.outputs = []
         self.show_input_draft = False
-        self.show_output_draft = False
 
     async def _create(self, form_data: dict):
         """Build the TransformItemsDTO and call the service."""
@@ -400,10 +467,12 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.inputs = []
         self.outputs = []
         self.show_input_draft = False
-        self.show_output_draft = False
         self.out_sheet_id = ""
         self.out_sheet_code = ""
         self.out_sheet_name = ""
+        self.output_dialog_opened = False
+        self.output_step = OutputStep.SHEET
+        self.output_create_sheet_mode = False
 
     async def _clear_form_state(self):
         self._reset_state()

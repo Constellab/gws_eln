@@ -89,9 +89,12 @@ class ItemFormDialogState(FormDialogState, rx.State):
             return f"{self._item_sheet.code}-{date.today().year}-XXXX"
         return ""
 
-    @rx.event
-    async def open_create_dialog(self, item_sheet_id: str):
-        """Open the dialog to create a item for the specified item_sheet.
+    async def prepare_create_form(self, item_sheet_id: str):
+        """Load the sheet and reset the form for create mode, WITHOUT opening the dialog.
+
+        Split out from :meth:`open_create_dialog` so the form can be reused inside
+        another container (e.g. the Transform output wizard) without popping this
+        dialog's own modal.
 
         Args:
             item_sheet_id: The ID of the item_sheet for which to create a item (required)
@@ -132,6 +135,15 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
         # Set to create mode
         self.is_update_mode = False
+
+    @rx.event
+    async def open_create_dialog(self, item_sheet_id: str):
+        """Open the dialog to create a item for the specified item_sheet.
+
+        Args:
+            item_sheet_id: The ID of the item_sheet for which to create a item (required)
+        """
+        await self.prepare_create_form(item_sheet_id)
 
         # Open the dialog
         self.dialog_opened = True
