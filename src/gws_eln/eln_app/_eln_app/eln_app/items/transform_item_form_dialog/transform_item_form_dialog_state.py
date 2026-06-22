@@ -154,10 +154,6 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         return bool(self.in_item_id) and self.in_item_consumable
 
     @rx.var
-    def has_output_sheet(self) -> bool:
-        return bool(self.out_sheet_id)
-
-    @rx.var
     def has_any(self) -> bool:
         return len(self.inputs) > 0 or len(self.outputs) > 0
 
@@ -300,13 +296,14 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.output_create_sheet_mode = False
 
     @rx.event
-    def select_output_sheet(self, event_data: dict):
-        """Set the output sheet from the item-sheet search component (step 1)."""
+    async def select_output_sheet(self, event_data: dict):
+        """Select an existing sheet (step 1) and jump straight to item creation."""
         result = InputSearchResultDTO.from_json_object(event_data, ItemSheetDTO)
         sheet = result.object
         self.out_sheet_id = sheet.id
         self.out_sheet_code = sheet.code
         self.out_sheet_name = sheet.name
+        await self._advance_to_item_step()
 
     @rx.event
     async def output_enter_create_sheet(self):
@@ -323,13 +320,6 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     def output_back_to_select_sheet(self):
         """Back from the create-sheet form to plain sheet selection (still step 1)."""
         self.output_create_sheet_mode = False
-
-    @rx.event
-    async def output_next_from_existing(self):
-        """Advance to step 2 with the already-selected sheet."""
-        if not self.out_sheet_id:
-            return
-        await self._advance_to_item_step()
 
     @rx.event
     def output_back_to_sheet_step(self):

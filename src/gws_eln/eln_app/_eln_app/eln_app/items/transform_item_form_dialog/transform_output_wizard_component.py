@@ -20,17 +20,6 @@ from .transform_item_form_dialog_state import TransformItemFormDialogState
 
 _S = TransformItemFormDialogState
 
-_CODE_BADGE = {
-    "font_family": "monospace",
-    "font_size": "11px",
-    "font_weight": "500",
-    "color": "var(--accent-11)",
-    "background": "var(--accent-3)",
-    "padding": "3px 7px",
-    "border_radius": "5px",
-    "white_space": "nowrap",
-}
-
 
 def _or_divider() -> rx.Component:
     """A horizontal divider with a centered "or" label."""
@@ -74,13 +63,13 @@ def _step_indicator() -> rx.Component:
         spacing="3",
         justify="center",
         width="100%",
-        margin_bottom="2",
+        margin_bottom="0.5rem",
     )
 
 
 def _scroll_box(*children) -> rx.Component:
     return rx.box(
-        rx.vstack(*children, width="100%", spacing="3", align="stretch"),
+        rx.vstack(*children, width="100%", spacing="3", align="stretch", margin_top="0.5rem"),
         overflow_y="auto",
         flex="1",
         min_height="0",
@@ -108,15 +97,6 @@ def _step1_select() -> rx.Component:
                 placeholder="Search for an existing ItemSheet…",
                 item_selected=_S.select_output_sheet,
             ),
-            rx.cond(
-                _S.has_output_sheet,
-                rx.hstack(
-                    rx.box(rx.text(_S.out_sheet_code, style=_CODE_BADGE)),
-                    rx.text(_S.out_sheet_name, size="2"),
-                    align="center",
-                    spacing="2",
-                ),
-            ),
             _or_divider(),
             rx.button(
                 rx.icon("plus", size=16),
@@ -134,13 +114,6 @@ def _step1_select() -> rx.Component:
                 variant="soft",
                 color_scheme="gray",
                 on_click=_S.close_output_wizard,
-            ),
-            rx.button(
-                "Next",
-                rx.icon("arrow-right", size=15),
-                type="button",
-                disabled=~_S.has_output_sheet,
-                on_click=_S.output_next_from_existing,
             ),
         ),
         width="100%",
