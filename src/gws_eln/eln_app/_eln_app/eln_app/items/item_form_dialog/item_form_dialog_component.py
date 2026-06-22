@@ -122,8 +122,9 @@ def _form_content() -> rx.Component:
             spacing="1",
         ),
         # Consumable: quantity + concentration. Non-consumable: N units + serials.
+        # In collect mode (Transform output) always use the single-item form.
         rx.cond(
-            ItemFormDialogState.is_consumable,
+            ItemFormDialogState.is_consumable | ItemFormDialogState.collect_mode,
             _consumable_quantity_section(),
             _bulk_units_section(),
         ),

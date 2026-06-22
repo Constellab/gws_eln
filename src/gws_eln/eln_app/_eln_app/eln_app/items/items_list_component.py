@@ -4,6 +4,9 @@ import reflex as rx
 from gws_eln.items.item_dto import ItemDTO
 
 from ..common.eln_app_router import ElnAppRouter
+from ..item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_component import (
+    item_sheet_update_dialog,
+)
 from ..locations.core.inline_location_component import inline_location_component
 from ..locations.core.location_select_component import location_select_component
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
@@ -36,6 +39,9 @@ from .relabel_item_form_dialog.relabel_item_form_dialog_component import (
 )
 from .split_item_form_dialog.split_item_form_dialog_component import (
     split_item_dialog,
+)
+from .transform_item_form_dialog.transform_item_form_dialog_component import (
+    transform_item_dialog,
 )
 from .update_item_form_dialog.update_item_form_dialog_component import (
     update_item_dialog,
@@ -149,6 +155,7 @@ def _row(item: ItemDTO) -> rx.Component:
                 on_update=lambda: ItemsListState.open_update_dialog(item),
                 on_relabel=lambda: ItemsListState.open_relabel_dialog(item),
                 on_delete=lambda: ItemsListState.open_delete_dialog(item),
+                on_transform=lambda: ItemsListState.open_transform_dialog(item),
                 transforms=ItemTransformActions(
                     on_split=lambda: ItemsListState.open_split_dialog(item),
                     on_combine=lambda: ItemsListState.open_combine_dialog(item),
@@ -269,6 +276,8 @@ def items_list_component(item_sheet_id: rx.Var[str]) -> rx.Component:
             update_item_dialog(),
             relabel_item_dialog(),
             use_item_dialog(),
+            transform_item_dialog(),
+            item_sheet_update_dialog(),
             split_item_dialog(),
             combine_item_dialog(),
             concentrate_item_dialog(),

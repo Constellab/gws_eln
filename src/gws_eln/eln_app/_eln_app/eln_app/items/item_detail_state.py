@@ -33,6 +33,9 @@ from .relabel_item_form_dialog.relabel_item_form_dialog_state import (
 from .split_item_form_dialog.split_item_form_dialog_state import (
     SplitItemFormDialogState,
 )
+from .transform_item_form_dialog.transform_item_form_dialog_state import (
+    TransformItemFormDialogState,
+)
 from .update_item_form_dialog.update_item_form_dialog_state import (
     UpdateItemFormDialogState,
 )
@@ -207,6 +210,15 @@ class ItemDetailState(rx.State):
         dialog_state = await self.get_state(UseItemFormDialogState)
         dialog_state.set_callback_after_close(self._on_item_event_success)
         await dialog_state.open_use_dialog(self.item)
+
+    @rx.event
+    async def open_transform_dialog(self):
+        """Open the transform dialog seeded with the current item as first input."""
+        if not self.item:
+            return
+        dialog_state = await self.get_state(TransformItemFormDialogState)
+        dialog_state.set_callback_after_close(self._on_item_event_success)
+        await dialog_state.open_transform_dialog(self.item)
 
     async def _on_item_delete_success(self, result: DeleteItemResultDTO):
         """Callback invoked when delete_item completes successfully.

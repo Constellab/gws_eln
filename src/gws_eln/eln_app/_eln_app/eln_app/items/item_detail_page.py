@@ -11,6 +11,9 @@ from ..common.page_layout import page_layout
 from ..item_sheets.core.item_sheet_components import (
     inline_item_sheet_link,
 )
+from ..item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_component import (
+    item_sheet_update_dialog,
+)
 from ..locations.core.inline_location_component import inline_location_component
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from .combine_item_form_dialog.combine_item_form_dialog_component import (
@@ -31,6 +34,9 @@ from .item_detail_state import ItemDetailState
 from .item_event_form_dialog.item_event_form_dialog_component import (
     item_event_form_dialog,
 )
+from .item_form_dialog.item_form_dialog_component import (
+    create_item_dialog,
+)
 from .move_item_form_dialog.move_item_form_dialog_component import (
     move_item_dialog,
 )
@@ -39,6 +45,9 @@ from .relabel_item_form_dialog.relabel_item_form_dialog_component import (
 )
 from .split_item_form_dialog.split_item_form_dialog_component import (
     split_item_dialog,
+)
+from .transform_item_form_dialog.transform_item_form_dialog_component import (
+    transform_item_dialog,
 )
 from .update_item_form_dialog.update_item_form_dialog_component import (
     update_item_dialog,
@@ -247,6 +256,7 @@ def _actions_menu() -> rx.Component:
         on_update=ItemDetailState.open_update_dialog,
         on_relabel=ItemDetailState.open_relabel_dialog,
         on_delete=ItemDetailState.open_delete_dialog,
+        on_transform=ItemDetailState.open_transform_dialog,
         transforms=ItemTransformActions(
             on_split=ItemDetailState.open_split_dialog,
             on_combine=ItemDetailState.open_combine_dialog,
@@ -343,6 +353,9 @@ def item_detail_page() -> rx.Component:
         update_item_dialog(),
         relabel_item_dialog(),
         use_item_dialog(),
+        transform_item_dialog(),
+        create_item_dialog(),
+        item_sheet_update_dialog(),
         split_item_dialog(),
         combine_item_dialog(),
         concentrate_item_dialog(),

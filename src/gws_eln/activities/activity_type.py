@@ -15,6 +15,7 @@ class ActivityType(Enum):
     - COMBINE: Combine multiple items into one
     - DILUTE: Dilute an item (change quantity and concentration)
     - CONCENTRATE: Concentrate an item (change quantity and concentration)
+    - TRANSFORM: Generic transformation consuming N inputs into M new outputs
     """
 
     RECEIVE = "receive"
@@ -27,3 +28,4 @@ class ActivityType(Enum):
     COMBINE = "combine"
     DILUTE = "dilute"
     CONCENTRATE = "concentrate"
+    TRANSFORM = "transform"

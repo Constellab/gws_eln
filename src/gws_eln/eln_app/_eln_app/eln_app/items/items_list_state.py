@@ -38,6 +38,9 @@ from .relabel_item_form_dialog.relabel_item_form_dialog_state import (
 from .split_item_form_dialog.split_item_form_dialog_state import (
     SplitItemFormDialogState,
 )
+from .transform_item_form_dialog.transform_item_form_dialog_state import (
+    TransformItemFormDialogState,
+)
 from .update_item_form_dialog.update_item_form_dialog_state import (
     UpdateItemFormDialogState,
 )
@@ -306,6 +309,17 @@ class ItemsListState(rx.State):
         dialog_state = await self.get_state(UseItemFormDialogState)
         dialog_state.set_callback_after_close(self._reload_items)
         await dialog_state.open_use_dialog(item)
+
+    @rx.event
+    async def open_transform_dialog(self, item: ItemDTO):
+        """Open the transform dialog seeded with the item as first input.
+
+        :param item: The item to seed as the first input
+        :type item: ItemDTO
+        """
+        dialog_state = await self.get_state(TransformItemFormDialogState)
+        dialog_state.set_callback_after_close(self._reload_items)
+        await dialog_state.open_transform_dialog(item)
 
     @rx.event
     async def open_split_dialog(self, item: ItemDTO):

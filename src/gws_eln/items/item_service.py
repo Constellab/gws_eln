@@ -34,6 +34,7 @@ from gws_eln.items.item_dto import (
     ReceiveItemDTO,
     RelabelItemDTO,
     SplitItemDTO,
+    TransformItemsDTO,
     UpdateItemDTO,
     UseItemDTO,
 )
@@ -1106,6 +1107,138 @@ class ItemService:
         )
 
         return TransformResult(activity=activity, inputs=[target, diluent], outputs=[output])
+
+    @ElnDbManager.transaction()
+    def transform_items(self, dto: TransformItemsDTO) -> TransformResult:
+        """
+        Generic transform: consume N inputs into M new output items.
+
+        Each consumable input is reduced in place by its contribution (bounded by
+        the non-negative stock check) and recorded as an INGREDIENT; each
+        non-consumable input is recorded as an INSTRUMENT (no quantity effect).
+        Each output is a brand new item created on its chosen item sheet - its
+        quantity/unit come from the sheet + user input, never from the inputs, and
+        its concentration is user-entered or null. A single TRANSFORM activity
+        records every input and every created output; lineage lives entirely in
+        the activity inputs/outputs.
+
+        :param dto: DTO describing the inputs consumed and the outputs created
+        :type dto: TransformItemsDTO
+        :return: The mutated input items and the created outputs + activity
+        :rtype: TransformResult
+        :raises NotFoundException: If an input item or an output sheet not found
+        :raises BadRequestException: If validation fails (no input, no output, a
+                                     discarded input, bad unit, or insufficient
+                                     quantity)
+        """
+        if not dto.inputs:
+            raise BadRequestException("A transform requires at least one input")
+        if not dto.outputs:
+            raise BadRequestException("A transform requires at least one output")
+
+        # Resolve every input: reduce consumables in place, record instruments.
+        mutated_inputs: list[Item] = []
+        activity_inputs: list[CreateActivityInputDTO] = []
+        for input_dto in dto.inputs:
+            item = self.get_item(input_dto.item_id)
+
+            if item.is_discarded():
+                raise BadRequestException(f"Cannot transform discarded item '{item.code}'")
+
+            if item.is_consumable():
+                if input_dto.quantity is None or not input_dto.unit:
+                    raise BadRequestException(
+                        f"Input '{item.code}' is consumable and requires a quantity and unit"
+                    )
+                validated_quantity = QuantityValidator.validate_quantity(input_dto.quantity)
+                base_quantity = self._validate_and_convert_quantity(
+                    item, validated_quantity, input_dto.unit
+                )
+                item.validate_sufficient_quantity(base_quantity)
+                item.quantity = item.quantity - base_quantity
+                item.save()
+
+                mutated_inputs.append(item)
+                activity_inputs.append(
+                    CreateActivityInputDTO(
+                        item_id=item.id,
+                        role=ActivityInputRole.INGREDIENT,
+                        quantity_contributed=base_quantity,
+                        unit_type=item.unit_type,
+                    )
+                )
+            else:
+                # Non-consumable -> INSTRUMENT input (no quantity, not decremented)
+                mutated_inputs.append(item)
+                activity_inputs.append(
+                    CreateActivityInputDTO(
+                        item_id=item.id,
+                        role=ActivityInputRole.INSTRUMENT,
+                    )
+                )
+
+        # Create every output item on its chosen sheet.
+        output_items: list[Item] = []
+        activity_outputs: list[CreateActivityOutputDTO] = []
+        for output_dto in dto.outputs:
+            output_sheet = self._validate_item_sheet_exists(output_dto.output_item_sheet_id)
+            output_unit_type = output_sheet.unit_type
+
+            if not UnitConverter.is_valid_unit(output_dto.unit, output_unit_type):
+                valid_units = ", ".join(UnitConverter.get_valid_units(output_unit_type))
+                raise BadRequestException(
+                    f"Invalid unit '{output_dto.unit}' for output item sheet "
+                    f"'{output_sheet.name}' (unit type: {output_unit_type.value}). "
+                    f"Valid units: {valid_units}"
+                )
+
+            validated_quantity = QuantityValidator.validate_quantity(output_dto.quantity)
+            output_base_quantity = UnitConverter.to_base_unit(
+                validated_quantity, output_dto.unit, output_unit_type
+            )
+
+            self._validate_concentration(output_dto.concentration, output_dto.concentration_unit)
+
+            location = LocationService().get_or_default_location(output_dto.location_id)
+
+            output = Item()
+            output.item_sheet = output_sheet
+            output.quantity = output_base_quantity
+            output.unit_type = output_unit_type
+            output.concentration = output_dto.concentration
+            output.concentration_unit = output_dto.concentration_unit or None
+            output.location = location
+            output.expiry_date = output_dto.expiry_date
+            output.label = output_dto.label.strip() if output_dto.label else None
+            # Storage condition inherits the output's own sheet default
+            output.storage_conditions = output_sheet.storage_conditions
+            output.notes = None
+            output.supplier = None
+            self._save_with_unique_code(output, output_sheet)
+
+            output_items.append(output)
+            activity_outputs.append(
+                CreateActivityOutputDTO(
+                    item_id=output.id,
+                    quantity=output_base_quantity,
+                    unit_type=output_unit_type,
+                )
+            )
+
+        # One TRANSFORM activity: N inputs -> M outputs. The activity's own
+        # item_id points at the first created output for the chronological log.
+        activity = self._activity_service.log_activity(
+            CreateActivityDTO(
+                activity_type=ActivityType.TRANSFORM,
+                item_id=output_items[0].id,
+                notes=dto.notes,
+                note_id=dto.note_id,
+                inputs=activity_inputs,
+                outputs=activity_outputs,
+            )
+        )
+
+        return TransformResult(activity=activity, inputs=mutated_inputs, outputs=output_items)
 
     def cancel_creation(self, item_id: str) -> None:
         """

@@ -34,6 +34,7 @@ def item_actions_menu(
     on_update: EventHandlerOrCallable,
     on_relabel: EventHandlerOrCallable,
     on_delete: EventHandlerOrCallable,
+    on_transform: EventHandlerOrCallable | None = None,
     transforms: ItemTransformActions | None = None,
     stop_propagation: bool = False,
 ) -> rx.Component:
@@ -127,6 +128,18 @@ def item_actions_menu(
                 on_click=_wrap_click(on_relabel),
             ),
             *transform_items,
+            *(
+                [
+                    rx.menu.separator(),
+                    rx.menu.item(
+                        rx.icon("flask-conical", size=16),
+                        "Transform",
+                        on_click=_wrap_click(on_transform),
+                    ),
+                ]
+                if on_transform is not None
+                else []
+            ),
             rx.menu.separator(),
             rx.menu.item(
                 rx.icon("trash-2", size=16),

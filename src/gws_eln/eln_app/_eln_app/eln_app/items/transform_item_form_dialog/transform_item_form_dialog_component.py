@@ -1,0 +1,368 @@
+"""Transform item form dialog component (classic variant).
+
+Generic N inputs -> M outputs transform. Inputs (left) are built in place
+(existing item/instrument + quantity). Outputs (right) delegate creation to the
+existing dialogs: a new ItemSheet via the ItemSheet dialog, and each output
+item via the item dialog in collect mode.
+"""
+
+import reflex as rx
+from gws_reflex_main import form_dialog_component
+
+from ...common.unit.unit_components import quantity_unit_input
+from ...item_sheets.core.item_sheet_select_component import item_sheet_select_component
+from ..core.item_select_component import item_select_component
+from .transform_item_form_dialog_state import (
+    TransformInputRow,
+    TransformItemFormDialogState,
+    TransformOutputRow,
+)
+
+_S = TransformItemFormDialogState
+
+_CODE_BADGE = {
+    "font_family": "monospace",
+    "font_size": "11px",
+    "font_weight": "500",
+    "color": "var(--accent-11)",
+    "background": "var(--accent-3)",
+    "padding": "3px 7px",
+    "border_radius": "5px",
+    "white_space": "nowrap",
+}
+
+
+def _section_label(text: str, count: rx.Var) -> rx.Component:
+    return rx.hstack(
+        rx.text(text, size="1", weight="bold", letter_spacing="1.4px", color="gray"),
+        rx.badge(count, variant="surface", radius="full"),
+        align="center",
+        spacing="2",
+        margin_bottom="2",
+    )
+
+
+def _input_row(row: TransformInputRow, index: int) -> rx.Component:
+    return rx.hstack(
+        rx.box(rx.text(row.code, style=_CODE_BADGE)),
+        rx.vstack(
+            rx.text(row.label, size="2", weight="medium", no_of_lines=1),
+            spacing="0",
+            align="start",
+            flex="1",
+            min_width="0",
+        ),
+        rx.badge(row.consumed, color_scheme="ruby", variant="soft"),
+        rx.icon_button(
+            rx.icon("x", size=14),
+            type="button",
+            variant="ghost",
+            color_scheme="gray",
+            size="1",
+            on_click=lambda: _S.remove_input(index),
+        ),
+        align="center",
+        spacing="3",
+        width="100%",
+        padding="11px 12px",
+        background="var(--gray-1)",
+        border="1px solid var(--gray-5)",
+        border_radius="10px",
+    )
+
+
+def _output_row(row: TransformOutputRow, index: int) -> rx.Component:
+    return rx.hstack(
+        rx.box(rx.text(row.code_preview, style=_CODE_BADGE)),
+        rx.vstack(
+            rx.text(row.label, size="2", weight="medium", no_of_lines=1),
+            rx.text(f"{row.sheet_name} · {row.loc}", size="1", color="gray"),
+            spacing="0",
+            align="start",
+            flex="1",
+            min_width="0",
+        ),
+        rx.badge(f"+ {row.produced}", color_scheme="grass", variant="soft"),
+        rx.icon_button(
+            rx.icon("x", size=14),
+            type="button",
+            variant="ghost",
+            color_scheme="gray",
+            size="1",
+            on_click=lambda: _S.remove_output(index),
+        ),
+        align="center",
+        spacing="3",
+        width="100%",
+        padding="11px 12px",
+        background="var(--gray-1)",
+        border="1px solid var(--gray-5)",
+        border_radius="10px",
+    )
+
+
+def _draft_card(*children) -> rx.Component:
+    return rx.vstack(
+        *children,
+        width="100%",
+        spacing="3",
+        padding="16px",
+        background="var(--gray-1)",
+        border="1px solid var(--accent-6)",
+        border_radius="12px",
+        align="start",
+    )
+
+
+def _create_button(label: str, handler) -> rx.Component:
+    return rx.button(
+        rx.icon("plus", size=16),
+        label,
+        type="button",
+        variant="outline",
+        width="100%",
+        on_click=handler,
+    )
+
+
+def _input_draft() -> rx.Component:
+    return _draft_card(
+        rx.text("Ajouter un input", size="2", weight="bold"),
+        rx.vstack(
+            rx.text("Item / instrument", size="2", weight="medium", color="gray"),
+            item_select_component(
+                placeholder="Rechercher un item ou instrument…",
+                item_selected=_S.select_input_item,
+            ),
+            rx.cond(
+                _S.input_has_sel,
+                rx.text(
+                    rx.cond(
+                        _S.input_is_instrument, "Instrument — pas de quantité", _S.in_item_label
+                    ),
+                    size="1",
+                    color="gray",
+                ),
+            ),
+            spacing="1",
+            width="100%",
+            align="start",
+        ),
+        rx.cond(
+            ~_S.input_is_instrument,
+            quantity_unit_input(
+                unit_type=_S.in_unit_type,
+                quantity_value=_S.in_qty,
+                unit_value=_S.in_unit,
+                on_quantity_change=_S.set_input_qty,
+                on_unit_change=_S.set_input_unit,
+                quantity_label="Quantité consommée",
+                quantity_required=False,
+            ),
+        ),
+        rx.hstack(
+            rx.button(
+                "Annuler",
+                type="button",
+                variant="soft",
+                color_scheme="gray",
+                on_click=_S.cancel_input,
+            ),
+            rx.button("Ajouter l'input", type="button", on_click=_S.commit_input),
+            justify="end",
+            spacing="3",
+            width="100%",
+        ),
+    )
+
+
+def _output_draft() -> rx.Component:
+    """Output draft: choose a destination ItemSheet (or create one), then open
+    the item dialog (collect mode) to define the produced item."""
+    return _draft_card(
+        rx.text("Nouvel output", size="2", weight="bold"),
+        rx.vstack(
+            rx.text("ItemSheet de destination", size="2", weight="medium", color="gray"),
+            item_sheet_select_component(
+                placeholder="Rechercher un ItemSheet…",
+                item_selected=_S.select_output_sheet,
+            ),
+            rx.cond(
+                _S.has_output_sheet,
+                rx.hstack(
+                    rx.box(rx.text(_S.out_sheet_code, style=_CODE_BADGE)),
+                    rx.text(_S.out_sheet_name, size="2"),
+                    align="center",
+                    spacing="2",
+                ),
+            ),
+            spacing="1",
+            width="100%",
+            align="start",
+        ),
+        rx.button(
+            rx.icon("plus", size=16),
+            "Créer un nouvel ItemSheet",
+            type="button",
+            variant="outline",
+            width="100%",
+            on_click=_S.open_create_sheet_dialog,
+        ),
+        rx.divider(),
+        rx.hstack(
+            rx.button(
+                "Annuler",
+                type="button",
+                variant="soft",
+                color_scheme="gray",
+                on_click=_S.cancel_output,
+            ),
+            rx.button(
+                rx.icon("arrow-right", size=15),
+                "Définir l'item produit",
+                type="button",
+                disabled=~_S.has_output_sheet,
+                on_click=_S.open_output_item_dialog,
+            ),
+            justify="end",
+            spacing="3",
+            width="100%",
+        ),
+    )
+
+
+def _inputs_section() -> rx.Component:
+    return rx.vstack(
+        _section_label("INPUTS", _S.input_count),
+        rx.foreach(_S.inputs, lambda row, i: _input_row(row, i)),
+        rx.cond(
+            _S.inputs_empty_hint,
+            rx.text(
+                "Aucun input. Ajoutez les items ou instruments consommés.",
+                size="2",
+                color="gray",
+                text_align="center",
+                padding="3",
+            ),
+        ),
+        rx.cond(_S.show_input_draft, _input_draft()),
+        rx.cond(_S.create_input_visible, _create_button("Create input", _S.start_input)),
+        spacing="3",
+        flex="1",
+        min_width="0",
+        align="stretch",
+        padding="16px",
+        background="var(--gray-2)",
+        border="1px solid var(--gray-4)",
+        border_radius="14px",
+    )
+
+
+def _outputs_section() -> rx.Component:
+    return rx.vstack(
+        _section_label("OUTPUTS", _S.output_count),
+        rx.foreach(_S.outputs, lambda row, i: _output_row(row, i)),
+        rx.cond(
+            _S.outputs_empty_hint,
+            rx.text(
+                "Aucun output. Créez les items produits par la transformation.",
+                size="2",
+                color="gray",
+                text_align="center",
+                padding="3",
+            ),
+        ),
+        rx.cond(_S.show_output_draft, _output_draft()),
+        rx.cond(_S.create_output_visible, _create_button("Create output", _S.start_output)),
+        spacing="3",
+        flex="1",
+        min_width="0",
+        align="stretch",
+        padding="16px",
+        background="var(--gray-2)",
+        border="1px solid var(--gray-4)",
+        border_radius="14px",
+    )
+
+
+def _center_arrow() -> rx.Component:
+    return rx.center(
+        rx.box(
+            rx.icon("arrow-right", size=22, color="var(--accent-11)"),
+            width="46px",
+            height="46px",
+            border_radius="50%",
+            background="var(--accent-3)",
+            border="1px solid var(--accent-6)",
+            display="flex",
+            align_items="center",
+            justify_content="center",
+        ),
+        flex="0 0 58px",
+    )
+
+
+def _form_content() -> rx.Component:
+    return rx.vstack(
+        rx.hstack(
+            _inputs_section(),
+            _center_arrow(),
+            _outputs_section(),
+            align="stretch",
+            spacing="1",
+            width="100%",
+        ),
+        rx.vstack(
+            rx.text("Notes", size="2", weight="bold"),
+            rx.text_area(
+                placeholder="Enter notes (optional)",
+                name="notes",
+                width="100%",
+                rows="2",
+            ),
+            spacing="1",
+            width="100%",
+            align="start",
+        ),
+        rx.cond(
+            _S.has_any,
+            rx.hstack(
+                rx.text(_S.summary_str, size="2", color="gray"),
+                rx.button(
+                    "Tout effacer",
+                    type="button",
+                    variant="ghost",
+                    color_scheme="gray",
+                    size="1",
+                    on_click=_S.clear_all,
+                ),
+                align="center",
+                spacing="3",
+            ),
+        ),
+        spacing="4",
+        width="100%",
+    )
+
+
+def _dialog() -> rx.Component:
+    return form_dialog_component(
+        state=_S,
+        title="Transform",
+        description=(
+            "Consommez des items ou instruments en entrée pour produire de "
+            "nouveaux items en sortie."
+        ),
+        form_content=_form_content(),
+        max_width="980px",
+        dismissable=False,
+    )
+
+
+def transform_item_dialog() -> rx.Component:
+    """Dialog for the generic Transform activity (N inputs -> M outputs).
+
+    Controlled by TransformItemFormDialogState.dialog_opened. Open it via
+    TransformItemFormDialogState.open_transform_dialog(item).
+    """
+    return _dialog()

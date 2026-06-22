@@ -49,6 +49,17 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
     _callback_after_close: FormDialogCloseCallback | None = None
 
+    # Collect mode: when set, the dialog does NOT persist on save. Instead it
+    # builds a single CreateItemDTO and hands it to this callback (used by the
+    # Transform dialog, which creates the output item itself). Always uses the
+    # single-item form, even for non-consumable sheets.
+    _collect_callback: Callable[[CreateItemDTO], Coroutine[Any, Any, None]] | None = None
+
+    @rx.var
+    def collect_mode(self) -> bool:
+        """Whether the dialog is collecting an item spec instead of persisting."""
+        return self._collect_callback is not None
+
     @rx.var
     def item_sheet_name(self) -> str:
         """Get the name of the item_sheet for display."""
@@ -94,6 +105,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
             item_sheet_service = ItemSheetService()
             item_sheet = item_sheet_service.get_item_sheet(item_sheet_id)
             self._item_sheet = item_sheet.to_dto()
+
+        # Normal (persisting) open: clear any leftover collect callback.
+        self._collect_callback = None
 
         # Reset form fields to defaults
         self.form_label = ""
@@ -275,12 +289,62 @@ class ItemFormDialogState(FormDialogState, rx.State):
         if not self._item_sheet:
             raise Exception("ItemSheet is required")
 
+        # Collect mode: hand the spec to the caller, do not persist.
+        if self._collect_callback is not None:
+            async for event in self._collect_single(form_data):
+                yield event
+            return
+
         if self._item_sheet.is_consumable:
             async for event in self._create_single(form_data):
                 yield event
         else:
             async for event in self._create_bulk(form_data):
                 yield event
+
+    async def _collect_single(self, form_data: dict):
+        """Build a single CreateItemDTO and hand it to the collect callback.
+
+        Used by the Transform dialog: the output item is created by the transform
+        itself, so here we only validate + assemble the spec, never persist.
+        """
+        (
+            quantity,
+            unit,
+            concentration,
+            location_id,
+            supplier_id,
+            expiry_date,
+            label,
+            storage_conditions,
+            notes,
+        ) = self._validate_form_data(form_data)
+
+        concentration_unit = (
+            self.form_concentration_unit
+            if self.form_concentration_unit
+            and self.form_concentration_unit != self.NO_CONCENTRATION_VALUE
+            else None
+        )
+
+        dto = CreateItemDTO(
+            item_sheet_id=self._item_sheet.id,
+            quantity=quantity,
+            unit=unit,
+            concentration=concentration,
+            concentration_unit=concentration_unit,
+            location_id=location_id,
+            supplier_id=supplier_id,
+            expiry_date=expiry_date,
+            label=label,
+            storage_conditions=storage_conditions,
+            notes=notes,
+        )
+
+        yield rx.toast.success("Output item defined")
+
+        if self._collect_callback:
+            await self._collect_callback(dto)
 
     async def _create_single(self, form_data: dict):
         """Create one consumable item using the form data.
@@ -392,8 +456,15 @@ class ItemFormDialogState(FormDialogState, rx.State):
         """Not implemented - update is handled by a separate dialog."""
         raise NotImplementedError("Update is not supported by this dialog")
 
+    def set_collect_callback(self, callback):
+        """Arm collect mode: on save, hand the CreateItemDTO to ``callback``
+        instead of persisting. Call right after ``open_create_dialog``.
+        """
+        self._collect_callback = callback
+
     async def _clear_form_state(self):
         """Clear all form state after successful operation."""
+        self._collect_callback = None
         self._item_sheet = None
         self.form_unit_type = UnitType.COUNT.value
         self.form_unit = UnitConverter.get_default_unit(UnitType.COUNT)

@@ -261,6 +261,53 @@ class DiluteItemDTO(BaseModelDTO):
     note_id: str | None = None  # Link to Constellab Note
 
 
+class TransformInputDTO(BaseModelDTO):
+    """DTO for one input consumed by a generic transform.
+
+    The input references an existing item. If the item is consumable it is
+    reduced in place by ``quantity`` (INGREDIENT role); if it is non-consumable
+    it is recorded as an INSTRUMENT (no quantity effect) and ``quantity``/``unit``
+    are ignored.
+    """
+
+    item_id: str
+    quantity: Decimal | None = None
+    unit: str | None = None  # Validated against this input item's own unit type
+
+
+class TransformOutputDTO(BaseModelDTO):
+    """DTO for one new item produced by a generic transform.
+
+    A brand new item is created on ``output_item_sheet_id`` (an existing sheet -
+    inline sheet creation is done before calling the service). The output
+    concentration is user-entered or null, never computed.
+    """
+
+    output_item_sheet_id: str
+    quantity: Decimal
+    unit: str  # Validated against the output item sheet's default unit type
+    location_id: str | None = None  # Default to "labo" if None
+    label: str | None = None
+    concentration: Decimal | None = None
+    concentration_unit: str | None = None
+    expiry_date: date | None = None
+
+
+class TransformItemsDTO(BaseModelDTO):
+    """DTO for a generic transform: N inputs consumed into M new outputs.
+
+    Each consumable input is reduced in place by its contribution; non-consumable
+    inputs are recorded as INSTRUMENTs. Each output is a brand new item created on
+    its chosen item sheet. A single TRANSFORM activity records every input
+    (INGREDIENT/INSTRUMENT) and every created output.
+    """
+
+    inputs: list[TransformInputDTO]
+    outputs: list[TransformOutputDTO]
+    notes: str | None = None
+    note_id: str | None = None  # Link to Constellab Note
+
+
 class DeleteItemResultDTO(Enum):
     """Enum for delete item operation results."""
 
