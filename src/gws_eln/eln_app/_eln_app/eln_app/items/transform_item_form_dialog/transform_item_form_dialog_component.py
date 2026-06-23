@@ -46,12 +46,13 @@ def _input_row(row: TransformInputRow, index: int) -> rx.Component:
         rx.box(rx.text(row.code, style=_CODE_BADGE)),
         rx.vstack(
             rx.text(row.label, size="2", weight="medium", no_of_lines=1),
+            rx.text(f"{row.sheet_name} · {row.loc}", size="1", color="gray"),
             spacing="0",
             align="start",
             flex="1",
             min_width="0",
         ),
-        rx.badge(row.consumed, color_scheme="ruby", variant="soft"),
+        rx.badge(f"- {row.consumed}", color_scheme="ruby", variant="soft"),
         rx.icon_button(
             rx.icon("x", size=14),
             type="button",

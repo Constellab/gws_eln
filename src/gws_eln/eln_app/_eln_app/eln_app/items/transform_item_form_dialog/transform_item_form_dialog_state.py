@@ -51,6 +51,7 @@ class TransformInputRow:
 
     id: str
     item_id: str
+    sheet_name: str
     code: str
     label: str
     loc: str
@@ -91,6 +92,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     in_item_id: str = ""
     in_item_code: str = ""
     in_item_label: str = ""
+    in_item_sheet_name: str = ""  # sheet name of the selected item (display)
+    in_item_loc: str = ""  # location name of the selected item (display)
     in_item_available: str = ""  # available quantity of the selected item (display)
     in_item_qty_base: str = ""  # available quantity in base unit (raw, for validation)
     in_item_consumable: bool = True
@@ -187,6 +190,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_item_id = ""
         self.in_item_code = ""
         self.in_item_label = ""
+        self.in_item_sheet_name = ""
+        self.in_item_loc = ""
         self.in_item_available = ""
         self.in_item_qty_base = ""
         self.in_item_consumable = True
@@ -202,6 +207,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_item_id = item.id
         self.in_item_code = item.code
         self.in_item_label = item.label
+        self.in_item_sheet_name = item.item_sheet.name
+        self.in_item_loc = item.location.name
         self.in_item_available = item.pretty_quantity
         self.in_item_qty_base = str(item.quantity)
         self.in_item_consumable = item.item_sheet.is_consumable
@@ -257,9 +264,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             TransformInputRow(
                 id=f"in{len(self.inputs)}_{self.in_item_id}",
                 item_id=self.in_item_id,
+                sheet_name=self.in_item_sheet_name,
                 code=self.in_item_code,
                 label=self.in_item_label,
-                loc="",
+                loc=self.in_item_loc,
                 is_consumable=self.in_item_consumable,
                 qty=self.in_qty.strip(),
                 unit=self.in_unit,
