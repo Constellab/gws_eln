@@ -10,7 +10,7 @@ from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from enum import IntEnum
+from enum import Enum, IntEnum
 from typing import Any
 
 import reflex as rx
@@ -43,6 +43,27 @@ class OutputStep(IntEnum):
 
     SHEET = 1  # choose or create the destination ItemSheet
     ITEM = 2  # create the produced item
+
+
+class TransformKind(Enum):
+    """The transformation chosen in the wizard's first step.
+
+    Values match ``ActivityType`` for the specialised kinds; ``CUSTOM`` is the
+    generic N->M transform (``ActivityType.TRANSFORM``).
+    """
+
+    SPLIT = "split"
+    COMBINE = "combine"
+    DILUTE = "dilute"
+    CONCENTRATE = "concentrate"
+    CUSTOM = "transform"
+
+
+class TransformStep(IntEnum):
+    """Steps of the transform wizard (serializes as int for the frontend)."""
+
+    CHOOSE = 1  # pick the transformation kind
+    BUILD = 2  # build the inputs/outputs
 
 
 @dataclass
@@ -90,6 +111,12 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     inputs: list[TransformInputRow] = []
     outputs: list[TransformOutputRow] = []
 
+    # ---- wizard: choose a transformation kind, then build it ----
+    transform_kind: str = ""  # TransformKind value once picked
+    transform_step: TransformStep = TransformStep.CHOOSE
+    # Launching item, seeded as the first input only after the kind is picked.
+    _seed_item: ItemDTO | None = None
+
     # ---- input dialog (search for an existing item/instrument + quantity) ----
     input_dialog_opened: bool = False
     input_dialog_is_consumable: bool = True
@@ -121,6 +148,28 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     _callback_after_close: FormDialogCloseCallback | None = None
 
     # ------------------------------------------------------------------ vars
+
+    @rx.var
+    def step_is_choose(self) -> bool:
+        return self.transform_step == TransformStep.CHOOSE
+
+    @rx.var
+    def step_is_build(self) -> bool:
+        return self.transform_step == TransformStep.BUILD
+
+    @rx.var
+    def kind_is_custom(self) -> bool:
+        return self.transform_kind == TransformKind.CUSTOM.value
+
+    @rx.var
+    def kind_title(self) -> str:
+        return {
+            TransformKind.SPLIT.value: "Split",
+            TransformKind.COMBINE.value: "Combine",
+            TransformKind.DILUTE.value: "Dilute",
+            TransformKind.CONCENTRATE.value: "Concentrate",
+            TransformKind.CUSTOM.value: "Custom transform",
+        }.get(self.transform_kind, "Transform")
 
     @rx.var
     def input_count(self) -> int:
@@ -184,10 +233,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
     @rx.event
     async def open_transform_dialog(self, item: ItemDTO):
-        """Open the dialog, seeding the launching item as the first input.
+        """Open the wizard at the kind-selection step.
 
-        The input dialog opens straight away with that item pre-selected, so the
-        user only has to enter its consumed quantity and confirm.
+        The launching item is stashed and only seeded as the first input once the
+        user picks a transformation kind (see :meth:`select_transform_kind`).
 
         :param item: The item the transform was launched from
         :type item: ItemDTO
@@ -195,12 +244,31 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self._reset_state()
         await self._load_locations()
         self.is_update_mode = False
+        self._seed_item = item
+        self.transform_step = TransformStep.CHOOSE
         self.dialog_opened = True
 
-        # Seed the launching item as the first input, ready for quantity entry.
-        self._set_input_from_item(item)
-        self.input_dialog_is_consumable = item.item_sheet.is_consumable
-        self.input_dialog_opened = True
+    @rx.event
+    def select_transform_kind(self, kind: str):
+        """Pick the transformation kind and move to the build step.
+
+        If the dialog was launched from an item, seed it as the first input and
+        open the quantity modal straight away.
+        """
+        self.transform_kind = kind
+        self.transform_step = TransformStep.BUILD
+        if self._seed_item is not None:
+            item = self._seed_item
+            self._set_input_from_item(item)
+            self.input_dialog_is_consumable = item.item_sheet.is_consumable
+            self._editing_input_id = ""
+            self.input_dialog_opened = True
+            self._seed_item = None
+
+    @rx.event
+    def back_to_chooser(self):
+        """Return to the kind-selection step."""
+        self.transform_step = TransformStep.CHOOSE
 
     # ------------------------------------------------------------------ inputs
 
@@ -533,6 +601,9 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     def _reset_state(self):
         self.inputs = []
         self.outputs = []
+        self.transform_kind = ""
+        self.transform_step = TransformStep.CHOOSE
+        self._seed_item = None
         self._editing_input_id = ""
         self.input_dialog_opened = False
         self.out_sheet_id = ""

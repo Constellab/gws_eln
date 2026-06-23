@@ -7,12 +7,13 @@ item via the item dialog in collect mode.
 """
 
 import reflex as rx
-from gws_reflex_main import form_dialog_component
+from gws_reflex_main import dialog_header
 
 from .transform_input_dialog_component import transform_input_dialog
 from .transform_item_form_dialog_state import (
     TransformInputRow,
     TransformItemFormDialogState,
+    TransformKind,
     TransformOutputRow,
 )
 from .transform_output_wizard_component import transform_output_wizard
@@ -260,16 +261,156 @@ def _form_content() -> rx.Component:
     )
 
 
-def _dialog() -> rx.Component:
-    return form_dialog_component(
-        state=_S,
-        title="Transform",
-        description=(
-            "Consume input items or instruments to produce new output items."
+def _kind_card(icon: str, title: str, description: str, kind: str) -> rx.Component:
+    """One selectable transformation card in the wizard's first step."""
+    return rx.card(
+        rx.hstack(
+            rx.icon(icon, size=24, color="var(--accent-11)", flex_shrink="0"),
+            rx.vstack(
+                rx.text(title, size="2", weight="bold"),
+                rx.text(description, size="1", color="gray"),
+                spacing="1",
+                align="start",
+            ),
+            spacing="3",
+            align="center",
+            width="100%",
         ),
-        form_content=_form_content(),
-        max_width="980px",
-        dismissable=False,
+        on_click=lambda: _S.select_transform_kind(kind),
+        cursor="pointer",
+        width="100%",
+        style={":hover": {"background_color": "var(--gray-3)"}},
+    )
+
+
+def _chooser() -> rx.Component:
+    """Wizard step 1: pick the transformation to perform."""
+    return rx.vstack(
+        dialog_header("Choose a transformation", close=_S.close_dialog),
+        rx.grid(
+            _kind_card(
+                "git-fork",
+                "Split",
+                "One source item → several new items.",
+                TransformKind.SPLIT.value,
+            ),
+            _kind_card(
+                "git-merge",
+                "Combine",
+                "Several items → one new item.",
+                TransformKind.COMBINE.value,
+            ),
+            _kind_card(
+                "droplets",
+                "Dilute",
+                "Target + diluent → one diluted item.",
+                TransformKind.DILUTE.value,
+            ),
+            _kind_card(
+                "filter",
+                "Concentrate",
+                "One item → one more concentrated item.",
+                TransformKind.CONCENTRATE.value,
+            ),
+            _kind_card(
+                "shuffle",
+                "Custom transform",
+                "Any number of inputs → any number of outputs.",
+                TransformKind.CUSTOM.value,
+            ),
+            columns="1",
+            spacing="3",
+            width="100%",
+        ),
+        rx.hstack(
+            rx.button(
+                "Cancel",
+                type="button",
+                variant="soft",
+                color_scheme="gray",
+                on_click=_S.close_dialog,
+            ),
+            justify="end",
+            width="100%",
+            margin_top="1em",
+        ),
+        width="100%",
+        spacing="3",
+    )
+
+
+def _builder() -> rx.Component:
+    """Wizard step 2: build the inputs/outputs for the chosen transformation."""
+    return rx.vstack(
+        dialog_header(_S.kind_title, close=_S.close_dialog),
+        rx.dialog.description(
+            "Consume input items or instruments to produce new output items.",
+            size="2",
+            margin_bottom="1rem",
+        ),
+        rx.form(
+            rx.box(
+                _form_content(),
+                overflow_y="auto",
+                flex="1",
+                min_height="0",
+                width="100%",
+                padding_right="0.5rem",
+            ),
+            rx.hstack(
+                rx.button(
+                    rx.icon("arrow-left", size=15),
+                    "Back",
+                    type="button",
+                    variant="soft",
+                    color_scheme="gray",
+                    on_click=_S.back_to_chooser,
+                    disabled=_S.is_loading,
+                ),
+                rx.spacer(),
+                rx.button(
+                    "Cancel",
+                    type="button",
+                    variant="soft",
+                    color_scheme="gray",
+                    on_click=_S.close_dialog,
+                    disabled=_S.is_loading,
+                ),
+                rx.button(
+                    rx.spinner(loading=_S.is_loading),
+                    "Save",
+                    type="submit",
+                    disabled=_S.is_loading,
+                ),
+                margin_top="1em",
+                flex_shrink="0",
+                width="100%",
+            ),
+            on_submit=_S.submit_form,
+            display="flex",
+            flex_direction="column",
+            flex="1",
+            min_height="0",
+            width="100%",
+        ),
+        width="100%",
+        flex="1",
+        min_height="0",
+    )
+
+
+def _dialog() -> rx.Component:
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.cond(_S.step_is_choose, _chooser(), _builder()),
+            max_width="490px",
+            max_height="90vh",
+            display="flex",
+            flex_direction="column",
+            on_interact_outside=rx.prevent_default,
+            on_escape_key_down=rx.prevent_default,
+        ),
+        open=_S.dialog_opened,
     )
 
 
