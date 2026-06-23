@@ -12,8 +12,14 @@ from ...suppliers.core.supplier_select_component import (
 from .item_form_dialog_state import ItemFormDialogState
 
 
-def _consumable_quantity_section() -> rx.Component:
-    """Quantity + concentration inputs for a consumable item (single item)."""
+def _consumable_quantity_section(
+    extra_content: rx.Component | None = None,
+) -> rx.Component:
+    """Quantity + concentration inputs for a consumable item (single item).
+
+    ``extra_content`` is rendered right after the concentration row (used by the
+    Transform output wizard to slot in the dilution-factor field).
+    """
     return rx.vstack(
         quantity_unit_input(
             unit_type=ItemFormDialogState.form_unit_type,
@@ -48,6 +54,7 @@ def _consumable_quantity_section() -> rx.Component:
             width="100%",
             spacing="3",
         ),
+        *([extra_content] if extra_content is not None else []),
         width="100%",
         spacing="3",
     )
@@ -83,13 +90,19 @@ def _bulk_units_section() -> rx.Component:
     )
 
 
-def item_form_content() -> rx.Component:
+def item_form_content(
+    extra_concentration_content: rx.Component | None = None,
+) -> rx.Component:
     """Public alias of :func:`_form_content`, for reuse outside this module
-    (e.g. the Transform output wizard)."""
-    return _form_content()
+    (e.g. the Transform output wizard).
+
+    ``extra_concentration_content`` is slotted right after the concentration row
+    (the Transform output wizard uses it for the dilution-factor field).
+    """
+    return _form_content(extra_concentration_content)
 
 
-def _form_content() -> rx.Component:
+def _form_content(extra_concentration_content: rx.Component | None = None) -> rx.Component:
     """Form content for entering item_sheet item details."""
     return rx.vstack(
         # ItemSheet + Code (read-only, side by side, equal width)
@@ -131,7 +144,7 @@ def _form_content() -> rx.Component:
         # In collect mode (Transform output) always use the single-item form.
         rx.cond(
             ItemFormDialogState.is_consumable | ItemFormDialogState.collect_mode,
-            _consumable_quantity_section(),
+            _consumable_quantity_section(extra_concentration_content),
             _bulk_units_section(),
         ),
         # Location + Supplier (side by side, equal width)
@@ -177,7 +190,18 @@ def _form_content() -> rx.Component:
                 spacing="1",
             ),
             rx.vstack(
-                rx.text("Storage conditions", size="2", weight="bold"),
+                rx.hstack(
+                    rx.text("Storage conditions", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Storage conditions are prefilled from the item sheet's "
+                            "default; edit to override for this item."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
                 rx.input(
                     placeholder="e.g. -20°C (optional)",
                     name="storage_conditions",
@@ -190,12 +214,6 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="3",
             align="start",
-        ),
-        rx.text(
-            "Storage conditions are prefilled from the item sheet's default; "
-            "edit to override for this item.",
-            size="1",
-            color="gray",
         ),
         # Notes field
         rx.vstack(

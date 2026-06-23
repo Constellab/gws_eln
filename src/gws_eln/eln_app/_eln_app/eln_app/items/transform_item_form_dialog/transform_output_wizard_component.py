@@ -165,13 +165,41 @@ def _step1_body() -> rx.Component:
     return rx.cond(_S.output_create_sheet_mode, _step1_create(), _step1_select())
 
 
+def _dilution_factor_field() -> rx.Component:
+    """Dilution-factor audit input (concentrate/dilute); store-only, optional."""
+    return rx.vstack(
+        rx.text("Dilution factor", size="2", weight="bold"),
+        rx.input(
+            placeholder="Enter dilution factor (optional, audit only)",
+            name="dilution_factor",
+            type="number",
+            min="0",
+            step="any",
+            width="100%",
+        ),
+        spacing="1",
+        width="100%",
+        align="start",
+    )
+
+
 def _step2_body() -> rx.Component:
     """Step 2: the reused item creation form (collect mode)."""
     return rx.form(
         rx.vstack(
             # Keyed on the chosen sheet so the reused form (default_value inputs)
-            # remounts fresh whenever the destination sheet changes.
-            rx.box(item_form_content(), key=_S.out_sheet_id, width="100%"),
+            # remounts fresh whenever the destination sheet changes. The
+            # dilution-factor audit field is slotted right after the concentration
+            # row, and only for concentrate/dilute.
+            rx.box(
+                item_form_content(
+                    extra_concentration_content=rx.cond(
+                        _S.needs_concentration, _dilution_factor_field(), rx.fragment()
+                    ),
+                ),
+                key=_S.out_sheet_id,
+                width="100%",
+            ),
             _footer(
                 # When the sheet is fixed (split) there is no sheet step to go
                 # back to, so offer Cancel instead of Back.

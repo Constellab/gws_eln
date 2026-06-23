@@ -18,6 +18,7 @@ from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item_dto import (
     CombineInputDTO,
     CombineItemDTO,
+    ConcentrateItemDTO,
     CreateItemDTO,
     ItemDTO,
     SplitItemDTO,
@@ -115,6 +116,7 @@ class TransformOutputRow:
     conc_unit: str  # raw, for DTO ("" when none)
     code_preview: str
     produced: str  # display
+    dilution_factor: str = ""  # raw, for DTO (concentrate/dilute audit; "" when none)
 
 
 class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
@@ -156,6 +158,9 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     output_dialog_opened: bool = False
     output_step: OutputStep = OutputStep.SHEET
     output_create_sheet_mode: bool = False  # step 1 morphed into the sheet creation form
+    # Dilution factor entered on the output step (concentrate/dilute audit), read
+    # back when the output item is collected.
+    _pending_dilution_factor: str = ""
 
     # id (str) -> name, to display the location on committed output rows
     _loc_names: dict[str, str] = {}
@@ -190,10 +195,13 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     def can_add_consumable_input(self) -> bool:
         """Whether another consumable input may be added for the current kind.
 
-        Split takes exactly one consumable input (the source); other kinds are
-        unconstrained for now.
+        Split and concentrate take exactly one consumable input (the source);
+        other kinds are unconstrained for now.
         """
-        if self.transform_kind == TransformKind.SPLIT.value:
+        if self.transform_kind in (
+            TransformKind.SPLIT.value,
+            TransformKind.CONCENTRATE.value,
+        ):
             return len(self.consumable_inputs) < 1
         return True
 
@@ -201,22 +209,38 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     def output_sheet_is_fixed(self) -> bool:
         """Whether outputs are forced onto the source's sheet (no sheet picker).
 
-        True for split: every child inherits the source item's sheet.
+        True for split and concentrate: the output stays on the source's sheet.
         """
-        return self.transform_kind == TransformKind.SPLIT.value
+        return self.transform_kind in (
+            TransformKind.SPLIT.value,
+            TransformKind.CONCENTRATE.value,
+        )
+
+    @rx.var
+    def needs_concentration(self) -> bool:
+        """Whether the output step should expose the dilution-factor audit field.
+
+        True for concentrate and dilute (store-only concentration audit).
+        """
+        return self.transform_kind in (
+            TransformKind.CONCENTRATE.value,
+            TransformKind.DILUTE.value,
+        )
 
     @rx.var
     def can_add_output(self) -> bool:
         """Whether another output may be added for the current kind.
 
         Split needs a source consumable before producing children (outputs are
-        otherwise unbounded); combine produces exactly one output; other kinds
-        are unconstrained for now.
+        otherwise unbounded); combine and concentrate produce exactly one output
+        (concentrate also needs its source first); other kinds are unconstrained.
         """
         if self.transform_kind == TransformKind.SPLIT.value:
             return len(self.consumable_inputs) >= 1
         if self.transform_kind == TransformKind.COMBINE.value:
             return len(self.outputs) < 1
+        if self.transform_kind == TransformKind.CONCENTRATE.value:
+            return len(self.consumable_inputs) >= 1 and len(self.outputs) < 1
         return True
 
     @rx.var
@@ -572,6 +596,9 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         ItemFormDialogState._create routes to `_collect_single` (collect mode), which
         fires `_on_output_item_collected` to append the output row and close the wizard.
         """
+        # Stash the (optional) dilution factor before collecting: the item form's
+        # CreateItemDTO does not carry it, so the callback reads it back from here.
+        self._pending_dilution_factor = form_data.get("dilution_factor", "").strip()
         item_state = await self.get_state(ItemFormDialogState)
         async for event in item_state._create(form_data):
             yield event
@@ -601,8 +628,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
                 conc_unit=dto.concentration_unit or "",
                 code_preview=f"{self.out_sheet_code}-{date.today().year}-XXXX",
                 produced=f"{dto.quantity} {dto.unit}",
+                dilution_factor=self._pending_dilution_factor,
             )
         ]
+        self._pending_dilution_factor = ""
         self.output_dialog_opened = False
         self.output_step = OutputStep.SHEET
 
@@ -627,6 +656,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             return
         if self.transform_kind == TransformKind.COMBINE.value:
             async for event in self._create_combine(form_data):
+                yield event
+            return
+        if self.transform_kind == TransformKind.CONCENTRATE.value:
+            async for event in self._create_concentrate(form_data):
                 yield event
             return
         async for event in self._create_custom(form_data):
@@ -720,6 +753,50 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             linked_note = self._link_note_activity(result.activity.id)
 
         yield rx.toast.success(f"Combine saved — {len(inputs)} input(s) → 1 item")
+        await self._after_note_link(linked_note)
+
+        if self._callback_after_close and result.inputs:
+            await self._callback_after_close(result.inputs[0].to_dto())
+
+    async def _create_concentrate(self, form_data: dict):
+        """Concentrate the single source item into one more concentrated item.
+
+        The source is reduced in place by its contributed quantity; the output is
+        a new item on the source's own sheet at the user-entered concentration.
+        """
+        source = next((row for row in self.inputs if row.is_consumable), None)
+        if source is None or not source.qty:
+            raise Exception("Concentrate needs a source consumable item with a quantity")
+        if len(self.outputs) != 1:
+            raise Exception("Concentrate produces exactly one output")
+        output = self.outputs[0]
+
+        instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
+        notes = form_data.get("notes", "").strip() or None
+        dto = ConcentrateItemDTO(
+            quantity_contributed=Decimal(source.qty),
+            unit=source.unit,
+            output_quantity=Decimal(output.qty),
+            output_unit=output.unit,
+            output_concentration=Decimal(output.conc) if output.conc else None,
+            output_concentration_unit=output.conc_unit or None,
+            dilution_factor=Decimal(output.dilution_factor) if output.dilution_factor else None,
+            instrument_item_ids=instrument_ids,
+            output_location_id=output.location_id or None,
+            output_label=output.label or None,
+            notes=notes,
+            note_id=self.note_dto_id,
+        )
+
+        main_state: ReflexMainState
+        async with self:
+            main_state = await self.get_state(ReflexMainState)
+
+        with await main_state.authenticate_user():
+            result = ItemService().concentrate_item(source.item_id, dto)
+            linked_note = self._link_note_activity(result.activity.id)
+
+        yield rx.toast.success("Concentrate saved — 1 item created")
         await self._after_note_link(linked_note)
 
         if self._callback_after_close and result.inputs:
