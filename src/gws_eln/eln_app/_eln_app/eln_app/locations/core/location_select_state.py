@@ -16,7 +16,10 @@ class LocationSelectState(rx.State):
     @rx.var
     def locations(self) -> list[LocationSelectDTO]:
         """Load all locations from the database, sorted by name."""
-        location_list = list(Location.select().order_by(Location.name))
+        try:
+            location_list = list(Location.select().order_by(Location.name))
+        except Exception:
+            return []
         return [
             LocationSelectDTO(
                 value=str(location.id),

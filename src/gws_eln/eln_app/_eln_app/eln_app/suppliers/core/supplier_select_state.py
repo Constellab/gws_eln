@@ -16,7 +16,10 @@ class SupplierSelectState(rx.State):
     @rx.var
     def suppliers(self) -> list[SupplierSelectDTO]:
         """Load all suppliers from the database, sorted by name."""
-        supplier_list = list(Supplier.select().order_by(Supplier.name))
+        try:
+            supplier_list = list(Supplier.select().order_by(Supplier.name))
+        except Exception:
+            return []
         return [
             SupplierSelectDTO(
                 value=str(supplier.id),
