@@ -68,3 +68,9 @@ class ItemSearchBuilder(SearchBuilder):
         """Filter to only include active items"""
         self.add_expression(Item.status == ItemStatus.ACTIVE)
         return self
+
+    def add_exclude_ids_filter(self, ids: list[str]) -> "ItemSearchBuilder":
+        """Exclude the given item ids from the results (no-op if the list is empty)."""
+        if ids:
+            self.add_expression(Item.id.not_in(ids))
+        return self

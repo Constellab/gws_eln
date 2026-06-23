@@ -58,6 +58,9 @@ class TransformInputRow:
     is_consumable: bool
     qty: str  # raw, for DTO (empty for instruments)
     unit: str  # raw, for DTO
+    unit_type: str  # for re-populating the edit form
+    available: str  # available quantity (display), for re-populating the edit form
+    qty_base: str  # available quantity in base unit, for edit-time validation
     consumed: str  # display, e.g. "4 units" or "instrument"
 
 
@@ -89,6 +92,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
     # ---- input dialog (search for an existing item/instrument + quantity) ----
     input_dialog_opened: bool = False
+    input_dialog_is_consumable: bool = True
+    _editing_input_id: str = ""
     in_item_id: str = ""
     in_item_code: str = ""
     in_item_label: str = ""
@@ -122,12 +127,16 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         return len(self.inputs)
 
     @rx.var
-    def output_count(self) -> int:
-        return len(self.outputs)
+    def consumable_inputs(self) -> list[TransformInputRow]:
+        return [row for row in self.inputs if row.is_consumable]
 
     @rx.var
-    def inputs_empty_hint(self) -> bool:
-        return len(self.inputs) == 0
+    def instrument_inputs(self) -> list[TransformInputRow]:
+        return [row for row in self.inputs if not row.is_consumable]
+
+    @rx.var
+    def output_count(self) -> int:
+        return len(self.outputs)
 
     @rx.var
     def outputs_empty_hint(self) -> bool:
@@ -152,6 +161,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     @rx.var
     def input_is_consumable(self) -> bool:
         return bool(self.in_item_id) and self.in_item_consumable
+
+    @rx.var
+    def input_is_editing(self) -> bool:
+        return bool(self._editing_input_id)
 
     @rx.var
     def has_any(self) -> bool:
@@ -186,6 +199,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
         # Seed the launching item as the first input, ready for quantity entry.
         self._set_input_from_item(item)
+        self.input_dialog_is_consumable = item.item_sheet.is_consumable
         self.input_dialog_opened = True
 
     # ------------------------------------------------------------------ inputs
@@ -218,9 +232,40 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_unit = UnitConverter.get_default_unit(item.unit_type)
 
     @rx.event
-    def open_input_dialog(self):
-        """Open the dialog to add an input (reset the draft fields)."""
+    def open_consumable_input_dialog(self):
+        """Open the dialog to add a consumable input."""
         self._reset_input_fields()
+        self._editing_input_id = ""
+        self.input_dialog_is_consumable = True
+        self.input_dialog_opened = True
+
+    @rx.event
+    def edit_input(self, row_id: str):
+        """Open the input dialog pre-filled to edit an existing input row."""
+        row = next((r for r in self.inputs if r.id == row_id), None)
+        if row is None:
+            return
+        self._editing_input_id = row_id
+        self.in_item_id = row.item_id
+        self.in_item_code = row.code
+        self.in_item_label = row.label
+        self.in_item_sheet_name = row.sheet_name
+        self.in_item_loc = row.loc
+        self.in_item_available = row.available
+        self.in_item_qty_base = row.qty_base
+        self.in_item_consumable = row.is_consumable
+        self.in_unit_type = row.unit_type
+        self.in_qty = row.qty
+        self.in_unit = row.unit
+        self.input_dialog_is_consumable = row.is_consumable
+        self.input_dialog_opened = True
+
+    @rx.event
+    def open_instrument_input_dialog(self):
+        """Open the dialog to add an instrument (non-consumable) input."""
+        self._reset_input_fields()
+        self._editing_input_id = ""
+        self.input_dialog_is_consumable = False
         self.input_dialog_opened = True
 
     @rx.event
@@ -236,6 +281,11 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     @rx.event
     def set_input_unit(self, value: str):
         self.in_unit = value
+
+    @rx.event
+    def clear_input_selection(self):
+        """Clear the currently selected input (re-show the two search dropdowns)."""
+        self._reset_input_fields()
 
     @rx.event
     def close_input_dialog(self):
@@ -262,7 +312,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
     @rx.event
     def commit_input(self):
-        """Validate the draft and append it to the inputs list."""
+        """Validate the draft and add it (or update the edited row) in the list.
+
+        The row id is the item id, so an item can only appear once as an input.
+        """
         if not self.in_item_id:
             return
         if self.in_item_consumable and not self.in_qty.strip():
@@ -274,26 +327,31 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             if not self.in_item_consumable
             else f"{self.in_qty.strip()} {self.in_unit}"
         )
-        self.inputs = self.inputs + [
-            TransformInputRow(
-                id=f"in{len(self.inputs)}_{self.in_item_id}",
-                item_id=self.in_item_id,
-                sheet_name=self.in_item_sheet_name,
-                code=self.in_item_code,
-                label=self.in_item_label,
-                loc=self.in_item_loc,
-                is_consumable=self.in_item_consumable,
-                qty=self.in_qty.strip(),
-                unit=self.in_unit,
-                consumed=consumed,
-            )
-        ]
+        row = TransformInputRow(
+            id=self.in_item_id,
+            item_id=self.in_item_id,
+            sheet_name=self.in_item_sheet_name,
+            code=self.in_item_code,
+            label=self.in_item_label,
+            loc=self.in_item_loc,
+            is_consumable=self.in_item_consumable,
+            qty=self.in_qty.strip(),
+            unit=self.in_unit,
+            unit_type=self.in_unit_type,
+            available=self.in_item_available,
+            qty_base=self.in_item_qty_base,
+            consumed=consumed,
+        )
+        if self._editing_input_id:
+            self.inputs = [row if r.id == self._editing_input_id else r for r in self.inputs]
+        else:
+            self.inputs = self.inputs + [row]
+        self._editing_input_id = ""
         self.input_dialog_opened = False
 
     @rx.event
-    def remove_input(self, index: int):
-        if 0 <= index < len(self.inputs):
-            del self.inputs[index]
+    def remove_input_by_id(self, row_id: str):
+        self.inputs = [row for row in self.inputs if row.id != row_id]
 
     # ------------------------------------------------------------------ outputs
 
@@ -332,7 +390,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """
         self.output_create_sheet_mode = True
         sheet_state = await self.get_state(ItemSheetFormDialogState)
-        await sheet_state.prepare_create_form()
+        await sheet_state.prepare_create_form(force_consumable=True)
         sheet_state.set_callback_after_close(self._on_sheet_created)
 
     @rx.event
@@ -475,6 +533,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     def _reset_state(self):
         self.inputs = []
         self.outputs = []
+        self._editing_input_id = ""
         self.input_dialog_opened = False
         self.out_sheet_id = ""
         self.out_sheet_code = ""

@@ -39,6 +39,10 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
     # (it is immutable then). Drives the disabled state of the selector.
     unit_type_locked: bool = False
 
+    # When True, the consumable flag is forced on and its checkbox is disabled
+    # (used by the Transform output wizard: an output must be a consumable).
+    consumable_locked: bool = False
+
     # Available suppliers for dropdown
     available_suppliers: list[SupplierDTO] = []
 
@@ -65,12 +69,15 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
             suppliers = search_builder.search_all()
             self.available_suppliers = [supplier.to_dto() for supplier in suppliers]
 
-    async def prepare_create_form(self):
+    async def prepare_create_form(self, force_consumable: bool = False):
         """Load data and reset the form for create mode, WITHOUT opening the dialog.
 
         Split out from :meth:`open_create_dialog` so the form can be reused inside
         another container (e.g. the Transform output wizard) without popping this
         dialog's own modal.
+
+        :param force_consumable: when True, the consumable flag is forced on and
+            its checkbox disabled (an output sheet must be consumable).
         """
         # Load suppliers for dropdown
         await self._load_suppliers()
@@ -85,6 +92,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         self.form_storage_conditions = ""
         self.unit_type_locked = False
         self.code_manually_edited = False
+        self.consumable_locked = force_consumable
 
         # Reset to create mode
         self.is_update_mode = False

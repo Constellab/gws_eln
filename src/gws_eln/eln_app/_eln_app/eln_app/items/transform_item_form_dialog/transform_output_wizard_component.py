@@ -10,15 +10,17 @@ item dialog (`item_sheet_form_content` / `item_form_content`).
 
 import reflex as rx
 from gws_reflex_main import dialog_header
+from gws_reflex_main.gws_components import input_search_component
 
-from ...item_sheets.core.item_sheet_select_component import item_sheet_select_component
 from ...item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_component import (
     item_sheet_form_content,
 )
 from ..item_form_dialog.item_form_dialog_component import item_form_content
 from .transform_item_form_dialog_state import TransformItemFormDialogState
+from .transform_output_sheet_select_state import TransformOutputSheetSelectState
 
 _S = TransformItemFormDialogState
+_OSS = TransformOutputSheetSelectState
 
 
 def _or_divider() -> rx.Component:
@@ -93,9 +95,14 @@ def _step1_select() -> rx.Component:
     """Step 1, default mode: pick an existing ItemSheet, or switch to create mode."""
     return rx.vstack(
         _scroll_box(
-            item_sheet_select_component(
-                placeholder="Search for an existing ItemSheet…",
+            input_search_component(
+                search_result=_OSS.results,
+                selected_item=None,
                 item_selected=_S.select_output_sheet,
+                search_trigger=_OSS.search,
+                placeholder="Search a consumable ItemSheet…",
+                min_input_search_length=0,
+                init_search_on_focus=True,
             ),
             _or_divider(),
             rx.button(

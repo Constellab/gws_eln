@@ -41,7 +41,9 @@ def _section_label(text: str, count: rx.Var) -> rx.Component:
     )
 
 
-def _input_row(row: TransformInputRow, index: int) -> rx.Component:
+def _input_row(row: TransformInputRow, editable: bool) -> rx.Component:
+    """One input row. Consumable rows (editable=True) are clickable to edit the
+    quantity (except the remove button); instruments are not editable."""
     return rx.hstack(
         rx.box(rx.text(row.code, style=_CODE_BADGE)),
         rx.vstack(
@@ -52,14 +54,18 @@ def _input_row(row: TransformInputRow, index: int) -> rx.Component:
             flex="1",
             min_width="0",
         ),
-        rx.badge(f"- {row.consumed}", color_scheme="ruby", variant="soft"),
+        rx.cond(
+            row.is_consumable,
+            rx.badge(f"- {row.consumed}", color_scheme="ruby", variant="soft"),
+        ),
         rx.icon_button(
             rx.icon("x", size=14),
             type="button",
             variant="ghost",
             color_scheme="gray",
             size="1",
-            on_click=lambda: _S.remove_input(index),
+            # Stop propagation so removing a row never triggers the row's edit click.
+            on_click=_S.remove_input_by_id(row.id).stop_propagation,
         ),
         align="center",
         spacing="3",
@@ -68,6 +74,9 @@ def _input_row(row: TransformInputRow, index: int) -> rx.Component:
         background="var(--gray-1)",
         border="1px solid var(--gray-5)",
         border_radius="10px",
+        on_click=_S.edit_input(row.id) if editable else None,
+        cursor="pointer" if editable else "default",
+        style={":hover": {"background_color": "var(--gray-3)"}} if editable else None,
     )
 
 
@@ -112,22 +121,51 @@ def _create_button(label: str, handler) -> rx.Component:
     )
 
 
+def _input_group(
+    title: str,
+    description: str,
+    rows: rx.Var,
+    button_label: str,
+    on_create,
+    editable: bool,
+) -> rx.Component:
+    """A persistent input sub-section: subtitle, helper text, its rows, a create button.
+
+    The helper text is shown only while the sub-section has no row yet. Rows are
+    clickable to edit when ``editable`` is True (consumables only).
+    """
+    return rx.vstack(
+        rx.text(title, size="2", weight="medium"),
+        rx.cond(rows.length() == 0, rx.text(description, size="1", color="gray")),
+        rx.foreach(rows, lambda row: _input_row(row, editable)),
+        _create_button(button_label, on_create),
+        spacing="2",
+        width="100%",
+        align="stretch",
+    )
+
+
 def _inputs_section() -> rx.Component:
     return rx.vstack(
         _section_label("INPUTS", _S.input_count),
-        rx.foreach(_S.inputs, lambda row, i: _input_row(row, i)),
-        rx.cond(
-            _S.inputs_empty_hint,
-            rx.text(
-                "No input yet. Add the consumed items or instruments.",
-                size="2",
-                color="gray",
-                text_align="center",
-                padding="3",
-            ),
+        _input_group(
+            "Consumables",
+            "Items consumed by the transform — a quantity is deducted from their stock.",
+            _S.consumable_inputs,
+            "Create consumable input",
+            _S.open_consumable_input_dialog,
+            editable=True,
         ),
-        _create_button("Create input", _S.open_input_dialog),
-        spacing="3",
+        rx.divider(),
+        _input_group(
+            "Instruments",
+            "Non-consumable items used during the transform — no quantity change.",
+            _S.instrument_inputs,
+            "Create instrument input",
+            _S.open_instrument_input_dialog,
+            editable=False,
+        ),
+        spacing="4",
         flex="1",
         min_width="0",
         align="stretch",
@@ -141,17 +179,15 @@ def _inputs_section() -> rx.Component:
 def _outputs_section() -> rx.Component:
     return rx.vstack(
         _section_label("OUTPUTS", _S.output_count),
-        rx.foreach(_S.outputs, lambda row, i: _output_row(row, i)),
         rx.cond(
             _S.outputs_empty_hint,
             rx.text(
-                "No output yet. Create the items produced by the transform.",
-                size="2",
+                "New items produced by the transform — created when you save.",
+                size="1",
                 color="gray",
-                text_align="center",
-                padding="3",
             ),
         ),
+        rx.foreach(_S.outputs, lambda row, i: _output_row(row, i)),
         _create_button("Create output", _S.open_output_wizard),
         spacing="3",
         flex="1",

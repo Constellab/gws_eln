@@ -155,6 +155,7 @@ def _form_content() -> rx.Component:
                 rx.checkbox(
                     checked=ItemSheetFormDialogState.form_is_consumable,
                     on_change=ItemSheetFormDialogState.set_is_consumable,
+                    disabled=ItemSheetFormDialogState.consumable_locked,
                 ),
                 rx.text("Consumable item_sheet", size="2"),
                 rx.tooltip(
