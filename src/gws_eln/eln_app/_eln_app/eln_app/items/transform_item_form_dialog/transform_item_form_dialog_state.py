@@ -16,6 +16,8 @@ from typing import Any
 import reflex as rx
 from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item_dto import (
+    CombineInputDTO,
+    CombineItemDTO,
     CreateItemDTO,
     ItemDTO,
     SplitItemDTO,
@@ -66,6 +68,13 @@ class TransformStep(IntEnum):
 
     CHOOSE = 1  # pick the transformation kind
     BUILD = 2  # build the inputs/outputs
+
+
+# A combine needs at least this many consumable ingredients.
+COMBINE_MIN_INPUTS = 2
+
+# A split must produce at least this many outputs (1 output would be a move/aliquot).
+SPLIT_MIN_OUTPUTS = 2
 
 
 @dataclass
@@ -201,10 +210,13 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """Whether another output may be added for the current kind.
 
         Split needs a source consumable before producing children (outputs are
-        otherwise unbounded); other kinds are unconstrained for now.
+        otherwise unbounded); combine produces exactly one output; other kinds
+        are unconstrained for now.
         """
         if self.transform_kind == TransformKind.SPLIT.value:
             return len(self.consumable_inputs) >= 1
+        if self.transform_kind == TransformKind.COMBINE.value:
+            return len(self.outputs) < 1
         return True
 
     @rx.var
@@ -613,6 +625,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             async for event in self._create_split(form_data):
                 yield event
             return
+        if self.transform_kind == TransformKind.COMBINE.value:
+            async for event in self._create_combine(form_data):
+                yield event
+            return
         async for event in self._create_custom(form_data):
             yield event
 
@@ -623,8 +639,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         unit, location and label are user-entered per output.
         """
         source = next((row for row in self.inputs if row.is_consumable), None)
-        if source is None or not self.outputs:
-            return
+        if source is None:
+            raise Exception("Split needs a source consumable item")
+        if len(self.outputs) < SPLIT_MIN_OUTPUTS:
+            raise Exception(f"Split needs at least {SPLIT_MIN_OUTPUTS} outputs")
 
         outputs = [
             SplitOutputDTO(
@@ -653,6 +671,55 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             linked_note = self._link_note_activity(result.activity.id)
 
         yield rx.toast.success(f"Split saved — {len(outputs)} item(s) created")
+        await self._after_note_link(linked_note)
+
+        if self._callback_after_close and result.inputs:
+            await self._callback_after_close(result.inputs[0].to_dto())
+
+    async def _create_combine(self, form_data: dict):
+        """Combine 2..N consumable ingredients into the single output item.
+
+        Each ingredient is reduced in place by its contribution; the output is a
+        new item on its chosen sheet (concentration user-entered or null).
+        """
+        consumables = [row for row in self.inputs if row.is_consumable]
+        if len(consumables) < COMBINE_MIN_INPUTS:
+            raise Exception(
+                f"Combine needs at least {COMBINE_MIN_INPUTS} consumable inputs"
+            )
+        if len(self.outputs) != 1:
+            raise Exception("Combine produces exactly one output")
+        output = self.outputs[0]
+
+        inputs = [
+            CombineInputDTO(item_id=row.item_id, quantity=Decimal(row.qty), unit=row.unit)
+            for row in consumables
+        ]
+        instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
+        notes = form_data.get("notes", "").strip() or None
+        dto = CombineItemDTO(
+            inputs=inputs,
+            output_item_sheet_id=output.sheet_id,
+            output_quantity=Decimal(output.qty),
+            output_unit=output.unit,
+            instrument_item_ids=instrument_ids,
+            output_location_id=output.location_id or None,
+            output_label=output.label or None,
+            output_concentration=Decimal(output.conc) if output.conc else None,
+            output_concentration_unit=output.conc_unit or None,
+            notes=notes,
+            note_id=self.note_dto_id,
+        )
+
+        main_state: ReflexMainState
+        async with self:
+            main_state = await self.get_state(ReflexMainState)
+
+        with await main_state.authenticate_user():
+            result = ItemService().combine_items(dto)
+            linked_note = self._link_note_activity(result.activity.id)
+
+        yield rx.toast.success(f"Combine saved — {len(inputs)} input(s) → 1 item")
         await self._after_note_link(linked_note)
 
         if self._callback_after_close and result.inputs:
