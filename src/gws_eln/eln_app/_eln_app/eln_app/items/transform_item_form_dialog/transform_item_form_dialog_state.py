@@ -86,8 +86,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     inputs: list[TransformInputRow] = []
     outputs: list[TransformOutputRow] = []
 
-    # ---- input draft ----
-    show_input_draft: bool = False
+    # ---- input dialog (search for an existing item/instrument + quantity) ----
+    input_dialog_opened: bool = False
     in_item_id: str = ""
     in_item_code: str = ""
     in_item_label: str = ""
@@ -124,15 +124,11 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
     @rx.var
     def inputs_empty_hint(self) -> bool:
-        return len(self.inputs) == 0 and not self.show_input_draft
+        return len(self.inputs) == 0
 
     @rx.var
     def outputs_empty_hint(self) -> bool:
         return len(self.outputs) == 0
-
-    @rx.var
-    def create_input_visible(self) -> bool:
-        return not self.show_input_draft
 
     @rx.var
     def output_step1_active(self) -> bool:
@@ -185,9 +181,9 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     # ------------------------------------------------------------------ inputs
 
     @rx.event
-    def start_input(self):
-        """Open the draft card to add an input."""
-        self.show_input_draft = True
+    def open_input_dialog(self):
+        """Open the dialog to add an input (reset the draft fields)."""
+        self.input_dialog_opened = True
         self.in_item_id = ""
         self.in_item_code = ""
         self.in_item_label = ""
@@ -221,8 +217,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_unit = value
 
     @rx.event
-    def cancel_input(self):
-        self.show_input_draft = False
+    def close_input_dialog(self):
+        self.input_dialog_opened = False
 
     def _validate_input_quantity(self):
         """Validate the draft consumed quantity against the item's availability.
@@ -270,7 +266,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
                 consumed=consumed,
             )
         ]
-        self.show_input_draft = False
+        self.input_dialog_opened = False
 
     @rx.event
     def remove_input(self, index: int):
@@ -402,7 +398,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     def clear_all(self):
         self.inputs = []
         self.outputs = []
-        self.show_input_draft = False
+        self.input_dialog_opened = False
 
     async def _create(self, form_data: dict):
         """Build the TransformItemsDTO and call the service."""
@@ -457,7 +453,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     def _reset_state(self):
         self.inputs = []
         self.outputs = []
-        self.show_input_draft = False
+        self.input_dialog_opened = False
         self.out_sheet_id = ""
         self.out_sheet_code = ""
         self.out_sheet_name = ""

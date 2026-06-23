@@ -9,8 +9,7 @@ item via the item dialog in collect mode.
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
-from ...common.unit.unit_components import quantity_unit_input
-from ..core.item_select_component import item_select_component
+from .transform_input_dialog_component import transform_input_dialog
 from .transform_item_form_dialog_state import (
     TransformInputRow,
     TransformItemFormDialogState,
@@ -101,19 +100,6 @@ def _output_row(row: TransformOutputRow, index: int) -> rx.Component:
     )
 
 
-def _draft_card(*children) -> rx.Component:
-    return rx.vstack(
-        *children,
-        width="100%",
-        spacing="3",
-        padding="16px",
-        background="var(--gray-1)",
-        border="1px solid var(--accent-6)",
-        border_radius="12px",
-        align="start",
-    )
-
-
 def _create_button(label: str, handler) -> rx.Component:
     return rx.button(
         rx.icon("plus", size=16),
@@ -122,54 +108,6 @@ def _create_button(label: str, handler) -> rx.Component:
         variant="outline",
         width="100%",
         on_click=handler,
-    )
-
-
-def _input_draft() -> rx.Component:
-    return _draft_card(
-        rx.text("Add an input", size="2", weight="bold"),
-        rx.vstack(
-            item_select_component(
-                placeholder="Search for an item or instrument…",
-                item_selected=_S.select_input_item,
-            ),
-            rx.cond(
-                _S.input_is_consumable,
-                rx.text(
-                    f"Available quantity : {_S.in_item_available}",
-                    size="1",
-                    color="gray",
-                ),
-            ),
-            spacing="1",
-            width="100%",
-            align="start",
-        ),
-        rx.cond(
-            _S.input_is_consumable,
-            quantity_unit_input(
-                unit_type=_S.in_unit_type,
-                quantity_value=_S.in_qty,
-                unit_value=_S.in_unit,
-                on_quantity_change=_S.set_input_qty,
-                on_unit_change=_S.set_input_unit,
-                quantity_label="Consumed quantity",
-                quantity_required=False,
-            ),
-        ),
-        rx.hstack(
-            rx.button(
-                "Cancel",
-                type="button",
-                variant="soft",
-                color_scheme="gray",
-                on_click=_S.cancel_input,
-            ),
-            rx.button("Add input", type="button", on_click=_S.commit_input),
-            justify="end",
-            spacing="3",
-            width="100%",
-        ),
     )
 
 
@@ -187,8 +125,7 @@ def _inputs_section() -> rx.Component:
                 padding="3",
             ),
         ),
-        rx.cond(_S.show_input_draft, _input_draft()),
-        rx.cond(_S.create_input_visible, _create_button("Create input", _S.start_input)),
+        _create_button("Create input", _S.open_input_dialog),
         spacing="3",
         flex="1",
         min_width="0",
@@ -306,4 +243,4 @@ def transform_item_dialog() -> rx.Component:
     TransformItemFormDialogState.open_transform_dialog(item). Bundles the output
     wizard (stacked on top) so every mount site gets it automatically.
     """
-    return rx.fragment(_dialog(), transform_output_wizard())
+    return rx.fragment(_dialog(), transform_input_dialog(), transform_output_wizard())

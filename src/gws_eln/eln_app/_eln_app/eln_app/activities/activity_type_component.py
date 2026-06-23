@@ -69,6 +69,12 @@ def activity_type_badge(activity_type: ActivityType) -> rx.Component:
                     rx.icon("shrink", size=12), "Concentrated", color_scheme="amber", size="1"
                 ),
             ),
+            (
+                ActivityType.TRANSFORM.value,
+                rx.badge(
+                    rx.icon("flask-conical", size=12), "Transformed", color_scheme="iris", size="1"
+                ),
+            ),
             rx.badge(activity_type, color_scheme="gray", size="1"),
         ),
     )

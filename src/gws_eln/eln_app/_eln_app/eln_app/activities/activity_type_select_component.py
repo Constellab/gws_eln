@@ -12,6 +12,7 @@ ACTIVITY_TYPE_OPTIONS = [
     (ActivityType.COMBINE.value, "Combine"),
     (ActivityType.DILUTE.value, "Dilute"),
     (ActivityType.CONCENTRATE.value, "Concentrate"),
+    (ActivityType.TRANSFORM.value, "Transform"),
 ]
 
 
