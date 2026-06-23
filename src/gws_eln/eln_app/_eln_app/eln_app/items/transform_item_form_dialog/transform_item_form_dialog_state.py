@@ -171,9 +171,12 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
     @rx.event
     async def open_transform_dialog(self, item: ItemDTO):
-        """Open the dialog. Inputs and outputs start empty (built in place).
+        """Open the dialog, seeding the launching item as the first input.
 
-        :param item: The item the transform was launched from (context only)
+        The input dialog opens straight away with that item pre-selected, so the
+        user only has to enter its consumed quantity and confirm.
+
+        :param item: The item the transform was launched from
         :type item: ItemDTO
         """
         self._reset_state()
@@ -181,12 +184,14 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.is_update_mode = False
         self.dialog_opened = True
 
+        # Seed the launching item as the first input, ready for quantity entry.
+        self._set_input_from_item(item)
+        self.input_dialog_opened = True
+
     # ------------------------------------------------------------------ inputs
 
-    @rx.event
-    def open_input_dialog(self):
-        """Open the dialog to add an input (reset the draft fields)."""
-        self.input_dialog_opened = True
+    def _reset_input_fields(self):
+        """Reset the input draft fields to their defaults (no item selected)."""
         self.in_item_id = ""
         self.in_item_code = ""
         self.in_item_label = ""
@@ -199,11 +204,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_qty = ""
         self.in_unit = UnitConverter.get_default_unit(UnitType.COUNT)
 
-    @rx.event
-    def select_input_item(self, event_data: dict):
-        """Set the selected input item from the search component."""
-        result = InputSearchResultDTO.from_json_object(event_data, ItemDTO)
-        item = result.object
+    def _set_input_from_item(self, item: ItemDTO):
+        """Fill the input draft fields from a selected item."""
         self.in_item_id = item.id
         self.in_item_code = item.code
         self.in_item_label = item.label
@@ -214,6 +216,18 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_item_consumable = item.item_sheet.is_consumable
         self.in_unit_type = item.unit_type.value
         self.in_unit = UnitConverter.get_default_unit(item.unit_type)
+
+    @rx.event
+    def open_input_dialog(self):
+        """Open the dialog to add an input (reset the draft fields)."""
+        self._reset_input_fields()
+        self.input_dialog_opened = True
+
+    @rx.event
+    def select_input_item(self, event_data: dict):
+        """Set the selected input item from the search component."""
+        result = InputSearchResultDTO.from_json_object(event_data, ItemDTO)
+        self._set_input_from_item(result.object)
 
     @rx.event
     def set_input_qty(self, value: str):

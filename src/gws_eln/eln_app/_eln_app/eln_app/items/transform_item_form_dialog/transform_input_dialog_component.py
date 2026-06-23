@@ -15,25 +15,33 @@ from .transform_item_form_dialog_state import TransformItemFormDialogState
 _S = TransformItemFormDialogState
 
 
+def _selected_item() -> rx.Component:
+    """Read-only summary of the currently selected item (code, label, sheet, loc)."""
+    return rx.vstack(
+        rx.hstack(
+            rx.code(_S.in_item_code, size="2"),
+            rx.text(_S.in_item_label, size="2", weight="medium", no_of_lines=1),
+            align="center",
+            spacing="2",
+        ),
+        rx.text(f"{_S.in_item_sheet_name} · {_S.in_item_loc}", size="1", color="gray"),
+        rx.cond(
+            _S.input_is_consumable,
+            rx.text(f"Available quantity : {_S.in_item_available}", size="1", color="gray"),
+        ),
+        spacing="1",
+        width="100%",
+        align="start",
+    )
+
+
 def _body() -> rx.Component:
     return rx.vstack(
-        rx.vstack(
-            item_select_component(
-                placeholder="Search for an item or instrument…",
-                item_selected=_S.select_input_item,
-            ),
-            rx.cond(
-                _S.input_is_consumable,
-                rx.text(
-                    f"Available quantity : {_S.in_item_available}",
-                    size="1",
-                    color="gray",
-                ),
-            ),
-            spacing="1",
-            width="100%",
-            align="start",
+        item_select_component(
+            placeholder="Search for an item or instrument…",
+            item_selected=_S.select_input_item,
         ),
+        rx.cond(_S.input_has_sel, _selected_item()),
         rx.cond(
             _S.input_is_consumable,
             quantity_unit_input(
@@ -79,8 +87,8 @@ def transform_input_dialog() -> rx.Component:
                 margin_top="1rem",
             ),
             max_width="460px",
-            on_interact_outside=_S.close_input_dialog,
-            on_escape_key_down=_S.close_input_dialog,
+            on_interact_outside=rx.prevent_default,
+            on_escape_key_down=rx.prevent_default,
         ),
         open=_S.input_dialog_opened,
     )
