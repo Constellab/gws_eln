@@ -18,6 +18,8 @@ from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item_dto import (
     CreateItemDTO,
     ItemDTO,
+    SplitItemDTO,
+    SplitOutputDTO,
     TransformInputDTO,
     TransformItemsDTO,
     TransformOutputDTO,
@@ -72,6 +74,8 @@ class TransformInputRow:
 
     id: str
     item_id: str
+    sheet_id: str  # the item's sheet id (used to fix the output sheet for split)
+    sheet_code: str  # the item's sheet code (for the output code preview)
     sheet_name: str
     code: str
     label: str
@@ -124,6 +128,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     in_item_id: str = ""
     in_item_code: str = ""
     in_item_label: str = ""
+    in_item_sheet_id: str = ""  # sheet id of the selected item (to fix split output sheet)
+    in_item_sheet_code: str = ""  # sheet code of the selected item (output code preview)
     in_item_sheet_name: str = ""  # sheet name of the selected item (display)
     in_item_loc: str = ""  # location name of the selected item (display)
     in_item_available: str = ""  # available quantity of the selected item (display)
@@ -170,6 +176,36 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             TransformKind.CONCENTRATE.value: "Concentrate",
             TransformKind.CUSTOM.value: "Custom transform",
         }.get(self.transform_kind, "Transform")
+
+    @rx.var
+    def can_add_consumable_input(self) -> bool:
+        """Whether another consumable input may be added for the current kind.
+
+        Split takes exactly one consumable input (the source); other kinds are
+        unconstrained for now.
+        """
+        if self.transform_kind == TransformKind.SPLIT.value:
+            return len(self.consumable_inputs) < 1
+        return True
+
+    @rx.var
+    def output_sheet_is_fixed(self) -> bool:
+        """Whether outputs are forced onto the source's sheet (no sheet picker).
+
+        True for split: every child inherits the source item's sheet.
+        """
+        return self.transform_kind == TransformKind.SPLIT.value
+
+    @rx.var
+    def can_add_output(self) -> bool:
+        """Whether another output may be added for the current kind.
+
+        Split needs a source consumable before producing children (outputs are
+        otherwise unbounded); other kinds are unconstrained for now.
+        """
+        if self.transform_kind == TransformKind.SPLIT.value:
+            return len(self.consumable_inputs) >= 1
+        return True
 
     @rx.var
     def input_count(self) -> int:
@@ -277,6 +313,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_item_id = ""
         self.in_item_code = ""
         self.in_item_label = ""
+        self.in_item_sheet_id = ""
+        self.in_item_sheet_code = ""
         self.in_item_sheet_name = ""
         self.in_item_loc = ""
         self.in_item_available = ""
@@ -291,6 +329,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_item_id = item.id
         self.in_item_code = item.code
         self.in_item_label = item.label
+        self.in_item_sheet_id = item.item_sheet.id
+        self.in_item_sheet_code = item.item_sheet.code
         self.in_item_sheet_name = item.item_sheet.name
         self.in_item_loc = item.location.name
         self.in_item_available = item.pretty_quantity
@@ -317,6 +357,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_item_id = row.item_id
         self.in_item_code = row.code
         self.in_item_label = row.label
+        self.in_item_sheet_id = row.sheet_id
+        self.in_item_sheet_code = row.sheet_code
         self.in_item_sheet_name = row.sheet_name
         self.in_item_loc = row.loc
         self.in_item_available = row.available
@@ -398,6 +440,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         row = TransformInputRow(
             id=self.in_item_id,
             item_id=self.in_item_id,
+            sheet_id=self.in_item_sheet_id,
+            sheet_code=self.in_item_sheet_code,
             sheet_name=self.in_item_sheet_name,
             code=self.in_item_code,
             label=self.in_item_label,
@@ -424,13 +468,28 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     # ------------------------------------------------------------------ outputs
 
     @rx.event
-    def open_output_wizard(self):
-        """Open the output wizard fresh at step 1 (sheet selection)."""
+    async def open_output_wizard(self):
+        """Open the output wizard.
+
+        When the output sheet is fixed (split: children inherit the source's
+        sheet), skip sheet selection and go straight to the item step. Otherwise
+        start at step 1 (sheet selection).
+        """
+        self.output_create_sheet_mode = False
+        if self.output_sheet_is_fixed:
+            source = next((r for r in self.inputs if r.is_consumable), None)
+            if source is None:
+                return
+            self.out_sheet_id = source.sheet_id
+            self.out_sheet_code = source.sheet_code
+            self.out_sheet_name = source.sheet_name
+            self.output_dialog_opened = True
+            await self._advance_to_item_step()
+            return
         self.out_sheet_id = ""
         self.out_sheet_code = ""
         self.out_sheet_name = ""
         self.output_step = OutputStep.SHEET
-        self.output_create_sheet_mode = False
         self.output_dialog_opened = True
 
     @rx.event
@@ -549,7 +608,58 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.input_dialog_opened = False
 
     async def _create(self, form_data: dict):
-        """Build the TransformItemsDTO and call the service."""
+        """Route to the dedicated service for the chosen transformation kind."""
+        if self.transform_kind == TransformKind.SPLIT.value:
+            async for event in self._create_split(form_data):
+                yield event
+            return
+        async for event in self._create_custom(form_data):
+            yield event
+
+    async def _create_split(self, form_data: dict):
+        """Split the single source item into the listed output items.
+
+        Children inherit the source's sheet/unit/concentration; only quantity,
+        unit, location and label are user-entered per output.
+        """
+        source = next((row for row in self.inputs if row.is_consumable), None)
+        if source is None or not self.outputs:
+            return
+
+        outputs = [
+            SplitOutputDTO(
+                quantity=Decimal(row.qty),
+                unit=row.unit,
+                location_id=row.location_id or None,
+                label=row.label or None,
+            )
+            for row in self.outputs
+        ]
+        instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
+        notes = form_data.get("notes", "").strip() or None
+        dto = SplitItemDTO(
+            outputs=outputs,
+            instrument_item_ids=instrument_ids,
+            notes=notes,
+            note_id=self.note_dto_id,
+        )
+
+        main_state: ReflexMainState
+        async with self:
+            main_state = await self.get_state(ReflexMainState)
+
+        with await main_state.authenticate_user():
+            result = ItemService().split_item(source.item_id, dto)
+            linked_note = self._link_note_activity(result.activity.id)
+
+        yield rx.toast.success(f"Split saved — {len(outputs)} item(s) created")
+        await self._after_note_link(linked_note)
+
+        if self._callback_after_close and result.inputs:
+            await self._callback_after_close(result.inputs[0].to_dto())
+
+    async def _create_custom(self, form_data: dict):
+        """Build the TransformItemsDTO and call the generic transform service."""
         if not self.inputs or not self.outputs:
             return
 

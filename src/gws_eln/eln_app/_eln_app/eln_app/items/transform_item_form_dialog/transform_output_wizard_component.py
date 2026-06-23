@@ -173,13 +173,25 @@ def _step2_body() -> rx.Component:
             # remounts fresh whenever the destination sheet changes.
             rx.box(item_form_content(), key=_S.out_sheet_id, width="100%"),
             _footer(
-                rx.button(
-                    rx.icon("arrow-left", size=15),
-                    "Back",
-                    type="button",
-                    variant="soft",
-                    color_scheme="gray",
-                    on_click=_S.output_back_to_sheet_step,
+                # When the sheet is fixed (split) there is no sheet step to go
+                # back to, so offer Cancel instead of Back.
+                rx.cond(
+                    _S.output_sheet_is_fixed,
+                    rx.button(
+                        "Cancel",
+                        type="button",
+                        variant="soft",
+                        color_scheme="gray",
+                        on_click=_S.close_output_wizard,
+                    ),
+                    rx.button(
+                        rx.icon("arrow-left", size=15),
+                        "Back",
+                        type="button",
+                        variant="soft",
+                        color_scheme="gray",
+                        on_click=_S.output_back_to_sheet_step,
+                    ),
                 ),
                 rx.button(
                     rx.icon("plus", size=16),
@@ -205,7 +217,9 @@ def transform_output_wizard() -> rx.Component:
         rx.dialog.content(
             rx.vstack(
                 dialog_header("Create an output", close=_S.close_output_wizard),
-                _step_indicator(),
+                # Split fixes the output sheet to the source's, so there is no
+                # sheet step — hide the 2-step indicator in that case.
+                rx.cond(_S.output_sheet_is_fixed, rx.fragment(), _step_indicator()),
                 rx.box(
                     rx.cond(_S.output_step1_active, _step1_body()),
                     rx.cond(_S.output_step2_active, _step2_body()),

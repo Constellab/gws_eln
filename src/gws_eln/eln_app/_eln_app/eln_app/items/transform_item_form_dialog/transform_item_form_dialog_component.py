@@ -129,17 +129,19 @@ def _input_group(
     button_label: str,
     on_create,
     editable: bool,
+    can_create=True,
 ) -> rx.Component:
     """A persistent input sub-section: subtitle, helper text, its rows, a create button.
 
     The helper text is shown only while the sub-section has no row yet. Rows are
-    clickable to edit when ``editable`` is True (consumables only).
+    clickable to edit when ``editable`` is True (consumables only). The create
+    button is hidden when ``can_create`` is falsy (e.g. split allows one source).
     """
     return rx.vstack(
         rx.text(title, size="2", weight="medium"),
         rx.cond(rows.length() == 0, rx.text(description, size="1", color="gray")),
         rx.foreach(rows, lambda row: _input_row(row, editable)),
-        _create_button(button_label, on_create),
+        rx.cond(can_create, _create_button(button_label, on_create)),
         spacing="2",
         width="100%",
         align="stretch",
@@ -156,6 +158,7 @@ def _inputs_section() -> rx.Component:
             "Create consumable input",
             _S.open_consumable_input_dialog,
             editable=True,
+            can_create=_S.can_add_consumable_input,
         ),
         rx.divider(),
         _input_group(
@@ -189,7 +192,10 @@ def _outputs_section() -> rx.Component:
             ),
         ),
         rx.foreach(_S.outputs, lambda row, i: _output_row(row, i)),
-        _create_button("Create output", _S.open_output_wizard),
+        rx.cond(
+            _S.can_add_output,
+            _create_button("Create output", _S.open_output_wizard),
+        ),
         spacing="3",
         flex="1",
         min_width="0",
@@ -271,6 +277,8 @@ def _kind_card(icon: str, title: str, description: str, kind: str) -> rx.Compone
                 rx.text(description, size="1", color="gray"),
                 spacing="1",
                 align="start",
+                flex="1",
+                min_width="0",
             ),
             spacing="3",
             align="center",
@@ -335,6 +343,7 @@ def _chooser() -> rx.Component:
             margin_top="1em",
         ),
         width="100%",
+        min_width="0",
         spacing="3",
     )
 
@@ -403,7 +412,8 @@ def _dialog() -> rx.Component:
     return rx.dialog.root(
         rx.dialog.content(
             rx.cond(_S.step_is_choose, _chooser(), _builder()),
-            max_width="490px",
+            # Narrow for the kind chooser, wide for the inputs/outputs builder.
+            max_width=rx.cond(_S.step_is_choose, "480px", "980px"),
             max_height="90vh",
             display="flex",
             flex_direction="column",
