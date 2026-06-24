@@ -11,27 +11,31 @@ from .update_item_form_dialog_state import UpdateItemFormDialogState
 def _form_content() -> rx.Component:
     """Form content for updating item metadata."""
     return rx.vstack(
-        # Item Number (read-only display)
-        rx.vstack(
-            rx.text("Item", size="2", weight="bold"),
-            rx.text(
-                UpdateItemFormDialogState.code,
-                size="2",
-                color="gray",
+        # Item + ItemSheet (read-only, side by side, equal width)
+        rx.hstack(
+            rx.vstack(
+                rx.text("Item", size="2", weight="bold"),
+                rx.text(
+                    UpdateItemFormDialogState.code,
+                    size="2",
+                    color="gray",
+                ),
+                width="50%",
+                spacing="1",
+            ),
+            rx.vstack(
+                rx.text("ItemSheet", size="2", weight="bold"),
+                rx.text(
+                    UpdateItemFormDialogState.item_sheet_name,
+                    size="2",
+                    color="gray",
+                ),
+                width="50%",
+                spacing="1",
             ),
             width="100%",
-            spacing="1",
-        ),
-        # ItemSheet Name (read-only display)
-        rx.vstack(
-            rx.text("ItemSheet", size="2", weight="bold"),
-            rx.text(
-                UpdateItemFormDialogState.item_sheet_name,
-                size="2",
-                color="gray",
-            ),
-            width="100%",
-            spacing="1",
+            spacing="3",
+            align="start",
         ),
         # Supplier field
         rx.vstack(
@@ -74,31 +78,35 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="3",
         ),
-        # Expiry Date field
-        rx.vstack(
-            rx.text("Expiry Date", size="2", weight="bold"),
-            rx.input(
-                placeholder="Select expiry date (optional)",
-                name="expiry_date",
-                type="date",
-                width="100%",
-                value=UpdateItemFormDialogState.form_expiry_date,
-                on_change=UpdateItemFormDialogState.set_expiry_date,
+        # Expiry Date + Storage conditions (side by side, equal width)
+        rx.hstack(
+            rx.vstack(
+                rx.text("Expiry Date", size="2", weight="bold"),
+                rx.input(
+                    placeholder="Select expiry date (optional)",
+                    name="expiry_date",
+                    type="date",
+                    width="100%",
+                    value=UpdateItemFormDialogState.form_expiry_date,
+                    on_change=UpdateItemFormDialogState.set_expiry_date,
+                ),
+                width="50%",
+                spacing="1",
+            ),
+            rx.vstack(
+                rx.text("Storage conditions", size="2", weight="bold"),
+                rx.input(
+                    placeholder="e.g. -20°C (optional)",
+                    name="storage_conditions",
+                    width="100%",
+                    default_value=UpdateItemFormDialogState.form_storage_conditions,
+                ),
+                width="50%",
+                spacing="1",
             ),
             width="100%",
-            spacing="1",
-        ),
-        # Storage conditions field
-        rx.vstack(
-            rx.text("Storage conditions", size="2", weight="bold"),
-            rx.input(
-                placeholder="e.g. -20°C (optional)",
-                name="storage_conditions",
-                width="100%",
-                default_value=UpdateItemFormDialogState.form_storage_conditions,
-            ),
-            width="100%",
-            spacing="1",
+            spacing="3",
+            align="start",
         ),
         # Notes field
         rx.vstack(
