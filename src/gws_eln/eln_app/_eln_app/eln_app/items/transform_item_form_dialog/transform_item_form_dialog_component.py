@@ -148,17 +148,48 @@ def _input_group(
     )
 
 
+def _dilute_consumable_groups() -> rx.Component:
+    """Dilute splits its two consumables into the Target and Diluent roles."""
+    return rx.vstack(
+        _input_group(
+            "Target",
+            "The item being diluted — its quantity is reduced.",
+            _S.dilute_target_inputs,
+            "Set target",
+            _S.open_target_input_dialog,
+            editable=True,
+            can_create=_S.dilute_target_inputs.length() == 0,
+        ),
+        _input_group(
+            "Diluent",
+            "Added to dilute the target — its quantity is reduced.",
+            _S.dilute_diluent_inputs,
+            "Set diluent",
+            _S.open_diluent_input_dialog,
+            editable=True,
+            can_create=_S.dilute_diluent_inputs.length() == 0,
+        ),
+        spacing="4",
+        width="100%",
+        align="stretch",
+    )
+
+
 def _inputs_section() -> rx.Component:
     return rx.vstack(
         _section_label("INPUTS", _S.input_count),
-        _input_group(
-            "Consumables",
-            "Items consumed by the transform — a quantity is deducted from their stock.",
-            _S.consumable_inputs,
-            "Create consumable input",
-            _S.open_consumable_input_dialog,
-            editable=True,
-            can_create=_S.can_add_consumable_input,
+        rx.cond(
+            _S.kind_is_dilute,
+            _dilute_consumable_groups(),
+            _input_group(
+                "Consumables",
+                "Items consumed by the transform — a quantity is deducted from their stock.",
+                _S.consumable_inputs,
+                "Create consumable input",
+                _S.open_consumable_input_dialog,
+                editable=True,
+                can_create=_S.can_add_consumable_input,
+            ),
         ),
         rx.divider(),
         _input_group(

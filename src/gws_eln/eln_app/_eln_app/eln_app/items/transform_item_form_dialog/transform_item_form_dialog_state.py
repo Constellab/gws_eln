@@ -20,6 +20,7 @@ from gws_eln.items.item_dto import (
     CombineItemDTO,
     ConcentrateItemDTO,
     CreateItemDTO,
+    DiluteItemDTO,
     ItemDTO,
     SplitItemDTO,
     SplitOutputDTO,
@@ -77,6 +78,10 @@ COMBINE_MIN_INPUTS = 2
 # A split must produce at least this many outputs (1 output would be a move/aliquot).
 SPLIT_MIN_OUTPUTS = 2
 
+# Roles for the two consumable inputs of a dilute (target is the item being diluted).
+INPUT_ROLE_TARGET = "target"
+INPUT_ROLE_DILUENT = "diluent"
+
 
 @dataclass
 class TransformInputRow:
@@ -97,6 +102,7 @@ class TransformInputRow:
     available: str  # available quantity (display), for re-populating the edit form
     qty_base: str  # available quantity in base unit, for edit-time validation
     consumed: str  # display, e.g. "4 units" or "instrument"
+    role: str = ""  # dilute role: INPUT_ROLE_TARGET / INPUT_ROLE_DILUENT ("" otherwise)
 
 
 @dataclass
@@ -136,6 +142,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     input_dialog_opened: bool = False
     input_dialog_is_consumable: bool = True
     _editing_input_id: str = ""
+    # Role assigned to the input being added/edited (dilute target/diluent; "" else).
+    _pending_input_role: str = ""
     in_item_id: str = ""
     in_item_code: str = ""
     in_item_label: str = ""
@@ -182,6 +190,18 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         return self.transform_kind == TransformKind.CUSTOM.value
 
     @rx.var
+    def kind_is_dilute(self) -> bool:
+        return self.transform_kind == TransformKind.DILUTE.value
+
+    @rx.var
+    def dilute_target_inputs(self) -> list[TransformInputRow]:
+        return [row for row in self.inputs if row.role == INPUT_ROLE_TARGET]
+
+    @rx.var
+    def dilute_diluent_inputs(self) -> list[TransformInputRow]:
+        return [row for row in self.inputs if row.role == INPUT_ROLE_DILUENT]
+
+    @rx.var
     def kind_title(self) -> str:
         return {
             TransformKind.SPLIT.value: "Split",
@@ -209,11 +229,12 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     def output_sheet_is_fixed(self) -> bool:
         """Whether outputs are forced onto the source's sheet (no sheet picker).
 
-        True for split and concentrate: the output stays on the source's sheet.
+        True for split/concentrate (source's sheet) and dilute (target's sheet).
         """
         return self.transform_kind in (
             TransformKind.SPLIT.value,
             TransformKind.CONCENTRATE.value,
+            TransformKind.DILUTE.value,
         )
 
     @rx.var
@@ -241,6 +262,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             return len(self.outputs) < 1
         if self.transform_kind == TransformKind.CONCENTRATE.value:
             return len(self.consumable_inputs) >= 1 and len(self.outputs) < 1
+        if self.transform_kind == TransformKind.DILUTE.value:
+            # Need the target (it fixes the output sheet); exactly one output.
+            has_target = any(row.role == INPUT_ROLE_TARGET for row in self.inputs)
+            return has_target and len(self.outputs) < 1
         return True
 
     @rx.var
@@ -334,6 +359,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             self._set_input_from_item(item)
             self.input_dialog_is_consumable = item.item_sheet.is_consumable
             self._editing_input_id = ""
+            # For dilute the launching item is the target being diluted.
+            self._pending_input_role = (
+                INPUT_ROLE_TARGET if kind == TransformKind.DILUTE.value else ""
+            )
             self.input_dialog_opened = True
             self._seed_item = None
 
@@ -380,6 +409,25 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """Open the dialog to add a consumable input."""
         self._reset_input_fields()
         self._editing_input_id = ""
+        self._pending_input_role = ""
+        self.input_dialog_is_consumable = True
+        self.input_dialog_opened = True
+
+    @rx.event
+    def open_target_input_dialog(self):
+        """Open the dialog to set the dilute target (the item being diluted)."""
+        self._reset_input_fields()
+        self._editing_input_id = ""
+        self._pending_input_role = INPUT_ROLE_TARGET
+        self.input_dialog_is_consumable = True
+        self.input_dialog_opened = True
+
+    @rx.event
+    def open_diluent_input_dialog(self):
+        """Open the dialog to set the dilute diluent."""
+        self._reset_input_fields()
+        self._editing_input_id = ""
+        self._pending_input_role = INPUT_ROLE_DILUENT
         self.input_dialog_is_consumable = True
         self.input_dialog_opened = True
 
@@ -390,6 +438,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         if row is None:
             return
         self._editing_input_id = row_id
+        self._pending_input_role = row.role
         self.in_item_id = row.item_id
         self.in_item_code = row.code
         self.in_item_label = row.label
@@ -411,6 +460,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """Open the dialog to add an instrument (non-consumable) input."""
         self._reset_input_fields()
         self._editing_input_id = ""
+        self._pending_input_role = ""
         self.input_dialog_is_consumable = False
         self.input_dialog_opened = True
 
@@ -489,6 +539,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             available=self.in_item_available,
             qty_base=self.in_item_qty_base,
             consumed=consumed,
+            role=self._pending_input_role,
         )
         if self._editing_input_id:
             self.inputs = [row if r.id == self._editing_input_id else r for r in self.inputs]
@@ -503,6 +554,17 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
     # ------------------------------------------------------------------ outputs
 
+    def _fixed_output_source(self) -> TransformInputRow | None:
+        """The input whose sheet the output inherits when the sheet is fixed.
+
+        Dilute uses the target; split/concentrate use the (single) consumable.
+        """
+        if self.transform_kind == TransformKind.DILUTE.value:
+            return next(
+                (r for r in self.inputs if r.role == INPUT_ROLE_TARGET), None
+            )
+        return next((r for r in self.inputs if r.is_consumable), None)
+
     @rx.event
     async def open_output_wizard(self):
         """Open the output wizard.
@@ -513,7 +575,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """
         self.output_create_sheet_mode = False
         if self.output_sheet_is_fixed:
-            source = next((r for r in self.inputs if r.is_consumable), None)
+            source = self._fixed_output_source()
             if source is None:
                 return
             self.out_sheet_id = source.sheet_id
@@ -662,6 +724,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             async for event in self._create_concentrate(form_data):
                 yield event
             return
+        if self.transform_kind == TransformKind.DILUTE.value:
+            async for event in self._create_dilute(form_data):
+                yield event
+            return
         async for event in self._create_custom(form_data):
             yield event
 
@@ -797,6 +863,60 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             linked_note = self._link_note_activity(result.activity.id)
 
         yield rx.toast.success("Concentrate saved — 1 item created")
+        await self._after_note_link(linked_note)
+
+        if self._callback_after_close and result.inputs:
+            await self._callback_after_close(result.inputs[0].to_dto())
+
+    async def _create_dilute(self, form_data: dict):
+        """Dilute the target with the diluent into one less-concentrated item.
+
+        BOTH the target and the diluent are reduced in place; the output is a new
+        item on the target's own sheet at the user-entered concentration.
+        """
+        target = next(
+            (row for row in self.inputs if row.role == INPUT_ROLE_TARGET), None
+        )
+        diluent = next(
+            (row for row in self.inputs if row.role == INPUT_ROLE_DILUENT), None
+        )
+        if target is None or not target.qty:
+            raise Exception("Dilute needs a target consumable item with a quantity")
+        if diluent is None or not diluent.qty:
+            raise Exception("Dilute needs a diluent consumable item with a quantity")
+        if len(self.outputs) != 1:
+            raise Exception("Dilute produces exactly one output")
+        output = self.outputs[0]
+
+        instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
+        notes = form_data.get("notes", "").strip() or None
+        dto = DiluteItemDTO(
+            quantity_contributed=Decimal(target.qty),
+            unit=target.unit,
+            diluent_item_id=diluent.item_id,
+            diluent_quantity_contributed=Decimal(diluent.qty),
+            diluent_unit=diluent.unit,
+            output_quantity=Decimal(output.qty),
+            output_unit=output.unit,
+            output_concentration=Decimal(output.conc) if output.conc else None,
+            output_concentration_unit=output.conc_unit or None,
+            dilution_factor=Decimal(output.dilution_factor) if output.dilution_factor else None,
+            instrument_item_ids=instrument_ids,
+            output_location_id=output.location_id or None,
+            output_label=output.label or None,
+            notes=notes,
+            note_id=self.note_dto_id,
+        )
+
+        main_state: ReflexMainState
+        async with self:
+            main_state = await self.get_state(ReflexMainState)
+
+        with await main_state.authenticate_user():
+            result = ItemService().dilute_item(target.item_id, dto)
+            linked_note = self._link_note_activity(result.activity.id)
+
+        yield rx.toast.success("Dilute saved — 1 item created")
         await self._after_note_link(linked_note)
 
         if self._callback_after_close and result.inputs:
