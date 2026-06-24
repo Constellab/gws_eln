@@ -1,5 +1,5 @@
 import reflex as rx
-from gws_eln.core.concentration_unit import CONCENTRATION_UNITS
+from gws_eln.core.concentration_unit import get_concentration_units_by_family
 
 # Sentinel value for the "no concentration unit" option. rx.select cannot use an
 # empty/None value, so this string represents "no selection".
@@ -27,11 +27,20 @@ def concentration_unit_select(
     """
     none_item = rx.select.item("No concentration", value=NO_CONCENTRATION_VALUE)
 
+    # One labelled group per concentration family (molar, mass/volume, …).
+    family_groups = [
+        rx.select.group(
+            rx.select.label(family_label),
+            *[rx.select.item(unit, value=unit) for unit in units],
+        )
+        for family_label, units in get_concentration_units_by_family()
+    ]
+
     return rx.select.root(
         rx.select.trigger(placeholder=placeholder, width=width),
         rx.select.content(
             none_item,
-            *[rx.select.item(unit, value=unit) for unit in CONCENTRATION_UNITS],
+            *family_groups,
         ),
         name=name,
         disabled=disabled,
