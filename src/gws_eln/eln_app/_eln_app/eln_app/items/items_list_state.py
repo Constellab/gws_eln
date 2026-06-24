@@ -10,17 +10,8 @@ from gws_eln.items.item_search_builder import ItemSearchBuilder
 from gws_eln.items.item_status import ItemStatus
 from gws_reflex_main import ReflexMainState
 
-from .combine_item_form_dialog.combine_item_form_dialog_state import (
-    CombineItemFormDialogState,
-)
-from .concentrate_item_form_dialog.concentrate_item_form_dialog_state import (
-    ConcentrateItemFormDialogState,
-)
 from .delete_item_form_dialog.delete_item_form_dialog_state import (
     DeleteItemFormDialogState,
-)
-from .dilute_item_form_dialog.dilute_item_form_dialog_state import (
-    DiluteItemFormDialogState,
 )
 from .item_event_form_dialog.item_event_form_dialog_state import (
     ItemEventFormDialogState,
@@ -34,9 +25,6 @@ from .move_item_form_dialog.move_item_form_dialog_state import (
 )
 from .relabel_item_form_dialog.relabel_item_form_dialog_state import (
     RelabelItemFormDialogState,
-)
-from .split_item_form_dialog.split_item_form_dialog_state import (
-    SplitItemFormDialogState,
 )
 from .transform_item_form_dialog.transform_item_form_dialog_state import (
     TransformItemFormDialogState,
@@ -320,50 +308,6 @@ class ItemsListState(rx.State):
         dialog_state = await self.get_state(TransformItemFormDialogState)
         dialog_state.set_callback_after_close(self._reload_items)
         await dialog_state.open_transform_dialog(item)
-
-    @rx.event
-    async def open_split_dialog(self, item: ItemDTO):
-        """Open the split item dialog for a item.
-
-        :param item: The item to split
-        :type item: ItemDTO
-        """
-        dialog_state = await self.get_state(SplitItemFormDialogState)
-        dialog_state.set_callback_after_close(self._reload_items)
-        dialog_state.open_split_dialog(item)
-
-    @rx.event
-    async def open_combine_dialog(self, item: ItemDTO):
-        """Open the combine items dialog seeded with a item.
-
-        :param item: The item to seed as the first ingredient
-        :type item: ItemDTO
-        """
-        dialog_state = await self.get_state(CombineItemFormDialogState)
-        dialog_state.set_callback_after_close(self._reload_items)
-        dialog_state.open_combine_dialog(item)
-
-    @rx.event
-    async def open_concentrate_dialog(self, item: ItemDTO):
-        """Open the concentrate item dialog for a item.
-
-        :param item: The item to concentrate
-        :type item: ItemDTO
-        """
-        dialog_state = await self.get_state(ConcentrateItemFormDialogState)
-        dialog_state.set_callback_after_close(self._reload_items)
-        dialog_state.open_concentrate_dialog(item)
-
-    @rx.event
-    async def open_dilute_dialog(self, item: ItemDTO):
-        """Open the dilute item dialog for a item.
-
-        :param item: The item to dilute (the target)
-        :type item: ItemDTO
-        """
-        dialog_state = await self.get_state(DiluteItemFormDialogState)
-        dialog_state.set_callback_after_close(self._reload_items)
-        dialog_state.open_dilute_dialog(item)
 
     @rx.event
     async def open_delete_dialog(self, item: ItemDTO):

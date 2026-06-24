@@ -11,20 +11,11 @@ from ..locations.core.inline_location_component import inline_location_component
 from ..locations.core.location_select_component import location_select_component
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from ..suppliers.core.supplier_select_component import supplier_select_component
-from .combine_item_form_dialog.combine_item_form_dialog_component import (
-    combine_item_dialog,
-)
-from .concentrate_item_form_dialog.concentrate_item_form_dialog_component import (
-    concentrate_item_dialog,
-)
-from .core.item_actions_menu import ItemTransformActions, item_actions_menu
+from .core.item_actions_menu import item_actions_menu
 from .core.item_components import expiry_date_badge, item_inline, status_badge
 from .core.item_status_select_component import item_status_select_component
 from .delete_item_form_dialog.delete_item_form_dialog_component import (
     delete_item_dialog,
-)
-from .dilute_item_form_dialog.dilute_item_form_dialog_component import (
-    dilute_item_dialog,
 )
 from .item_event_form_dialog.item_event_form_dialog_component import (
     item_event_form_dialog,
@@ -36,9 +27,6 @@ from .items_list_state import ALL_FILTER_VALUE, ItemsListState
 from .move_item_form_dialog.move_item_form_dialog_component import move_item_dialog
 from .relabel_item_form_dialog.relabel_item_form_dialog_component import (
     relabel_item_dialog,
-)
-from .split_item_form_dialog.split_item_form_dialog_component import (
-    split_item_dialog,
 )
 from .transform_item_form_dialog.transform_item_form_dialog_component import (
     transform_item_dialog,
@@ -156,12 +144,6 @@ def _row(item: ItemDTO) -> rx.Component:
                 on_relabel=lambda: ItemsListState.open_relabel_dialog(item),
                 on_delete=lambda: ItemsListState.open_delete_dialog(item),
                 on_transform=lambda: ItemsListState.open_transform_dialog(item),
-                transforms=ItemTransformActions(
-                    on_split=lambda: ItemsListState.open_split_dialog(item),
-                    on_combine=lambda: ItemsListState.open_combine_dialog(item),
-                    on_concentrate=lambda: ItemsListState.open_concentrate_dialog(item),
-                    on_dilute=lambda: ItemsListState.open_dilute_dialog(item),
-                ),
                 stop_propagation=True,
             ),
         ),
@@ -278,10 +260,6 @@ def items_list_component(item_sheet_id: rx.Var[str]) -> rx.Component:
             use_item_dialog(),
             transform_item_dialog(),
             item_sheet_update_dialog(),
-            split_item_dialog(),
-            combine_item_dialog(),
-            concentrate_item_dialog(),
-            dilute_item_dialog(),
             delete_item_dialog(),
             width="100%",
             spacing="4",

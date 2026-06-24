@@ -1,28 +1,12 @@
 """Item actions menu component."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
 
 import reflex as rx
 from gws_eln.items.item_dto import ItemDTO
 from gws_eln.items.item_status import ItemStatus
 
 EventHandlerOrCallable = rx.EventHandler | Callable
-
-
-@dataclass
-class ItemTransformActions:
-    """Optional consumable-only transform handlers for the item actions menu.
-
-    Each entry is only shown when its handler is provided AND the item is
-    consumable (these transforms all reduce a quantity, so they make no sense
-    for non-consumable items / instruments).
-    """
-
-    on_split: EventHandlerOrCallable | None = None
-    on_combine: EventHandlerOrCallable | None = None
-    on_concentrate: EventHandlerOrCallable | None = None
-    on_dilute: EventHandlerOrCallable | None = None
 
 
 def item_actions_menu(
@@ -35,7 +19,6 @@ def item_actions_menu(
     on_relabel: EventHandlerOrCallable,
     on_delete: EventHandlerOrCallable,
     on_transform: EventHandlerOrCallable | None = None,
-    transforms: ItemTransformActions | None = None,
     stop_propagation: bool = False,
 ) -> rx.Component:
     """Create the actions menu for a item.
@@ -49,16 +32,12 @@ def item_actions_menu(
     :param on_update: Event handler for update item action
     :param on_relabel: Event handler for relabel item action
     :param on_delete: Event handler for delete item action
-    :param transforms: Optional consumable-only transform handlers (split,
-                       combine, concentrate, dilute). Each entry is shown only
-                       when its handler is provided and the item is consumable.
-    :type transforms: ItemTransformActions | None
+    :param on_transform: Event handler for the (unified) transform action
     :param stop_propagation: Whether to stop event propagation (useful in table rows)
     :type stop_propagation: bool
     :return: The actions menu component
     :rtype: rx.Component
     """
-    transforms = transforms or ItemTransformActions()
 
     def _wrap_click(handler: EventHandlerOrCallable) -> EventHandlerOrCallable | list:
         """Wrap click handler with stop_propagation if needed."""
@@ -83,19 +62,6 @@ def item_actions_menu(
             rx.fragment(),
             rx.menu.item(rx.icon(icon, size=16), label, on_click=_wrap_click(handler)),
         )
-
-    # Optional transform entries (shown only when their handler is provided)
-    transform_specs = [
-        (transforms.on_split, "split", "Split Item"),
-        (transforms.on_combine, "git-merge", "Combine Items"),
-        (transforms.on_concentrate, "shrink", "Concentrate Item"),
-        (transforms.on_dilute, "droplets", "Dilute Item"),
-    ]
-    transform_items = [
-        _consumable_item(handler, icon, label)
-        for handler, icon, label in transform_specs
-        if handler is not None
-    ]
 
     menu = rx.menu.root(
         rx.menu.trigger(
@@ -127,7 +93,6 @@ def item_actions_menu(
                 "Relabel Item",
                 on_click=_wrap_click(on_relabel),
             ),
-            *transform_items,
             *(
                 [
                     rx.menu.separator(),

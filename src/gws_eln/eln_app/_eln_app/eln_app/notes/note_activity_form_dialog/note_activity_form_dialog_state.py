@@ -20,15 +20,6 @@ from gws_eln.notes.eln_note_service import ElnNoteService
 from gws_reflex_main import ReflexMainState
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
-from ...items.combine_item_form_dialog.combine_item_form_dialog_state import (
-    CombineItemFormDialogState,
-)
-from ...items.concentrate_item_form_dialog.concentrate_item_form_dialog_state import (
-    ConcentrateItemFormDialogState,
-)
-from ...items.dilute_item_form_dialog.dilute_item_form_dialog_state import (
-    DiluteItemFormDialogState,
-)
 from ...items.item_event_form_dialog.item_event_form_dialog_state import (
     ItemEventFormDialogState,
     ItemEventType,
@@ -39,8 +30,8 @@ from ...items.move_item_form_dialog.move_item_form_dialog_state import (
 from ...items.relabel_item_form_dialog.relabel_item_form_dialog_state import (
     RelabelItemFormDialogState,
 )
-from ...items.split_item_form_dialog.split_item_form_dialog_state import (
-    SplitItemFormDialogState,
+from ...items.transform_item_form_dialog.transform_item_form_dialog_state import (
+    TransformItemFormDialogState,
 )
 
 NoteActivityCallback = Callable[[Note], Coroutine[Any, Any, None]]
@@ -52,10 +43,7 @@ SUPPORTED_ACTIVITY_TYPES: list[tuple[str, str]] = [
     (ActivityType.CONSUME.value, "Consume stock"),
     (ActivityType.MOVE.value, "Move"),
     (ActivityType.RELABEL.value, "Relabel"),
-    (ActivityType.SPLIT.value, "Split"),
-    (ActivityType.COMBINE.value, "Combine"),
-    (ActivityType.CONCENTRATE.value, "Concentrate"),
-    (ActivityType.DILUTE.value, "Dilute"),
+    (ActivityType.TRANSFORM.value, "Transform"),
 ]
 
 # Dispatch for the chooser: activity type -> (dialog state class, open-method name,
@@ -63,14 +51,11 @@ SUPPORTED_ACTIVITY_TYPES: list[tuple[str, str]] = [
 # (open_dialog_for_event); it is None for every other dialog. The open method may be
 # sync or async - the caller awaits it only when it returns an awaitable.
 _ACTIVITY_DISPATCH: dict[str, tuple[type, str, "ItemEventType | None"]] = {
-    ActivityType.SPLIT.value: (SplitItemFormDialogState, "open_split_dialog", None),
-    ActivityType.COMBINE.value: (CombineItemFormDialogState, "open_combine_dialog", None),
-    ActivityType.CONCENTRATE.value: (
-        ConcentrateItemFormDialogState,
-        "open_concentrate_dialog",
+    ActivityType.TRANSFORM.value: (
+        TransformItemFormDialogState,
+        "open_transform_dialog",
         None,
     ),
-    ActivityType.DILUTE.value: (DiluteItemFormDialogState, "open_dilute_dialog", None),
     ActivityType.MOVE.value: (MoveItemFormDialogState, "open_move_dialog", None),
     ActivityType.RELABEL.value: (RelabelItemFormDialogState, "open_relabel_dialog", None),
     ActivityType.RECEIVE.value: (
