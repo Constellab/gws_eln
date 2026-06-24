@@ -103,6 +103,8 @@ class TransformInputRow:
     qty_base: str  # available quantity in base unit, for edit-time validation
     consumed: str  # display, e.g. "4 units" or "instrument"
     role: str = ""  # dilute role: INPUT_ROLE_TARGET / INPUT_ROLE_DILUENT ("" otherwise)
+    init_conc: str = ""  # the item's current concentration (for concentrate/dilute checks)
+    init_conc_unit: str = ""  # unit of init_conc ("" when none)
 
 
 @dataclass
@@ -154,6 +156,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     in_item_available: str = ""  # available quantity of the selected item (display)
     in_item_qty_base: str = ""  # available quantity in base unit (raw, for validation)
     in_item_consumable: bool = True
+    in_item_conc: str = ""  # the selected item's current concentration (raw)
+    in_item_conc_unit: str = ""  # unit of in_item_conc ("" when none)
     in_unit_type: str = UnitType.COUNT.value
     in_qty: str = ""
     in_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
@@ -385,6 +389,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_item_available = ""
         self.in_item_qty_base = ""
         self.in_item_consumable = True
+        self.in_item_conc = ""
+        self.in_item_conc_unit = ""
         self.in_unit_type = UnitType.COUNT.value
         self.in_qty = ""
         self.in_unit = UnitConverter.get_default_unit(UnitType.COUNT)
@@ -401,6 +407,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_item_available = item.pretty_quantity
         self.in_item_qty_base = str(item.quantity)
         self.in_item_consumable = item.item_sheet.is_consumable
+        self.in_item_conc = str(item.concentration) if item.concentration is not None else ""
+        self.in_item_conc_unit = item.concentration_unit or ""
         self.in_unit_type = item.unit_type.value
         self.in_unit = UnitConverter.get_default_unit(item.unit_type)
 
@@ -449,6 +457,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_item_available = row.available
         self.in_item_qty_base = row.qty_base
         self.in_item_consumable = row.is_consumable
+        self.in_item_conc = row.init_conc
+        self.in_item_conc_unit = row.init_conc_unit
         self.in_unit_type = row.unit_type
         self.in_qty = row.qty
         self.in_unit = row.unit
@@ -540,6 +550,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             qty_base=self.in_item_qty_base,
             consumed=consumed,
             role=self._pending_input_role,
+            init_conc=self.in_item_conc,
+            init_conc_unit=self.in_item_conc_unit,
         )
         if self._editing_input_id:
             self.inputs = [row if r.id == self._editing_input_id else r for r in self.inputs]
@@ -824,6 +836,37 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         if self._callback_after_close and result.inputs:
             await self._callback_after_close(result.inputs[0].to_dto())
 
+    def _validate_concentration_change(
+        self,
+        init_conc: str,
+        init_unit: str,
+        out_conc: str,
+        out_unit: str,
+        must_increase: bool,
+    ):
+        """Enforce the concentration direction for concentrate/dilute.
+
+        Concentrate must raise the concentration, dilute must lower it. The check
+        only runs when both concentrations are given and share the same unit (the
+        spec forbids unit interconversion, so cross-unit values can't be compared).
+
+        :raises Exception: if the change goes the wrong way.
+        """
+        if not init_conc or not out_conc or init_unit != out_unit:
+            return
+        initial = Decimal(init_conc)
+        final = Decimal(out_conc)
+        if must_increase and final <= initial:
+            raise Exception(
+                "Concentrate must increase the concentration "
+                "(output concentration must be higher than the source's)"
+            )
+        if not must_increase and final >= initial:
+            raise Exception(
+                "Dilute must decrease the concentration "
+                "(output concentration must be lower than the target's)"
+            )
+
     async def _create_concentrate(self, form_data: dict):
         """Concentrate the single source item into one more concentrated item.
 
@@ -836,6 +879,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         if len(self.outputs) != 1:
             raise Exception("Concentrate produces exactly one output")
         output = self.outputs[0]
+        self._validate_concentration_change(
+            source.init_conc, source.init_conc_unit, output.conc, output.conc_unit,
+            must_increase=True,
+        )
 
         instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
         notes = form_data.get("notes", "").strip() or None
@@ -887,6 +934,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         if len(self.outputs) != 1:
             raise Exception("Dilute produces exactly one output")
         output = self.outputs[0]
+        self._validate_concentration_change(
+            target.init_conc, target.init_conc_unit, output.conc, output.conc_unit,
+            must_increase=False,
+        )
 
         instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
         notes = form_data.get("notes", "").strip() or None
