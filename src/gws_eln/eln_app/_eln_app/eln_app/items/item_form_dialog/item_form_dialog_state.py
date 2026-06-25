@@ -35,6 +35,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
     # Form field default values
     form_unit_type: str = UnitType.COUNT.value
     form_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
+    form_quantity: str = ""
+    form_concentration: str = ""
     form_concentration_unit: str = "__none__"
     form_location_id: str = ""
     form_supplier_id: str = "__none__"
@@ -114,6 +116,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
         # Reset form fields to defaults
         self.form_label = ""
+        self.form_quantity = ""
+        self.form_concentration = ""
         self.form_unit_count = 1
         self.form_serials = [""]
         # Prefill the storage condition with the sheet's default (editable override)
@@ -162,6 +166,16 @@ class ItemFormDialogState(FormDialogState, rx.State):
     def set_unit(self, value: str):
         """Handle unit selection change."""
         self.form_unit = value
+
+    @rx.event
+    def set_quantity(self, value: str):
+        """Handle quantity input change."""
+        self.form_quantity = value
+
+    @rx.event
+    def set_concentration(self, value: str):
+        """Handle concentration input change."""
+        self.form_concentration = value
 
     @rx.event
     def set_concentration_unit(self, value: str):
@@ -258,8 +272,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
         Raises:
             Exception: If validation fails
         """
-        quantity = self._parse_quantity(form_data.get("quantity", "").strip())
-        concentration = self._parse_concentration(form_data.get("concentration", "").strip())
+        quantity = self._parse_quantity(self.form_quantity.strip())
+        concentration = self._parse_concentration(self.form_concentration.strip())
         expiry_date = self._parse_expiry_date()
         label = form_data.get("label", "").strip() or None
         storage_conditions = form_data.get("storage_conditions", "").strip() or None
@@ -480,6 +494,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
         self._item_sheet = None
         self.form_unit_type = UnitType.COUNT.value
         self.form_unit = UnitConverter.get_default_unit(UnitType.COUNT)
+        self.form_quantity = ""
+        self.form_concentration = ""
         self.form_concentration_unit = self.NO_CONCENTRATION_VALUE
         self.form_location_id = ""
         self.form_supplier_id = self.NO_SUPPLIER_VALUE

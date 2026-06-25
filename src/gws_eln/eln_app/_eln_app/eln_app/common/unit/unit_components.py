@@ -42,7 +42,8 @@ def quantity_unit_input(
         quantity_placeholder: Placeholder text for quantity input
         quantity_label: Label text for quantity field
         unit_label: Label text for unit field
-        quantity_required: Whether quantity is required
+        quantity_required: Whether quantity is required (controls the "*" marker
+            only; validation is enforced server-side and surfaced as a toast)
         disabled: Whether both fields are disabled
         quantity_width: Width of the quantity input
         unit_width: Width of the unit select
@@ -115,7 +116,6 @@ def quantity_unit_input(
         "type": "number",
         "min": "0",
         "step": "any",
-        "required": quantity_required,
         "width": "100%",
         "disabled": disabled,
     }

@@ -66,6 +66,7 @@ def _step_indicator() -> rx.Component:
         justify="center",
         width="100%",
         margin_bottom="0.5rem",
+        flex_shrink="0",
     )
 
 
@@ -88,12 +89,13 @@ def _footer(*children) -> rx.Component:
         width="100%",
         flex_shrink="0",
         padding_top="3",
+        margin_top="1rem",
     )
 
 
 def _step1_select() -> rx.Component:
     """Step 1, default mode: pick an existing ItemSheet, or switch to create mode."""
-    return rx.vstack(
+    return rx.box(
         _scroll_box(
             input_search_component(
                 search_result=_OSS.results,
@@ -126,38 +128,36 @@ def _step1_select() -> rx.Component:
         width="100%",
         flex="1",
         min_height="0",
-        spacing="3",
+        display="flex",
+        flex_direction="column",
     )
 
 
 def _step1_create() -> rx.Component:
     """Step 1, create mode: the reused ItemSheet creation form."""
     return rx.form(
-        rx.vstack(
-            _scroll_box(item_sheet_form_content()),
-            _footer(
-                rx.button(
-                    rx.icon("arrow-left", size=15),
-                    "Back",
-                    type="button",
-                    variant="soft",
-                    color_scheme="gray",
-                    on_click=_S.output_back_to_select_sheet,
-                ),
-                rx.button(
-                    "Create & continue",
-                    rx.icon("arrow-right", size=15),
-                    type="submit",
-                ),
+        _scroll_box(item_sheet_form_content()),
+        _footer(
+            rx.button(
+                rx.icon("arrow-left", size=15),
+                "Back",
+                type="button",
+                variant="soft",
+                color_scheme="gray",
+                on_click=_S.output_back_to_select_sheet,
             ),
-            width="100%",
-            flex="1",
-            min_height="0",
-            spacing="3",
+            rx.button(
+                "Create & continue",
+                rx.icon("arrow-right", size=15),
+                type="submit",
+            ),
         ),
         on_submit=_S.submit_create_sheet,
         width="100%",
-        height="100%",
+        flex="1",
+        min_height="0",
+        display="flex",
+        flex_direction="column",
     )
 
 
@@ -186,11 +186,12 @@ def _dilution_factor_field() -> rx.Component:
 def _step2_body() -> rx.Component:
     """Step 2: the reused item creation form (collect mode)."""
     return rx.form(
-        rx.vstack(
-            # Keyed on the chosen sheet so the reused form (default_value inputs)
-            # remounts fresh whenever the destination sheet changes. The
-            # dilution-factor audit field is slotted right after the concentration
-            # row, and only for concentrate/dilute.
+        # Keyed on the chosen sheet so the reused form (default_value inputs)
+        # remounts fresh whenever the destination sheet changes. The
+        # dilution-factor audit field is slotted right after the concentration
+        # row, and only for concentrate/dilute. Only this scroll box scrolls;
+        # the footer below stays fixed with the dialog's padding.
+        _scroll_box(
             rx.box(
                 item_form_content(
                     extra_concentration_content=rx.cond(
@@ -200,41 +201,40 @@ def _step2_body() -> rx.Component:
                 key=_S.out_sheet_id,
                 width="100%",
             ),
-            _footer(
-                # When the sheet is fixed (split) there is no sheet step to go
-                # back to, so offer Cancel instead of Back.
-                rx.cond(
-                    _S.output_sheet_is_fixed,
-                    rx.button(
-                        "Cancel",
-                        type="button",
-                        variant="soft",
-                        color_scheme="gray",
-                        on_click=_S.close_output_wizard,
-                    ),
-                    rx.button(
-                        rx.icon("arrow-left", size=15),
-                        "Back",
-                        type="button",
-                        variant="soft",
-                        color_scheme="gray",
-                        on_click=_S.output_back_to_sheet_step,
-                    ),
+        ),
+        _footer(
+            # When the sheet is fixed (split) there is no sheet step to go
+            # back to, so offer Cancel instead of Back.
+            rx.cond(
+                _S.output_sheet_is_fixed,
+                rx.button(
+                    "Cancel",
+                    type="button",
+                    variant="soft",
+                    color_scheme="gray",
+                    on_click=_S.close_output_wizard,
                 ),
                 rx.button(
-                    rx.icon("plus", size=16),
-                    "Add output",
-                    type="submit",
+                    rx.icon("arrow-left", size=15),
+                    "Back",
+                    type="button",
+                    variant="soft",
+                    color_scheme="gray",
+                    on_click=_S.output_back_to_sheet_step,
                 ),
             ),
-            width="100%",
-            flex="1",
-            min_height="0",
-            spacing="3",
+            rx.button(
+                rx.cond(_S.output_is_editing, rx.icon("check", size=16), rx.icon("plus", size=16)),
+                rx.cond(_S.output_is_editing, "Save", "Add output"),
+                type="submit",
+            ),
         ),
         on_submit=_S.submit_collect_item,
         width="100%",
-        height="100%",
+        flex="1",
+        min_height="0",
+        display="flex",
+        flex_direction="column",
     )
 
 
@@ -243,25 +243,18 @@ def transform_output_wizard() -> rx.Component:
     ``TransformItemFormDialogState.output_dialog_opened``."""
     return rx.dialog.root(
         rx.dialog.content(
-            rx.vstack(
-                dialog_header("Create an output", close=_S.close_output_wizard),
-                # Split fixes the output sheet to the source's, so there is no
-                # sheet step — hide the 2-step indicator in that case.
-                rx.cond(_S.output_sheet_is_fixed, rx.fragment(), _step_indicator()),
-                rx.box(
-                    rx.cond(_S.output_step1_active, _step1_body()),
-                    rx.cond(_S.output_step2_active, _step2_body()),
-                    width="100%",
-                    flex="1",
-                    min_height="0",
-                    display="flex",
-                    flex_direction="column",
-                ),
-                width="100%",
-                flex="1",
-                min_height="0",
-                spacing="3",
+            # Header stays fixed at the top.
+            dialog_header(
+                rx.cond(_S.output_is_editing, "Edit output", "Create an output"),
+                close=_S.close_output_wizard,
             ),
+            # Split fixes the output sheet to the source's, so there is no
+            # sheet step — hide the 2-step indicator in that case.
+            rx.cond(_S.output_sheet_is_fixed, rx.fragment(), _step_indicator()),
+            # The active step's form is the single flex child that fills the
+            # remaining height; its inner scroll box scrolls, footer stays fixed.
+            rx.cond(_S.output_step1_active, _step1_body()),
+            rx.cond(_S.output_step2_active, _step2_body()),
             max_width="560px",
             max_height="90vh",
             display="flex",

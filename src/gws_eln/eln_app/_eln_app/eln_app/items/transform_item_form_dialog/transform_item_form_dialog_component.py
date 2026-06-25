@@ -9,8 +9,10 @@ item via the item dialog in collect mode.
 import reflex as rx
 from gws_reflex_main import dialog_header
 
+from ...common.feedback_components import compact_warning
 from .transform_input_dialog_component import transform_input_dialog
 from .transform_item_form_dialog_state import (
+    INPUT_ROLE_TARGET,
     TransformInputRow,
     TransformItemFormDialogState,
     TransformKind,
@@ -42,46 +44,70 @@ def _section_label(text: str, count: rx.Var) -> rx.Component:
     )
 
 
+def _row_warns_no_concentration(row: TransformInputRow) -> rx.Var:
+    """Whether to warn that this input lacks a concentration (concentrate source /
+    dilute target only)."""
+    return (
+        row.is_consumable
+        & (row.init_conc == "")
+        & (
+            _S.kind_is_concentrate
+            | (_S.kind_is_dilute & (row.role == INPUT_ROLE_TARGET))
+        )
+    )
+
+
 def _input_row(row: TransformInputRow, editable: bool) -> rx.Component:
     """One input row. Consumable rows (editable=True) are clickable to edit the
-    quantity (except the remove button); instruments are not editable."""
-    return rx.hstack(
-        rx.box(rx.text(row.code, style=_CODE_BADGE)),
-        rx.vstack(
-            rx.text(row.label, size="2", weight="medium", no_of_lines=1),
-            rx.text(f"{row.sheet_name} · {row.loc}", size="1", color="gray"),
-            spacing="0",
-            align="start",
-            flex="1",
-            min_width="0",
+    quantity (except the remove button); instruments are not editable. A missing
+    concentration is flagged below the row for concentrate/dilute."""
+    return rx.vstack(
+        rx.hstack(
+            rx.box(rx.text(row.code, style=_CODE_BADGE)),
+            rx.vstack(
+                rx.text(row.label, size="2", weight="medium", no_of_lines=1),
+                rx.text(f"{row.sheet_name} · {row.loc}", size="1", color="gray"),
+                spacing="0",
+                align="start",
+                flex="1",
+                min_width="0",
+            ),
+            rx.cond(
+                row.is_consumable,
+                rx.badge(f"- {row.consumed}", color_scheme="ruby", variant="soft"),
+            ),
+            rx.icon_button(
+                rx.icon("x", size=14),
+                type="button",
+                variant="ghost",
+                color_scheme="gray",
+                size="1",
+                # Stop propagation so removing a row never triggers the row's edit click.
+                on_click=_S.remove_input_by_id(row.id).stop_propagation,
+            ),
+            align="center",
+            spacing="3",
+            width="100%",
+            padding="11px 12px",
+            background="var(--gray-1)",
+            border="1px solid var(--gray-5)",
+            border_radius="10px",
+            on_click=_S.edit_input(row.id) if editable else None,
+            cursor="pointer" if editable else "default",
+            style={":hover": {"background_color": "var(--gray-3)"}} if editable else None,
         ),
         rx.cond(
-            row.is_consumable,
-            rx.badge(f"- {row.consumed}", color_scheme="ruby", variant="soft"),
+            _row_warns_no_concentration(row),
+            compact_warning("This item has no recorded concentration."),
         ),
-        rx.icon_button(
-            rx.icon("x", size=14),
-            type="button",
-            variant="ghost",
-            color_scheme="gray",
-            size="1",
-            # Stop propagation so removing a row never triggers the row's edit click.
-            on_click=_S.remove_input_by_id(row.id).stop_propagation,
-        ),
-        align="center",
-        spacing="3",
+        spacing="1",
         width="100%",
-        padding="11px 12px",
-        background="var(--gray-1)",
-        border="1px solid var(--gray-5)",
-        border_radius="10px",
-        on_click=_S.edit_input(row.id) if editable else None,
-        cursor="pointer" if editable else "default",
-        style={":hover": {"background_color": "var(--gray-3)"}} if editable else None,
+        align="stretch",
     )
 
 
 def _output_row(row: TransformOutputRow, index: int) -> rx.Component:
+    """One output row. Clickable to edit (except the remove button)."""
     return rx.hstack(
         rx.box(rx.text(row.code_preview, style=_CODE_BADGE)),
         rx.vstack(
@@ -99,7 +125,8 @@ def _output_row(row: TransformOutputRow, index: int) -> rx.Component:
             variant="ghost",
             color_scheme="gray",
             size="1",
-            on_click=lambda: _S.remove_output(index),
+            # Stop propagation so removing a row never triggers the row's edit click.
+            on_click=_S.remove_output(index).stop_propagation,
         ),
         align="center",
         spacing="3",
@@ -108,6 +135,9 @@ def _output_row(row: TransformOutputRow, index: int) -> rx.Component:
         background="var(--gray-1)",
         border="1px solid var(--gray-5)",
         border_radius="10px",
+        on_click=_S.edit_output(row.id),
+        cursor="pointer",
+        style={":hover": {"background_color": "var(--gray-3)"}},
     )
 
 
@@ -223,6 +253,10 @@ def _outputs_section() -> rx.Component:
             ),
         ),
         rx.foreach(_S.outputs, lambda row, i: _output_row(row, i)),
+        rx.cond(
+            _S.output_concentration_warning,
+            compact_warning(_S.output_concentration_warning),
+        ),
         rx.cond(
             _S.can_add_output,
             _create_button("Create output", _S.open_output_wizard),
@@ -371,7 +405,7 @@ def _chooser() -> rx.Component:
             ),
             justify="end",
             width="100%",
-            margin_top="1em",
+            margin_top="1rem",
         ),
         width="100%",
         min_width="0",
@@ -422,7 +456,7 @@ def _builder() -> rx.Component:
                     type="submit",
                     disabled=_S.is_loading,
                 ),
-                margin_top="1em",
+                margin_top="1rem",
                 flex_shrink="0",
                 width="100%",
             ),

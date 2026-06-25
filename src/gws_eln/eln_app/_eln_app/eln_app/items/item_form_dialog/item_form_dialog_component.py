@@ -23,7 +23,9 @@ def _consumable_quantity_section(
     return rx.vstack(
         quantity_unit_input(
             unit_type=ItemFormDialogState.form_unit_type,
+            quantity_value=ItemFormDialogState.form_quantity,
             unit_value=ItemFormDialogState.form_unit,
+            on_quantity_change=ItemFormDialogState.set_quantity,
             on_unit_change=ItemFormDialogState.set_unit,
         ),
         # Concentration value + unit (optional, recorded verbatim)
@@ -37,6 +39,8 @@ def _consumable_quantity_section(
                     min="0",
                     step="any",
                     width="100%",
+                    value=ItemFormDialogState.form_concentration,
+                    on_change=ItemFormDialogState.set_concentration,
                 ),
                 width="60%",
                 spacing="1",
@@ -155,7 +159,6 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
                     placeholder="Select a location",
                     value=ItemFormDialogState.form_location_id,
                     on_change=ItemFormDialogState.set_location_id,
-                    required=True,
                 ),
                 width="50%",
                 spacing="1",

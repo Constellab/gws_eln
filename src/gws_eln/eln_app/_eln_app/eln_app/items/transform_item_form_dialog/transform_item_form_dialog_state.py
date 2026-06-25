@@ -14,6 +14,10 @@ from enum import Enum, IntEnum
 from typing import Any
 
 import reflex as rx
+from gws_eln.core.concentration_unit import (
+    convert_concentration,
+    same_concentration_family,
+)
 from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item_dto import (
     CombineInputDTO,
@@ -32,6 +36,7 @@ from gws_eln.items.item_service import ItemService
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_eln.locations.location_service import LocationService
 from gws_eln.utils.units_converter import UnitConverter
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
@@ -40,6 +45,9 @@ from ...item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_state import (
 )
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
 from ..item_form_dialog.item_form_dialog_state import ItemFormDialogState
+from ..update_item_form_dialog.update_item_form_dialog_state import (
+    UpdateItemFormDialogState,
+)
 
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
@@ -170,6 +178,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     output_dialog_opened: bool = False
     output_step: OutputStep = OutputStep.SHEET
     output_create_sheet_mode: bool = False  # step 1 morphed into the sheet creation form
+    _editing_output_id: str = ""  # set when editing an existing output row
     # Dilution factor entered on the output step (concentrate/dilute audit), read
     # back when the output item is collected.
     _pending_dilution_factor: str = ""
@@ -196,6 +205,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     @rx.var
     def kind_is_dilute(self) -> bool:
         return self.transform_kind == TransformKind.DILUTE.value
+
+    @rx.var
+    def kind_is_concentrate(self) -> bool:
+        return self.transform_kind == TransformKind.CONCENTRATE.value
 
     @rx.var
     def dilute_target_inputs(self) -> list[TransformInputRow]:
@@ -253,6 +266,47 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         )
 
     @rx.var
+    def output_concentration_warning(self) -> str:
+        """Live warning when the committed output concentration goes the wrong way.
+
+        Concentrate should raise the concentration, dilute should lower it. Surfaced
+        in the builder so the user notices before saving (the save-time check still
+        enforces it). Empty string when there is nothing to warn about.
+        """
+        if not self.needs_concentration or not self.outputs:
+            return ""
+        output = self.outputs[0]
+        # Missing output concentration (value + unit) is required for concentrate/dilute.
+        if not output.conc or not output.conc_unit:
+            return f"{self.kind_title} requires an output concentration (value and unit)."
+        source = self._fixed_output_source()
+        # No source concentration, or different families → can't compare the
+        # direction; accept it and leave it to the user (no warning).
+        if (
+            source is None
+            or not source.init_conc
+            or not source.init_conc_unit
+            or not same_concentration_family(source.init_conc_unit, output.conc_unit)
+        ):
+            return ""
+        initial = convert_concentration(
+            source.init_conc, source.init_conc_unit, output.conc_unit
+        )
+        final = Decimal(output.conc)
+        direction_wrong = (
+            self.transform_kind == TransformKind.CONCENTRATE.value and final <= initial
+        ) or (self.transform_kind == TransformKind.DILUTE.value and final >= initial)
+        if direction_wrong:
+            return (
+                "Concentrate should increase the concentration "
+                "(output is not higher than the source's)."
+                if self.transform_kind == TransformKind.CONCENTRATE.value
+                else "Dilute should decrease the concentration "
+                "(output is not lower than the target's)."
+            )
+        return ""
+
+    @rx.var
     def can_add_output(self) -> bool:
         """Whether another output may be added for the current kind.
 
@@ -293,6 +347,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         return len(self.outputs) == 0
 
     @rx.var
+    def output_is_editing(self) -> bool:
+        return bool(self._editing_output_id)
+
+    @rx.var
     def output_step1_active(self) -> bool:
         return self.output_step == OutputStep.SHEET
 
@@ -315,6 +373,27 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     @rx.var
     def input_is_editing(self) -> bool:
         return bool(self._editing_input_id)
+
+    @rx.var
+    def input_has_concentration(self) -> bool:
+        """Whether the selected input carries a concentration (for info display)."""
+        return bool(self.in_item_id) and bool(self.in_item_conc)
+
+    @rx.var
+    def input_warn_no_concentration(self) -> bool:
+        """Warn that the selected input has no concentration, when it matters.
+
+        Concentrate's source and dilute's target are expected to carry a
+        concentration (it drives the dilution audit). A missing concentration is
+        allowed, but surfaced as a warning once the item is selected.
+        """
+        if not self.input_is_consumable or self.in_item_conc:
+            return False
+        if self.transform_kind == TransformKind.CONCENTRATE.value:
+            return True
+        if self.transform_kind == TransformKind.DILUTE.value:
+            return self._pending_input_role == INPUT_ROLE_TARGET
+        return False
 
     @rx.var
     def has_any(self) -> bool:
@@ -489,9 +568,27 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.in_unit = value
 
     @rx.event
-    def clear_input_selection(self):
-        """Clear the currently selected input (re-show the two search dropdowns)."""
-        self._reset_input_fields()
+    async def add_concentration_to_input(self):
+        """Open the update-item dialog to add a concentration to the selected input.
+
+        Used when the source/target of a concentrate/dilute has no concentration:
+        the user can set one on the fly without leaving the transform.
+        """
+        if not self.in_item_id:
+            return
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            item = ItemService().get_item(self.in_item_id).to_dto()
+        update_state = await self.get_state(UpdateItemFormDialogState)
+        update_state.set_callback_after_close(self._on_input_item_updated)
+        await update_state.open_update_dialog(item)
+
+    async def _on_input_item_updated(self, item: ItemDTO):
+        """Refresh the selected input's concentration after an on-the-fly update."""
+        if item.id != self.in_item_id:
+            return
+        self.in_item_conc = str(item.concentration) if item.concentration is not None else ""
+        self.in_item_conc_unit = item.concentration_unit or ""
 
     @rx.event
     def close_input_dialog(self):
@@ -506,12 +603,12 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         try:
             qty = Decimal(self.in_qty.strip())
         except (ArithmeticError, ValueError):
-            raise Exception("Invalid quantity") from None
+            raise ReflexAppException("Invalid quantity") from None
         if qty <= 0:
-            raise Exception("Quantity must be positive")
+            raise ReflexAppException("Quantity must be positive")
         base_qty = UnitConverter.to_base_unit(qty, self.in_unit, UnitType(self.in_unit_type))
         if base_qty > Decimal(self.in_item_qty_base):
-            raise Exception(
+            raise ReflexAppException(
                 f"Consumed quantity ({self.in_qty.strip()} {self.in_unit}) "
                 f"exceeds the available quantity ({self.in_item_available})"
             )
@@ -522,12 +619,19 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
         The row id is the item id, so an item can only appear once as an input.
         """
-        if not self.in_item_id:
+        # Surface validation errors as bottom-right toasts (the app default),
+        # rather than letting ReflexAppException bubble to the global handler
+        # which renders them top-center.
+        try:
+            if not self.in_item_id:
+                raise ReflexAppException("Please select an item first")
+            if self.in_item_consumable and not self.in_qty.strip():
+                raise ReflexAppException("Consumed quantity is required")
+            if self.in_item_consumable:
+                self._validate_input_quantity()
+        except ReflexAppException as error:
+            yield rx.toast.error(error.detail)
             return
-        if self.in_item_consumable and not self.in_qty.strip():
-            return
-        if self.in_item_consumable and self.in_qty.strip():
-            self._validate_input_quantity()
         consumed = (
             "instrument"
             if not self.in_item_consumable
@@ -586,6 +690,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         start at step 1 (sheet selection).
         """
         self.output_create_sheet_mode = False
+        self._editing_output_id = ""
         if self.output_sheet_is_fixed:
             source = self._fixed_output_source()
             if source is None:
@@ -603,11 +708,42 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.output_dialog_opened = True
 
     @rx.event
+    async def edit_output(self, row_id: str):
+        """Open the output wizard pre-filled to edit an existing output row."""
+        row = next((r for r in self.outputs if r.id == row_id), None)
+        if row is None:
+            return
+        self._editing_output_id = row_id
+        self.out_sheet_id = row.sheet_id
+        self.out_sheet_code = row.sheet_code
+        self.out_sheet_name = row.sheet_name
+        self._pending_dilution_factor = row.dilution_factor
+
+        # Prepare the item form for the row's sheet, then prefill its fields and
+        # arm collect mode (order matters: prepare clears the collect callback).
+        item_state = await self.get_state(ItemFormDialogState)
+        await item_state.prepare_create_form(row.sheet_id)
+        item_state.form_label = row.label
+        item_state.form_quantity = row.qty
+        item_state.form_unit = row.unit
+        item_state.form_concentration = row.conc
+        item_state.form_concentration_unit = (
+            row.conc_unit or item_state.NO_CONCENTRATION_VALUE
+        )
+        item_state.form_location_id = row.location_id
+        item_state.set_collect_callback(self._on_output_item_collected)
+
+        self.output_create_sheet_mode = False
+        self.output_step = OutputStep.ITEM
+        self.output_dialog_opened = True
+
+    @rx.event
     def close_output_wizard(self):
         """Close the output wizard and reset its step/mode."""
         self.output_dialog_opened = False
         self.output_step = OutputStep.SHEET
         self.output_create_sheet_mode = False
+        self._editing_output_id = ""
 
     @rx.event
     async def select_output_sheet(self, event_data: dict):
@@ -660,8 +796,11 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         selects the new sheet and auto-advances to step 2.
         """
         sheet_state = await self.get_state(ItemSheetFormDialogState)
-        async for event in sheet_state._create(form_data):
-            yield event
+        try:
+            async for event in sheet_state._create(form_data):
+                yield event
+        except Exception as error:
+            yield rx.toast.error(str(error))
 
     @rx.event
     async def submit_collect_item(self, form_data: dict):
@@ -674,8 +813,11 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         # CreateItemDTO does not carry it, so the callback reads it back from here.
         self._pending_dilution_factor = form_data.get("dilution_factor", "").strip()
         item_state = await self.get_state(ItemFormDialogState)
-        async for event in item_state._create(form_data):
-            yield event
+        try:
+            async for event in item_state._create(form_data):
+                yield event
+        except Exception as error:
+            yield rx.toast.error(str(error))
 
     async def _on_sheet_created(self, sheet: ItemSheetDTO):
         """Callback after a new ItemSheet is created: select it and advance to step 2."""
@@ -685,26 +827,30 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         await self._advance_to_item_step()
 
     async def _on_output_item_collected(self, dto: CreateItemDTO):
-        """Callback from the item form (collect mode): add the output row, close wizard."""
+        """Callback from the item form (collect mode): add/replace the output row, close wizard."""
         loc_name = self._loc_names.get(dto.location_id, "—") if dto.location_id else "—"
-        self.outputs = self.outputs + [
-            TransformOutputRow(
-                id=f"out{len(self.outputs)}_{self.out_sheet_code}",
-                sheet_id=dto.item_sheet_id,
-                sheet_code=self.out_sheet_code,
-                sheet_name=self.out_sheet_name,
-                label=dto.label,
-                loc=loc_name,
-                qty=str(dto.quantity),
-                unit=dto.unit,
-                location_id=dto.location_id or "",
-                conc=str(dto.concentration) if dto.concentration is not None else "",
-                conc_unit=dto.concentration_unit or "",
-                code_preview=f"{self.out_sheet_code}-{date.today().year}-XXXX",
-                produced=f"{dto.quantity} {dto.unit}",
-                dilution_factor=self._pending_dilution_factor,
-            )
-        ]
+        row_id = self._editing_output_id or f"out{len(self.outputs)}_{self.out_sheet_code}"
+        row = TransformOutputRow(
+            id=row_id,
+            sheet_id=dto.item_sheet_id,
+            sheet_code=self.out_sheet_code,
+            sheet_name=self.out_sheet_name,
+            label=dto.label,
+            loc=loc_name,
+            qty=str(dto.quantity),
+            unit=dto.unit,
+            location_id=dto.location_id or "",
+            conc=str(dto.concentration) if dto.concentration is not None else "",
+            conc_unit=dto.concentration_unit or "",
+            code_preview=f"{self.out_sheet_code}-{date.today().year}-XXXX",
+            produced=f"{dto.quantity} {dto.unit}",
+            dilution_factor=self._pending_dilution_factor,
+        )
+        if self._editing_output_id:
+            self.outputs = [row if r.id == self._editing_output_id else r for r in self.outputs]
+        else:
+            self.outputs = self.outputs + [row]
+        self._editing_output_id = ""
         self._pending_dilution_factor = ""
         self.output_dialog_opened = False
         self.output_step = OutputStep.SHEET
@@ -843,18 +989,33 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         out_conc: str,
         out_unit: str,
         must_increase: bool,
+        kind_label: str,
     ):
-        """Enforce the concentration direction for concentrate/dilute.
+        """Enforce the output concentration and its direction for concentrate/dilute.
 
-        Concentrate must raise the concentration, dilute must lower it. The check
-        only runs when both concentrations are given and share the same unit (the
-        spec forbids unit interconversion, so cross-unit values can't be compared).
+        The output concentration (value + unit) is mandatory. The direction is
+        checked only when it can be compared meaningfully: the source/target
+        already carries a concentration AND both values are in the **same family**
+        (converted via :func:`convert_concentration`) — then concentrate must raise
+        it and dilute must lower it. A cross-family output unit is accepted as-is:
+        the direction can't be inferred across families, so it is left to the user.
 
-        :raises Exception: if the change goes the wrong way.
+        :raises Exception: if the output concentration is missing, or if it changes
+            in the wrong direction while in the same family as the source's.
         """
-        if not init_conc or not out_conc or init_unit != out_unit:
+        # Output concentration is mandatory for concentrate/dilute.
+        if not out_conc or not out_unit:
+            raise Exception(
+                f"{kind_label} requires an output concentration (value and unit)"
+            )
+        # Without a source concentration, or across different families, the
+        # direction can't be compared — accept it and leave it to the user.
+        if not init_conc or not init_unit:
             return
-        initial = Decimal(init_conc)
+        if not same_concentration_family(init_unit, out_unit):
+            return
+        # Compare in the output's unit (same family → lossless conversion).
+        initial = convert_concentration(init_conc, init_unit, out_unit)
         final = Decimal(out_conc)
         if must_increase and final <= initial:
             raise Exception(
@@ -881,7 +1042,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         output = self.outputs[0]
         self._validate_concentration_change(
             source.init_conc, source.init_conc_unit, output.conc, output.conc_unit,
-            must_increase=True,
+            must_increase=True, kind_label="Concentrate",
         )
 
         instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
@@ -936,7 +1097,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         output = self.outputs[0]
         self._validate_concentration_change(
             target.init_conc, target.init_conc_unit, output.conc, output.conc_unit,
-            must_increase=False,
+            must_increase=False, kind_label="Dilute",
         )
 
         instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
@@ -1037,6 +1198,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.output_dialog_opened = False
         self.output_step = OutputStep.SHEET
         self.output_create_sheet_mode = False
+        self._editing_output_id = ""
 
     async def _clear_form_state(self):
         self._reset_state()
