@@ -14,6 +14,7 @@ from ..item_sheets.core.item_sheet_components import (
 from ..item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_component import (
     item_sheet_update_dialog,
 )
+from ..lineage.lineage_graph_component import lineage_graph_component
 from ..locations.core.inline_location_component import inline_location_component
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from .core.item_actions_menu import item_actions_menu
@@ -221,12 +222,29 @@ def _details_sidebar() -> rx.Component:
 
 
 def _main_content() -> rx.Component:
-    """Create the main content area with activities list.
+    """Create the main content area: tabs for activities and lineage.
 
     :return: The main content component
     :rtype: rx.Component
     """
-    return activities_list_component(ItemDetailState.item.id)
+    return rx.tabs.root(
+        rx.tabs.list(
+            rx.tabs.trigger("Activities", value="activities"),
+            rx.tabs.trigger("Lineage", value="lineage"),
+        ),
+        rx.tabs.content(
+            activities_list_component(ItemDetailState.item.id),
+            value="activities",
+            padding_top="1rem",
+        ),
+        rx.tabs.content(
+            lineage_graph_component(ItemDetailState.item.id),
+            value="lineage",
+            padding_top="1rem",
+        ),
+        default_value="activities",
+        width="100%",
+    )
 
 
 def _actions_menu() -> rx.Component:
