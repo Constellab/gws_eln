@@ -16,7 +16,12 @@
     "pip": [
       {
         "source": "https://pypi.python.org/simple",
-        "packages": []
+        "packages": [
+          {
+            "name": "reflex-enterprise",
+            "version": "0.9.0.post1"
+          }
+        ]
       }
     ],
     "git": []

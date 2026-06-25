@@ -1,4 +1,5 @@
 import reflex as rx
+import reflex_enterprise as rxe
 from gws_reflex_main import register_gws_reflex_app
 
 from .item_sheets.item_sheet_detail_page import item_sheet_detail_page
@@ -16,7 +17,7 @@ from .notes.notes_page import notes_page
 from .suppliers.suppliers_list_state import SuppliersListState
 from .suppliers.suppliers_page import suppliers_page
 
-app = register_gws_reflex_app()
+app = register_gws_reflex_app(rxe.App())
 
 
 @rx.page(route="/", on_load=[NotesListState.on_load])
