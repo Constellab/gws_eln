@@ -133,11 +133,14 @@ class ActivitiesListState(rx.State):
             if not item_id:
                 return
 
-            if self._item_id == item_id and len(self._activities) > 0:
+            if self._item_id == item_id and self.is_loading:
                 return
 
+            item_changed = self._item_id != item_id
             self._item_id = item_id
-            self._activities = []
+
+            if item_changed:
+                self._activities = []
             self.is_loading = True
             main_state = await self.get_state(ReflexMainState)
 
@@ -169,9 +172,8 @@ class ActivitiesListState(rx.State):
         self.filter_activity_type = ALL_FILTER_VALUE
         await self._load_activities()
 
-    @rx.event
     async def refresh_activities(self):
-        """Refresh the activities list."""
+        """Refresh the activities list from the backend."""
         main_state = await self.get_state(ReflexMainState)
         with await main_state.authenticate_user():
             await self._load_activities()
