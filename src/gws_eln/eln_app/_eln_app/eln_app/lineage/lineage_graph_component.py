@@ -2,7 +2,9 @@
 
 import reflex as rx
 import reflex_enterprise as rxe
+from gws_eln.lineage.lineage_dto import LineageNodeKind
 
+from .lineage_nodes import activity_node, item_node
 from .lineage_state import LineageState
 
 
@@ -12,9 +14,12 @@ def _graph_canvas() -> rx.Component:
         rxe.flow(
             rxe.flow.background(gap=16, size=1),
             rxe.flow.controls(),
-            rxe.flow.mini_map(),
-            nodes=LineageState.rf_nodes,
-            edges=LineageState.rf_edges,
+            default_nodes=LineageState.rf_nodes,
+            default_edges=LineageState.rf_edges,
+            node_types={
+                LineageNodeKind.ITEM.value: item_node,
+                LineageNodeKind.ACTIVITY.value: activity_node,
+            },
             fit_view=True,
             nodes_draggable=True,
             nodes_connectable=False,

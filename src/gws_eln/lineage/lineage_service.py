@@ -7,9 +7,10 @@ activity_inputs x activity_outputs:
 - descendants(X) = outputs of activities where X is an input, recursed.
 INSTRUMENT inputs are excluded (an instrument is not a parent).
 
-The traversal is cycle-safe (a visited-set dedups diamond merges) and is the
-same descendant walk the future tag-propagation will need - exposed via
-``get_descendant_item_ids`` for reuse.
+The graph is rendered BIPARTITE: item nodes and activity nodes alternate in
+rows (items on even rows, activities on the odd rows between them), with edges
+item -> activity -> item. Every node has a single centered source/target
+handle, shared by all its edges.
 """
 
 from collections import defaultdict, deque
@@ -26,44 +27,72 @@ from gws_eln.lineage.lineage_dto import (
     LineageEdgeDTO,
     LineageGraphDTO,
     LineageNodeDTO,
+    LineageNodeKind,
 )
 
-# Layered-layout spacing (frontend pixels). Ancestors sit above the focus
-# (negative y), descendants below; siblings spread horizontally.
+# One item layer is two rows tall: the item row plus the activity row above its
+# outputs. Item layer L sits at y = L * 2 * ROW_GAP (even rows); an activity
+# sits on the odd row just above its outputs.
+_ROW_GAP = 90
+# Horizontal spacing between sibling items on the same layer (frontend pixels).
 _X_SPACING = 220
-_Y_SPACING = 140
+
+# Key identifying a raw item->item lineage link, before it is split through an
+# activity node: (source_item_id, target_item_id, activity_id).
+_RawEdgeKey = tuple[str, str, str]
+# Accumulated raw edges, keyed to dedup. The value is just the link's activity
+# type - the key already carries the source/target/activity ids.
+_RawEdges = dict[_RawEdgeKey, ActivityType]
+# A raw link flattened back into a single tuple for the assembly steps:
+# (source_item_id, target_item_id, activity_id, activity_type).
+_RawEdge = tuple[str, str, str, ActivityType]
 
 
 class LineageService:
-    """Builds the lineage DAG (nodes + edges + layout) for a focus item."""
+    """Builds the bipartite lineage DAG (item + activity nodes) for a focus item."""
 
     def get_lineage_graph(self, item_id: str) -> LineageGraphDTO:
         """Build the full ancestor + descendant DAG for one focus item.
 
         :param item_id: The item the graph is centered on.
         :type item_id: str
-        :return: Nodes (deduplicated) + edges + layered layout positions.
+        :return: Bipartite nodes (items + activities) + edges.
         :rtype: LineageGraphDTO
         :raises BadRequestException: If the item does not exist.
         """
         CurrentUserService.get_and_check_current_user()
         self._get_item_or_throw(item_id)
 
+        # 1. Traverse: reach every item and every raw item->item link.
         node_ids: set[str] = {item_id}
-        edges: dict[tuple[str, str, str], LineageEdgeDTO] = {}
-
-        self._walk(item_id, "up", node_ids, edges)
-        self._walk(item_id, "down", node_ids, edges)
+        raw_edges: _RawEdges = {}
+        self._walk(item_id, "up", node_ids, raw_edges)
+        self._walk(item_id, "down", node_ids, raw_edges)
+        # Complete every activity reached so each shows its full input/output
+        # set (split siblings, combine co-inputs) - one hop, not recursed.
+        self._expand_activities(node_ids, raw_edges)
+        raw: list[_RawEdge] = [(*key, activity_type) for key, activity_type in raw_edges.items()]
 
         items = list(Item.select().where(Item.id.in_(list(node_ids))))
-        nodes = [self._to_node(item, focus_id=item_id) for item in items]
 
-        self._assign_layout(nodes, list(edges.values()), focus_id=item_id)
+        # 2. Item layers (longest path) and item node positions.
+        item_layer = self._compute_item_layers(item_id, raw)
+        item_nodes = self._build_item_nodes(items, item_layer, focus_id=item_id)
+        position_by_id: dict[str, tuple[float, float]] = {
+            node.id: (node.position_x, node.position_y) for node in item_nodes
+        }
+
+        # 3. One activity node per activity, placed on the row above its outputs.
+        activities = self._group_activities(raw)
+        activity_nodes = self._build_activity_nodes(activities, item_layer, position_by_id)
+
+        # 4. Bipartite edges (item -> activity -> item).
+        edges = self._build_edges(activities)
 
         return LineageGraphDTO(
             focus_item_id=item_id,
-            nodes=nodes,
-            edges=list(edges.values()),
+            nodes=item_nodes + activity_nodes,
+            edges=edges,
         )
 
     def get_descendant_item_ids(self, item_id: str) -> set[str]:
@@ -81,53 +110,43 @@ class LineageService:
         node_ids.discard(item_id)
         return node_ids
 
+    # ----------------------------------------------------------- traversal
+
     def _walk(
         self,
         start_id: str,
         direction: str,
         node_ids: set[str],
-        edges: dict[tuple[str, str, str], LineageEdgeDTO],
+        raw_edges: _RawEdges,
     ) -> None:
         """Breadth-first traversal in one direction, cycle-safe (visited-set).
 
-        Accumulates reached item ids into ``node_ids`` and parent->child links
-        into ``edges`` (keyed by (source, target, activity) to dedup).
+        Accumulates reached item ids into ``node_ids`` and raw item->item links
+        into ``raw_edges`` (keyed by (source, target, activity) to dedup).
 
         :param start_id: Item id to start from.
         :param direction: "up" (ancestors) or "down" (descendants).
         :param node_ids: Mutated in place with every reached item id.
-        :param edges: Mutated in place with every discovered edge.
+        :param raw_edges: Mutated in place with every discovered link.
         """
-        visited: set[str] = set()
+        visited_ids: set[str] = set()
         queue: deque[str] = deque([start_id])
 
         while queue:
-            current = queue.popleft()
-            if current in visited:
+            current_id = queue.popleft()
+            if current_id in visited_ids:
                 continue
-            visited.add(current)
+            visited_ids.add(current_id)
 
             if direction == "down":
-                steps = self._children_edges(current)
-                for child_id, activity_id, activity_type in steps:
+                for child_id, activity_id, activity_type in self._children_edges(current_id):
                     node_ids.add(child_id)
-                    edges[(current, child_id, activity_id)] = LineageEdgeDTO(
-                        source_id=current,
-                        target_id=child_id,
-                        activity_id=activity_id,
-                        activity_type=activity_type,
-                    )
+                    raw_edges[(current_id, child_id, activity_id)] = activity_type
                     queue.append(child_id)
             else:
-                steps = self._parents_edges(current)
-                for parent_id, activity_id, activity_type in steps:
+                for parent_id, activity_id, activity_type in self._parents_edges(current_id):
                     node_ids.add(parent_id)
-                    edges[(parent_id, current, activity_id)] = LineageEdgeDTO(
-                        source_id=parent_id,
-                        target_id=current,
-                        activity_id=activity_id,
-                        activity_type=activity_type,
-                    )
+                    raw_edges[(parent_id, current_id, activity_id)] = activity_type
                     queue.append(parent_id)
 
     def _children_edges(self, item_id: str) -> list[tuple[str, str, ActivityType]]:
@@ -181,54 +200,80 @@ class LineageService:
             )
         }
 
-    def _to_node(self, item: Item, focus_id: str) -> LineageNodeDTO:
-        """Build a lineage node DTO for an item (positions filled later)."""
-        return LineageNodeDTO(
-            id=item.id,
-            code=item.code,
-            label=item.label,
-            item_sheet_name=item.item_sheet.name,
-            pretty_quantity=item.get_pretty_quantity(),
-            status=item.status,
-            is_focus=item.id == focus_id,
-            position_x=0.0,
-            position_y=0.0,
-        )
-
-    def _assign_layout(
+    def _expand_activities(
         self,
-        nodes: list[LineageNodeDTO],
-        edges: list[LineageEdgeDTO],
-        focus_id: str,
+        node_ids: set[str],
+        raw_edges: _RawEdges,
     ) -> None:
-        """Assign a layered DAG layout (longest-path depth) in place.
+        """Complete every activity already reached with its full input/output set.
 
-        Focus is at layer 0; descendants take positive layers (below),
-        ancestors negative layers (above). Within a layer, nodes spread out
-        horizontally and centered. Longest-path relaxation keeps an edge from
-        ever pointing within or against its layer (clean in diamond merges).
+        The directional walk only records the inputs/outputs that lie on the
+        path to the focus item, so an activity can be shown with missing
+        co-participants. For each activity in ``raw_edges`` this adds every
+        input / output of that activity.
+        """
+        activity_types = {
+            activity_id: activity_type
+            for (_source, _target, activity_id), activity_type in raw_edges.items()
+        }
+        for activity_id, activity_type in activity_types.items():
+            input_ids = [
+                inp.item_id
+                for inp in ActivityInput.select().where(
+                    (ActivityInput.activity == activity_id)
+                    & (ActivityInput.role == ActivityInputRole.INGREDIENT)
+                )
+            ]
+            output_ids = [
+                out.item_id
+                for out in ActivityOutput.select().where(
+                    ActivityOutput.activity == activity_id
+                )
+            ]
+            for source_id in input_ids:
+                for target_id in output_ids:
+                    raw_edges[(source_id, target_id, activity_id)] = activity_type
+                    node_ids.add(source_id)
+                    node_ids.add(target_id)
+
+    # ----------------------------------------------------------- assembly
+
+    def _group_activities(
+        self, raw: list[tuple[str, str, str, ActivityType]]
+    ) -> dict[str, dict]:
+        """Group raw item->item links by activity.
+
+        :return: ``activity_id -> {"type", "sources": [item ids], "targets": [item ids]}``
+            with sources/targets kept as ordered, de-duplicated lists.
+        """
+        activities: dict[str, dict] = {}
+        for source_id, target_id, activity_id, activity_type in raw:
+            entry = activities.setdefault(
+                activity_id, {"type": activity_type, "sources": [], "targets": []}
+            )
+            if source_id not in entry["sources"]:
+                entry["sources"].append(source_id)
+            if target_id not in entry["targets"]:
+                entry["targets"].append(target_id)
+        return activities
+
+    def _compute_item_layers(
+        self, focus_id: str, raw: list[tuple[str, str, str, ActivityType]]
+    ) -> dict[str, int]:
+        """Assign each item an integer layer by longest path from the focus.
+
+        Focus is layer 0; descendants take positive layers, ancestors negative.
         """
         children: dict[str, list[str]] = defaultdict(list)
         parents: dict[str, list[str]] = defaultdict(list)
-        for edge in edges:
-            children[edge.source_id].append(edge.target_id)
-            parents[edge.target_id].append(edge.source_id)
+        for source_id, target_id, *_ in raw:
+            children[source_id].append(target_id)
+            parents[target_id].append(source_id)
 
         layer: dict[str, int] = {focus_id: 0}
-        # Descendants take positive layers (longest path down), ancestors
-        # negative layers (longest path up).
         self._relax_layers(focus_id, children, layer, step=1)
         self._relax_layers(focus_id, parents, layer, step=-1)
-
-        by_layer: dict[int, list[LineageNodeDTO]] = defaultdict(list)
-        for node in nodes:
-            by_layer[layer.get(node.id, 0)].append(node)
-
-        for level, layer_nodes in by_layer.items():
-            count = len(layer_nodes)
-            for index, node in enumerate(layer_nodes):
-                node.position_x = (index - (count - 1) / 2) * _X_SPACING
-                node.position_y = level * _Y_SPACING
+        return layer
 
     def _relax_layers(
         self,
@@ -240,9 +285,12 @@ class LineageService:
         """Longest-path relaxation from the focus along one direction, in place.
 
         ``step`` is +1 to push descendants down (later layers) and -1 to push
-        ancestors up. A neighbour is (re)assigned whenever the new candidate
-        layer is farther from the focus than its current one, keeping edges from
-        ever pointing within or against their layer.
+        ancestors up.
+
+        Ex:
+        Path 1: F -> A -> C
+        Path 2: F -> C
+        The longest path to C is through A, so C's layer is 2 (F=0, A=1, C=2).
         """
         queue: deque[str] = deque([focus_id])
         while queue:
@@ -252,6 +300,108 @@ class LineageService:
                 if neighbour not in layer or candidate * step > layer[neighbour] * step:
                     layer[neighbour] = candidate
                     queue.append(neighbour)
+
+    def _build_item_nodes(
+        self, items: list[Item], item_layer: dict[str, int], focus_id: str
+    ) -> list[LineageNodeDTO]:
+        """Build item nodes, positioned on even rows (y = layer * 2 * ROW_GAP),
+        siblings spread and centered within each layer."""
+        by_layer: dict[int, list[Item]] = defaultdict(list)
+        for item in items:
+            by_layer[item_layer.get(item.id, 0)].append(item)
+
+        nodes: list[LineageNodeDTO] = []
+        for level, layer_items in by_layer.items():
+            layer_items.sort(key=lambda item: item.id)
+            count = len(layer_items)
+            for index, item in enumerate(layer_items):
+                nodes.append(
+                    LineageNodeDTO(
+                        id=item.id,
+                        kind=LineageNodeKind.ITEM,
+                        position_x=(index - (count - 1) / 2) * _X_SPACING,
+                        position_y=level * 2 * _ROW_GAP,
+                        is_focus=item.id == focus_id,
+                        code=item.code,
+                        label=item.label,
+                        item_sheet_name=item.item_sheet.name,
+                        pretty_quantity=item.get_pretty_quantity(),
+                        status=item.status,
+                    )
+                )
+        return nodes
+
+    def _build_activity_nodes(
+        self,
+        activities: dict[str, dict],
+        item_layer: dict[str, int],
+        position_by_id: dict[str, tuple[float, float]],
+    ) -> list[LineageNodeDTO]:
+        """Build one node per activity, on the odd row just above its outputs.
+
+        Activities sharing a row are spread side-by-side with the same
+        ``_X_SPACING`` as items (and centered), ordered by the centroid of the
+        items they link so they line up under their outputs without stacking.
+        Updates ``position_by_id``.
+        """
+        # Group activities by their row, keeping the centroid x for ordering.
+        by_row: dict[int, list[tuple[str, dict, float]]] = defaultdict(list)
+        for activity_id, entry in activities.items():
+            connected = entry["sources"] + entry["targets"]
+            output_layers = [item_layer.get(t, 0) for t in entry["targets"]] or [0]
+            row = min(output_layers) * 2 - 1
+            xs = [position_by_id[i][0] for i in connected if i in position_by_id]
+            centroid_x = sum(xs) / len(xs) if xs else 0.0
+            by_row[row].append((activity_id, entry, centroid_x))
+
+        nodes: list[LineageNodeDTO] = []
+        for row, row_activities in by_row.items():
+            # Order by centroid (tie-break on id for stability), then spread
+            # evenly and centered, mirroring the item layout.
+            row_activities.sort(key=lambda item: (item[2], item[0]))
+            count = len(row_activities)
+            position_y = row * _ROW_GAP
+            for index, (activity_id, entry, _centroid_x) in enumerate(row_activities):
+                position_x = (index - (count - 1) / 2) * _X_SPACING
+
+                position_by_id[activity_id] = (position_x, position_y)
+                nodes.append(
+                    LineageNodeDTO(
+                        id=activity_id,
+                        kind=LineageNodeKind.ACTIVITY,
+                        position_x=position_x,
+                        position_y=position_y,
+                        is_focus=False,
+                        activity_type=entry["type"],
+                    )
+                )
+        return nodes
+
+    def _build_edges(self, activities: dict[str, dict]) -> list[LineageEdgeDTO]:
+        """Wire bipartite edges (input -> activity, activity -> output).
+
+        Every node has a single centered source/target handle, so edges carry no
+        per-handle wiring.
+        """
+        edges: list[LineageEdgeDTO] = []
+        for activity_id, entry in activities.items():
+            for source_id in entry["sources"]:
+                edges.append(
+                    LineageEdgeDTO(
+                        id=f"{source_id}__{activity_id}",
+                        source_id=source_id,
+                        target_id=activity_id,
+                    )
+                )
+            for target_id in entry["targets"]:
+                edges.append(
+                    LineageEdgeDTO(
+                        id=f"{activity_id}__{target_id}",
+                        source_id=activity_id,
+                        target_id=target_id,
+                    )
+                )
+        return edges
 
     def _get_item_or_throw(self, item_id: str) -> Item:
         """Validate that an item exists.

@@ -2,9 +2,13 @@
 Lineage DTOs for the item lineage DAG.
 
 The lineage graph is DERIVED from the Activity inputs/outputs (there is no
-lineage table). These DTOs are the read-only payload of the lineage route:
-a focus item plus the nodes and edges of its ancestor/descendant DAG.
+lineage table). It is rendered as a BIPARTITE graph: item nodes and activity
+nodes, alternating in rows, with edges item -> activity -> item. Every node has
+a single centered source handle (bottom) and target handle (top); all edges
+share them.
 """
+
+from enum import Enum
 
 from gws_core import BaseModelDTO
 
@@ -12,52 +16,63 @@ from gws_eln.activities.activity_type import ActivityType
 from gws_eln.items.item_status import ItemStatus
 
 
-class LineageNodeDTO(BaseModelDTO):
-    """One item in the lineage DAG.
+class LineageNodeKind(Enum):
+    """Kind of lineage node: a physical item or an activity (the junction)."""
 
-    :param id: Item id (also used as the React Flow node id).
-    :param code: Structured item code (e.g. "ETHA-2026-0007").
-    :param label: Free-text human label (optional).
-    :param item_sheet_name: Name of the item's catalog sheet.
-    :param pretty_quantity: Human-readable current quantity (e.g. "5.0 mL").
-    :param status: Current item status (ACTIVE / EXHAUSTED / DISCARDED).
-    :param is_focus: True for the item the graph is centered on.
+    ITEM = "item"
+    ACTIVITY = "activity"
+
+
+class LineageNodeDTO(BaseModelDTO):
+    """One node in the lineage DAG: an item or an activity.
+
+    :param id: The item id (item nodes) or the activity id (activity nodes).
+    :param kind: ITEM or ACTIVITY.
     :param position_x: Layered-layout x position (computed backend).
     :param position_y: Layered-layout y position (computed backend).
+    :param is_focus: True for the item the graph is centered on (items only).
+    :param code: Item code (item nodes only).
+    :param label: Item free-text label (item nodes only).
+    :param item_sheet_name: Item's catalog sheet name (item nodes only).
+    :param pretty_quantity: Item human-readable quantity (item nodes only).
+    :param status: Item status (item nodes only).
+    :param activity_type: The activity type (activity nodes only).
     """
 
     id: str
-    code: str
-    label: str | None
-    item_sheet_name: str
-    pretty_quantity: str | None
-    status: ItemStatus
-    is_focus: bool
+    kind: LineageNodeKind
     position_x: float
     position_y: float
+    is_focus: bool
+    # item-only
+    code: str | None = None
+    label: str | None = None
+    item_sheet_name: str | None = None
+    pretty_quantity: str | None = None
+    status: ItemStatus | None = None
+    # activity-only
+    activity_type: ActivityType | None = None
 
 
 class LineageEdgeDTO(BaseModelDTO):
-    """A directed parent -> child link, derived from one activity.
+    """A directed link in the bipartite graph (item->activity or activity->item).
 
-    :param source_id: Parent item id (an INGREDIENT input of the activity).
-    :param target_id: Child item id (an output of the activity).
-    :param activity_id: The activity that links them.
-    :param activity_type: The activity type, used as the edge label.
+    :param id: Unique edge id.
+    :param source_id: Source node id.
+    :param target_id: Target node id.
     """
 
+    id: str
     source_id: str
     target_id: str
-    activity_id: str
-    activity_type: ActivityType
 
 
 class LineageGraphDTO(BaseModelDTO):
-    """The full lineage DAG for a focus item (ancestors + descendants).
+    """The full lineage DAG for a focus item (item + activity nodes).
 
     :param focus_item_id: The item the graph is centered on.
-    :param nodes: All items in the DAG (deduplicated).
-    :param edges: All parent -> child links in the DAG.
+    :param nodes: All nodes (items + activities).
+    :param edges: All bipartite links (item -> activity -> item).
     """
 
     focus_item_id: str

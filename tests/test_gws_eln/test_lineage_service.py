@@ -1,13 +1,14 @@
 """Test suite for LineageService.
 
-Covers the derived lineage DAG: ancestors/descendants
-traversal from the Activity inputs/outputs, INSTRUMENT exclusion, diamond-merge
-dedup (visited-set), and the layered layout (ancestors above, descendants below).
+Covers the derived BIPARTITE lineage DAG: item nodes + activity nodes,
+ancestor/descendant traversal, INSTRUMENT exclusion, diamond-merge dedup,
+the alternating item/activity rows, and focus co-participant expansion.
 """
 
 from decimal import Decimal
 
 from gws_core import BaseTestCase
+from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item import Item
 from gws_eln.items.item_dto import (
@@ -21,6 +22,7 @@ from gws_eln.items.item_dto import (
 from gws_eln.items.item_service import ItemService
 from gws_eln.items.item_sheet_dto import CreateItemSheetDTO
 from gws_eln.items.item_sheet_service import ItemSheetService
+from gws_eln.lineage.lineage_dto import LineageNodeKind
 from gws_eln.lineage.lineage_service import LineageService
 from gws_eln.user.eln_user_sync_service import ElnUserSyncService
 
@@ -85,13 +87,27 @@ class TestLineageService(BaseTestCase):
         )
         return result.outputs
 
+    def _items(self, graph):
+        return [n for n in graph.nodes if n.kind == LineageNodeKind.ITEM]
+
+    def _activities(self, graph):
+        return [n for n in graph.nodes if n.kind == LineageNodeKind.ACTIVITY]
+
+    def _activity_node(self, graph, activity_type: ActivityType):
+        matches = [n for n in self._activities(graph) if n.activity_type == activity_type]
+        self.assertEqual(len(matches), 1, f"expected one {activity_type} node")
+        return matches[0]
+
     def _edge_set(self, graph):
         return {(e.source_id, e.target_id) for e in graph.edges}
 
+    def _by_id(self, graph):
+        return {n.id: n for n in graph.nodes}
+
     # -------------------------------------------------------------------- tests
 
-    def test_ancestors_and_descendants(self):
-        """combine A+B -> D, then split D -> D1, D2; focus D sees the full DAG."""
+    def test_bipartite_ancestors_and_descendants(self):
+        """combine A+B -> D, then split D -> D1, D2; focus D sees a bipartite DAG."""
         item_a = self._count_item("LNAA")
         item_b = self._count_item("LNAB")
         d = self._combine(item_a, item_b, "LNAD")
@@ -99,21 +115,65 @@ class TestLineageService(BaseTestCase):
 
         graph = LineageService().get_lineage_graph(d.id)
 
-        node_ids = {n.id for n in graph.nodes}
-        self.assertEqual(node_ids, {item_a.id, item_b.id, d.id, d1.id, d2.id})
+        # Items present, plus exactly two activity nodes (combine + split).
+        self.assertEqual(
+            {n.id for n in self._items(graph)},
+            {item_a.id, item_b.id, d.id, d1.id, d2.id},
+        )
+        combine = self._activity_node(graph, ActivityType.COMBINE)
+        split = self._activity_node(graph, ActivityType.SPLIT)
+
+        # Edges route through the activity nodes.
         self.assertEqual(
             self._edge_set(graph),
             {
-                (item_a.id, d.id),
-                (item_b.id, d.id),
-                (d.id, d1.id),
-                (d.id, d2.id),
+                (item_a.id, combine.id),
+                (item_b.id, combine.id),
+                (combine.id, d.id),
+                (d.id, split.id),
+                (split.id, d1.id),
+                (split.id, d2.id),
             },
         )
 
-        # Focus flag set on D only.
-        self.assertTrue(next(n for n in graph.nodes if n.id == d.id).is_focus)
+        # Focus flag set on D only (items only).
+        self.assertTrue(self._by_id(graph)[d.id].is_focus)
         self.assertEqual(sum(1 for n in graph.nodes if n.is_focus), 1)
+
+    def test_split_siblings_shown_for_focus(self):
+        """Focus on one split output -> its sibling outputs are shown."""
+        source = self._count_item("LNSS", "10")
+        d1, d2, d3 = self._split(source, ["a", "b", "c"])
+
+        graph = LineageService().get_lineage_graph(d1.id)
+
+        # All three siblings + the source are present.
+        item_ids = {n.id for n in self._items(graph)}
+        self.assertEqual(item_ids, {source.id, d1.id, d2.id, d3.id})
+        # The split activity fans out to the three outputs.
+        split = self._activity_node(graph, ActivityType.SPLIT)
+        self.assertEqual(
+            {(e.source_id, e.target_id) for e in graph.edges if e.source_id == split.id},
+            {(split.id, d1.id), (split.id, d2.id), (split.id, d3.id)},
+        )
+
+    def test_combine_co_inputs_shown_for_focus(self):
+        """Focus on one combine input -> the items it was combined with show."""
+        item_a = self._count_item("LNCA")
+        item_b = self._count_item("LNCB")
+        d = self._combine(item_a, item_b, "LNCD")
+
+        # Focus on A: B is what it was combined with.
+        graph = LineageService().get_lineage_graph(item_a.id)
+
+        item_ids = {n.id for n in self._items(graph)}
+        self.assertEqual(item_ids, {item_a.id, item_b.id, d.id})
+        combine = self._activity_node(graph, ActivityType.COMBINE)
+        # Both ingredients feed the combine; one output.
+        self.assertEqual(
+            {(e.source_id, e.target_id) for e in graph.edges},
+            {(item_a.id, combine.id), (item_b.id, combine.id), (combine.id, d.id)},
+        )
 
     def test_instrument_inputs_excluded(self):
         """An INSTRUMENT input of the combine is not a lineage parent."""
@@ -124,13 +184,19 @@ class TestLineageService(BaseTestCase):
 
         graph = LineageService().get_lineage_graph(d.id)
 
-        node_ids = {n.id for n in graph.nodes}
-        self.assertIn(item_a.id, node_ids)
-        self.assertIn(item_b.id, node_ids)
-        self.assertNotIn(instrument.id, node_ids)
+        item_ids = {n.id for n in self._items(graph)}
+        self.assertIn(item_a.id, item_ids)
+        self.assertIn(item_b.id, item_ids)
+        self.assertNotIn(instrument.id, item_ids)
+        # Combine is fed by exactly the two ingredient inputs (no instrument).
+        combine = self._activity_node(graph, ActivityType.COMBINE)
+        self.assertEqual(
+            {e.source_id for e in graph.edges if e.target_id == combine.id},
+            {item_a.id, item_b.id},
+        )
 
     def test_diamond_merge_dedup(self):
-        """A->B, A->C, B->D, C->D: D and A are each visited once."""
+        """A->(split)->B,C ; B,C->(combine)->D : nodes are not duplicated."""
         a = self._count_item("LNDA")
         b, c = self._split(a, ["b", "c"])  # A -> B, A -> C
         d = self._combine(b, c, "LNDD", draw=1)  # B -> D, C -> D
@@ -138,13 +204,33 @@ class TestLineageService(BaseTestCase):
         graph = LineageService().get_lineage_graph(d.id)
 
         node_ids = [n.id for n in graph.nodes]
-        # No duplicate nodes (visited-set), exactly the 4 items.
-        self.assertEqual(len(node_ids), len(set(node_ids)))
-        self.assertEqual(set(node_ids), {a.id, b.id, c.id, d.id})
+        self.assertEqual(len(node_ids), len(set(node_ids)))  # no duplicates
+        self.assertEqual({n.id for n in self._items(graph)}, {a.id, b.id, c.id, d.id})
+
+        split = self._activity_node(graph, ActivityType.SPLIT)
+        combine = self._activity_node(graph, ActivityType.COMBINE)
         self.assertEqual(
             self._edge_set(graph),
-            {(a.id, b.id), (a.id, c.id), (b.id, d.id), (c.id, d.id)},
+            {
+                (a.id, split.id),
+                (split.id, b.id),
+                (split.id, c.id),
+                (b.id, combine.id),
+                (c.id, combine.id),
+                (combine.id, d.id),
+            },
         )
+
+        # Each activity row sits strictly between the rows of the items it links.
+        by_id = self._by_id(graph)
+        for activity in self._activities(graph):
+            neighbour_ys = [
+                by_id[e.source_id].position_y if e.target_id == activity.id else by_id[e.target_id].position_y
+                for e in graph.edges
+                if activity.id in (e.source_id, e.target_id)
+            ]
+            self.assertLess(min(neighbour_ys), activity.position_y)
+            self.assertGreater(max(neighbour_ys), activity.position_y)
 
     def test_layout_orientation(self):
         """Ancestors sit above the focus (y<0), descendants below (y>0)."""
@@ -153,8 +239,7 @@ class TestLineageService(BaseTestCase):
         d = self._combine(item_a, item_b, "LNLD")
         d1, _ = self._split(d, ["x", "y"])
 
-        graph = LineageService().get_lineage_graph(d.id)
-        by_id = {n.id: n for n in graph.nodes}
+        by_id = self._by_id(LineageService().get_lineage_graph(d.id))
 
         self.assertEqual(by_id[d.id].position_y, 0)
         self.assertLess(by_id[item_a.id].position_y, 0)
@@ -162,9 +247,10 @@ class TestLineageService(BaseTestCase):
         self.assertGreater(by_id[d1.id].position_y, 0)
 
     def test_isolated_item_has_single_node_no_edges(self):
-        """An item with no lineage yields just itself and no edges."""
+        """An item with no lineage yields just itself: 1 item node, no activity."""
         item = self._count_item("LNSO")
         graph = LineageService().get_lineage_graph(item.id)
         self.assertEqual(len(graph.nodes), 1)
         self.assertEqual(graph.nodes[0].id, item.id)
+        self.assertEqual(graph.nodes[0].kind, LineageNodeKind.ITEM)
         self.assertEqual(graph.edges, [])
