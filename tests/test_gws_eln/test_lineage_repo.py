@@ -146,6 +146,21 @@ class TestLineageRepo(BaseTestCase):
         self.assertEqual(repo.activity_ids_with_input_item(b.id), [combine_id])
         self.assertEqual(repo.activity_ids_with_output_item(d.id), [combine_id])
 
+    def test_activity_ids_by_input_items_batched(self):
+        """A whole frontier resolves to its activities in one batched lookup."""
+        a = self._count_item("RFAX")
+        b = self._count_item("RFBX")
+        d = self._combine(a, b, "RFDX")
+
+        repo = LineageRepo()
+        combine_id = self._only(repo.activity_ids_with_output_item(d.id))
+
+        # Both inputs map to the combine; an unrelated item maps to nothing.
+        result = repo.activity_ids_by_input_items([a.id, b.id, d.id])
+        self.assertEqual(result[a.id], [combine_id])
+        self.assertEqual(result[b.id], [combine_id])
+        self.assertEqual(result[d.id], [])
+
     def test_load_activities_batch(self):
         """load_activities warms several activities at once for memory reads."""
         a = self._count_item("RBAX")

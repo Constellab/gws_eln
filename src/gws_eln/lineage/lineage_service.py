@@ -124,6 +124,10 @@ class LineageService:
     ) -> None:
         """Breadth-first traversal in one direction, cycle-safe (visited-set).
 
+        Processes the whole BFS frontier level by level: every level resolves
+        its adjacency and loads its activities in one batched query each (via the
+        repo), so the query count scales with graph depth, not item count.
+
         Accumulates reached item ids into ``node_ids`` and raw item->item links
         into ``raw_edges`` (keyed by (source, target, activity) to dedup).
 
@@ -134,62 +138,61 @@ class LineageService:
         :param raw_edges: Mutated in place with every discovered link.
         """
         visited_ids: set[str] = set()
-        queue: deque[str] = deque([start_id])
+        next_level: set[str] = {start_id}
 
-        while queue:
-            current_id = queue.popleft()
-            if current_id in visited_ids:
-                continue
-            visited_ids.add(current_id)
+        while next_level:
+            level = next_level - visited_ids
+            if not level:
+                break
+            visited_ids |= level
+            next_level = self._expand_level(repo, direction, level, node_ids, raw_edges)
 
-            if direction == "down":
-                for child_id, activity_id, activity_type in self._children_edges(repo, current_id):
-                    node_ids.add(child_id)
-                    raw_edges[(current_id, child_id, activity_id)] = activity_type
-                    queue.append(child_id)
-            else:
-                for parent_id, activity_id, activity_type in self._parents_edges(repo, current_id):
-                    node_ids.add(parent_id)
-                    raw_edges[(parent_id, current_id, activity_id)] = activity_type
-                    queue.append(parent_id)
+    def _expand_level(
+        self,
+        repo: LineageRepo,
+        direction: str,
+        level: set[str],
+        node_ids: set[str],
+        raw_edges: _RawEdges,
+    ) -> set[str]:
+        """Expand a whole BFS level in one hop, recording its raw item->item links.
 
-    def _children_edges(
-        self, repo: LineageRepo, item_id: str
-    ) -> list[tuple[str, str, ActivityType]]:
-        """Direct children of an item: outputs of activities where it is an
-        INGREDIENT input.
+        Down: children are the outputs of activities where a level item is an
+        INGREDIENT input. Up: parents are the INGREDIENT inputs of activities that
+        output a level item.
 
-        :return: List of (child_item_id, activity_id, activity_type).
+        :return: The next level (the set of reached item ids).
         """
-        activity_ids = repo.activity_ids_with_input_item(item_id)
-        if not activity_ids:
-            return []
+        if direction == "down":
+            activity_ids_by_item = repo.activity_ids_by_input_items(level)
+        else:
+            activity_ids_by_item = repo.activity_ids_by_output_items(level)
 
-        repo.load_activities(activity_ids)
-        return [
-            (out.item_id, activity_id, repo.activity_type(activity_id))
-            for activity_id in activity_ids
-            for out in repo.outputs(activity_id)
+        activity_ids = [
+            activity_id for activity_ids in activity_ids_by_item.values() for activity_id in activity_ids
         ]
-
-    def _parents_edges(
-        self, repo: LineageRepo, item_id: str
-    ) -> list[tuple[str, str, ActivityType]]:
-        """Direct parents of an item: INGREDIENT inputs of activities that
-        output it.
-
-        :return: List of (parent_item_id, activity_id, activity_type).
-        """
-        activity_ids = repo.activity_ids_with_output_item(item_id)
         if not activity_ids:
-            return []
-
+            return set()
         repo.load_activities(activity_ids)
-        return [
-            (inp.item_id, activity_id, repo.activity_type(activity_id))
-            for activity_id in activity_ids
-            for inp in repo.ingredient_inputs(activity_id)
-        ]
+
+        # For each level item, route through its activities to the items on the
+        # other side (outputs when going down, ingredient inputs when going up).
+        # Each becomes a raw input->output edge and feeds the next level.
+        next_level: set[str] = set()
+        for current_id in level:
+            for activity_id in activity_ids_by_item[current_id]:
+                activity_type = repo.activity_type(activity_id)
+                if direction == "down":
+                    for out in repo.outputs(activity_id):
+                        raw_edges[(current_id, out.item_id, activity_id)] = activity_type
+                        node_ids.add(out.item_id)
+                        next_level.add(out.item_id)
+                else:
+                    for inp in repo.ingredient_inputs(activity_id):
+                        raw_edges[(inp.item_id, current_id, activity_id)] = activity_type
+                        node_ids.add(inp.item_id)
+                        next_level.add(inp.item_id)
+        return next_level
 
     def _expand_activities(
         self,
