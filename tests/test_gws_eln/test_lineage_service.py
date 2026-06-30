@@ -23,7 +23,7 @@ from gws_eln.items.item_service import ItemService
 from gws_eln.items.item_sheet_dto import CreateItemSheetDTO
 from gws_eln.items.item_sheet_service import ItemSheetService
 from gws_eln.lineage.lineage_dto import LineageNodeKind
-from gws_eln.lineage.lineage_service import LineageService
+from gws_eln.lineage.lineage_service import _ACTIVITY_MIN_GAP, LineageService
 from gws_eln.user.eln_user_sync_service import ElnUserSyncService
 
 
@@ -245,6 +245,28 @@ class TestLineageService(BaseTestCase):
         self.assertLess(by_id[item_a.id].position_y, 0)
         self.assertLess(by_id[item_b.id].position_y, 0)
         self.assertGreater(by_id[d1.id].position_y, 0)
+
+    def test_sibling_outputs_grouped_under_activity(self):
+        """Same-activity outputs stay contiguous, and activity badges sharing a
+        row are kept at least the min gap apart so they never overlap."""
+        f = self._count_item("LNGF", "10")
+        g = self._count_item("LNGG")
+        x1, x2 = self._split(f, ["x1", "x2"])  # split: F -> X1, X2
+        y = self._combine(f, g, "LNGY")  # combine: F + G -> Y
+
+        graph = LineageService().get_lineage_graph(f.id)
+        by_id = self._by_id(graph)
+
+        # X1, X2 (split) and Y (combine) all sit one layer below the focus F.
+        layer = sorted([by_id[x1.id], by_id[x2.id], by_id[y.id]], key=lambda n: n.position_x)
+        ordered_ids = [n.id for n in layer]
+        # The two split siblings are adjacent (Y is not wedged between them).
+        self.assertEqual(abs(ordered_ids.index(x1.id) - ordered_ids.index(x2.id)), 1)
+
+        # Split and combine share a row and keep at least the min gap apart.
+        split = self._activity_node(graph, ActivityType.SPLIT)
+        combine = self._activity_node(graph, ActivityType.COMBINE)
+        self.assertGreaterEqual(abs(split.position_x - combine.position_x), _ACTIVITY_MIN_GAP - 1e-6)
 
     def test_isolated_item_has_single_node_no_edges(self):
         """An item with no lineage yields just itself: 1 item node, no activity."""

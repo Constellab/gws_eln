@@ -35,6 +35,8 @@ from gws_eln.lineage.lineage_repo import LineageRepo
 _ROW_GAP = 150
 # Horizontal spacing between sibling items on the same layer (frontend pixels).
 _X_SPACING = 220
+# Minimum center-to-center distance between two activity badges on the same row.
+_ACTIVITY_MIN_GAP = 150
 # Shift the activity down by half the node-height difference so its in/out edges
 # stay equal length (nodes are top-anchored).
 _ACTIVITY_Y_OFFSET = (ITEM_NODE_HEIGHT - ACTIVITY_NODE_HEIGHT) / 2
@@ -80,15 +82,16 @@ class LineageService:
 
         items = list(Item.select().where(Item.id.in_(list(node_ids))))
 
-        # 2. Item layers (longest path) and item node positions.
+        # 2. Item layers (longest path), then items ordered/positioned by the
+        # activity they belong to (siblings grouped to reduce edge crossings).
         item_layer = self._compute_item_layers(item_id, raw)
-        item_nodes = self._build_item_nodes(items, item_layer, focus_id=item_id)
+        activities = self._group_activities(raw)
+        item_nodes = self._build_item_nodes(items, item_layer, activities, focus_id=item_id)
         position_by_id: dict[str, tuple[float, float]] = {
             node.id: (node.position_x, node.position_y) for node in item_nodes
         }
 
-        # 3. One activity node per activity, placed on the row above its outputs.
-        activities = self._group_activities(raw)
+        # 3. One activity node per activity, centered over its output items.
         activity_nodes = self._build_activity_nodes(activities, item_layer, position_by_id)
 
         # 4. Bipartite edges (item -> activity -> item), labelled with the
@@ -290,24 +293,37 @@ class LineageService:
                     queue.append(neighbour)
 
     def _build_item_nodes(
-        self, items: list[Item], item_layer: dict[str, int], focus_id: str
+        self,
+        items: list[Item],
+        item_layer: dict[str, int],
+        activities: dict[str, dict],
+        focus_id: str,
     ) -> list[LineageNodeDTO]:
-        """Build item nodes, positioned on even rows (y = layer * 2 * ROW_GAP),
-        siblings spread and centered within each layer."""
+        """Build item nodes on even rows (y = layer * 2 * ROW_GAP).
+
+        Layers are placed from the focus outward; each item is ordered by the
+        barycenter of its already-placed neighbours toward the focus, which keeps
+        same-activity siblings contiguous under their activity and reduces edge
+        crossings.
+        """
+        producers, consumers = self._producers_and_consumers(activities)
         by_layer: dict[int, list[Item]] = defaultdict(list)
         for item in items:
             by_layer[item_layer.get(item.id, 0)].append(item)
 
+        item_x: dict[str, float] = {}
         nodes: list[LineageNodeDTO] = []
-        for level, layer_items in by_layer.items():
-            layer_items.sort(key=lambda item: item.id)
-            count = len(layer_items)
-            for index, item in enumerate(layer_items):
+        for level in sorted(by_layer, key=abs):
+            ordered = self._order_layer(by_layer[level], level, activities, producers, consumers, item_x)
+            count = len(ordered)
+            for index, item in enumerate(ordered):
+                position_x = (index - (count - 1) / 2) * _X_SPACING
+                item_x[item.id] = position_x
                 nodes.append(
                     LineageNodeDTO(
                         id=item.id,
                         kind=LineageNodeKind.ITEM,
-                        position_x=(index - (count - 1) / 2) * _X_SPACING,
+                        position_x=position_x,
                         position_y=level * 2 * _ROW_GAP,
                         is_focus=item.id == focus_id,
                         code=item.code,
@@ -319,39 +335,74 @@ class LineageService:
                 )
         return nodes
 
+    def _producers_and_consumers(
+        self, activities: dict[str, dict]
+    ) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+        """Map each item to the activities that produce it / consume it."""
+        producers: dict[str, list[str]] = defaultdict(list)
+        consumers: dict[str, list[str]] = defaultdict(list)
+        for activity_id, entry in activities.items():
+            for target_id in entry["targets"]:
+                producers[target_id].append(activity_id)
+            for source_id in entry["sources"]:
+                consumers[source_id].append(activity_id)
+        return producers, consumers
+
+    def _order_layer(
+        self,
+        layer_items: list[Item],
+        level: int,
+        activities: dict[str, dict],
+        producers: dict[str, list[str]],
+        consumers: dict[str, list[str]],
+        item_x: dict[str, float],
+    ) -> list[Item]:
+        """Order a layer by each item's neighbour barycenter toward the focus.
+
+        The anchor is the producing activity (descendants) or consuming activity
+        (ancestors); an item's neighbours toward the focus are the other side of
+        that activity. Same-activity siblings share a barycenter and anchor, so
+        they stay contiguous. The focus layer is ordered by id.
+        """
+        if level == 0:
+            return sorted(layer_items, key=lambda item: item.id)
+        anchors = producers if level > 0 else consumers
+
+        def sort_key(item: Item) -> tuple:
+            anchor = min(anchors.get(item.id, ()), default=None)
+            if anchor is None:
+                return (0.0, "", item.id)
+            side = activities[anchor]["sources"] if level > 0 else activities[anchor]["targets"]
+            xs = [item_x[n] for n in side if n in item_x]
+            barycenter = sum(xs) / len(xs) if xs else 0.0
+            return (barycenter, anchor, item.id)
+
+        return sorted(layer_items, key=sort_key)
+
     def _build_activity_nodes(
         self,
         activities: dict[str, dict],
         item_layer: dict[str, int],
         position_by_id: dict[str, tuple[float, float]],
     ) -> list[LineageNodeDTO]:
-        """Build one node per activity, on the odd row just above its outputs.
-
-        Activities sharing a row are spread side-by-side with the same
-        ``_X_SPACING`` as items (and centered), ordered by the centroid of the
-        items they link so they line up under their outputs without stacking.
-        Updates ``position_by_id``.
-        """
-        # Group activities by their row, keeping the centroid x for ordering.
+        """Build one node per activity, on the odd row just above its outputs and
+        horizontally centered over all its items (inputs + outputs). Activities
+        sharing a row are kept at least ``_ACTIVITY_MIN_GAP`` apart so their badges
+        never overlap. Updates ``position_by_id``."""
+        # Group activities by row, with their barycenter over all connected items.
         by_row: dict[int, list[tuple[str, dict, float]]] = defaultdict(list)
         for activity_id, entry in activities.items():
-            connected = entry["sources"] + entry["targets"]
             output_layers = [item_layer.get(t, 0) for t in entry["targets"]] or [0]
             row = min(output_layers) * 2 - 1
-            xs = [position_by_id[i][0] for i in connected if i in position_by_id]
-            centroid_x = sum(xs) / len(xs) if xs else 0.0
-            by_row[row].append((activity_id, entry, centroid_x))
+            xs = [position_by_id[i][0] for i in entry["sources"] + entry["targets"] if i in position_by_id]
+            by_row[row].append((activity_id, entry, sum(xs) / len(xs) if xs else 0.0))
 
         nodes: list[LineageNodeDTO] = []
         for row, row_activities in by_row.items():
-            # Order by centroid (tie-break on id for stability), then spread
-            # evenly and centered, mirroring the item layout.
-            row_activities.sort(key=lambda item: (item[2], item[0]))
-            count = len(row_activities)
             position_y = row * _ROW_GAP + _ACTIVITY_Y_OFFSET
-            for index, (activity_id, entry, _centroid_x) in enumerate(row_activities):
-                position_x = (index - (count - 1) / 2) * _X_SPACING
-
+            row_activities.sort(key=lambda activity: (activity[2], activity[0]))
+            spaced_xs = self._space_out([activity[2] for activity in row_activities], _ACTIVITY_MIN_GAP)
+            for (activity_id, entry, _centroid_x), position_x in zip(row_activities, spaced_xs, strict=True):
                 position_by_id[activity_id] = (position_x, position_y)
                 nodes.append(
                     LineageNodeDTO(
@@ -364,6 +415,17 @@ class LineageService:
                     )
                 )
         return nodes
+
+    def _space_out(self, xs: list[float], min_gap: float) -> list[float]:
+        """Push sorted x positions apart to keep ``min_gap`` between neighbours,
+        then recenter so the group keeps its original mean."""
+        if not xs:
+            return []
+        spaced = [xs[0]]
+        for x in xs[1:]:
+            spaced.append(max(x, spaced[-1] + min_gap))
+        shift = sum(xs) / len(xs) - sum(spaced) / len(spaced)
+        return [x + shift for x in spaced]
 
     def _edge_quantities(
         self, repo: LineageRepo, activity_ids: list[str]
