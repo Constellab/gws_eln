@@ -60,11 +60,14 @@ class LineageEdgeDTO(BaseModelDTO):
     :param id: Unique edge id.
     :param source_id: Source node id.
     :param target_id: Target node id.
+    :param quantity: Human-readable signed quantity flowing on this edge
+        (input contribution ``-5 L`` or output production ``+2 L``).
     """
 
     id: str
     source_id: str
     target_id: str
+    quantity: str | None = None
 
 
 class LineageGraphDTO(BaseModelDTO):

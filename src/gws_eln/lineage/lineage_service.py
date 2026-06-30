@@ -17,10 +17,6 @@ from collections import defaultdict, deque
 
 from gws_core import BadRequestException, CurrentUserService
 
-from gws_eln.activities.activity import Activity
-from gws_eln.activities.activity_input import ActivityInput
-from gws_eln.activities.activity_input_role import ActivityInputRole
-from gws_eln.activities.activity_output import ActivityOutput
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.items.item import Item
 from gws_eln.lineage.lineage_dto import (
@@ -29,11 +25,12 @@ from gws_eln.lineage.lineage_dto import (
     LineageNodeDTO,
     LineageNodeKind,
 )
+from gws_eln.lineage.lineage_repo import LineageRepo
 
 # One item layer is two rows tall: the item row plus the activity row above its
 # outputs. Item layer L sits at y = L * 2 * ROW_GAP (even rows); an activity
 # sits on the odd row just above its outputs.
-_ROW_GAP = 90
+_ROW_GAP = 150
 # Horizontal spacing between sibling items on the same layer (frontend pixels).
 _X_SPACING = 220
 
@@ -63,14 +60,17 @@ class LineageService:
         CurrentUserService.get_and_check_current_user()
         self._get_item_or_throw(item_id)
 
+        # Single DB cache shared by every phase below (load each row once).
+        repo = LineageRepo()
+
         # 1. Traverse: reach every item and every raw item->item link.
         node_ids: set[str] = {item_id}
         raw_edges: _RawEdges = {}
-        self._walk(item_id, "up", node_ids, raw_edges)
-        self._walk(item_id, "down", node_ids, raw_edges)
+        self._walk(repo, item_id, "up", node_ids, raw_edges)
+        self._walk(repo, item_id, "down", node_ids, raw_edges)
         # Complete every activity reached so each shows its full input/output
         # set (split siblings, combine co-inputs) - one hop, not recursed.
-        self._expand_activities(node_ids, raw_edges)
+        self._expand_activities(repo, node_ids, raw_edges)
         raw: list[_RawEdge] = [(*key, activity_type) for key, activity_type in raw_edges.items()]
 
         items = list(Item.select().where(Item.id.in_(list(node_ids))))
@@ -86,8 +86,10 @@ class LineageService:
         activities = self._group_activities(raw)
         activity_nodes = self._build_activity_nodes(activities, item_layer, position_by_id)
 
-        # 4. Bipartite edges (item -> activity -> item).
-        edges = self._build_edges(activities)
+        # 4. Bipartite edges (item -> activity -> item), labelled with the
+        # contributed (input) / produced (output) quantity.
+        input_qty, output_qty = self._edge_quantities(repo, list(activities.keys()))
+        edges = self._build_edges(activities, input_qty, output_qty)
 
         return LineageGraphDTO(
             focus_item_id=item_id,
@@ -106,7 +108,7 @@ class LineageService:
         :rtype: set[str]
         """
         node_ids: set[str] = {item_id}
-        self._walk(item_id, "down", node_ids, {})
+        self._walk(LineageRepo(), item_id, "down", node_ids, {})
         node_ids.discard(item_id)
         return node_ids
 
@@ -114,6 +116,7 @@ class LineageService:
 
     def _walk(
         self,
+        repo: LineageRepo,
         start_id: str,
         direction: str,
         node_ids: set[str],
@@ -124,6 +127,7 @@ class LineageService:
         Accumulates reached item ids into ``node_ids`` and raw item->item links
         into ``raw_edges`` (keyed by (source, target, activity) to dedup).
 
+        :param repo: Request-scoped DB cache.
         :param start_id: Item id to start from.
         :param direction: "up" (ancestors) or "down" (descendants).
         :param node_ids: Mutated in place with every reached item id.
@@ -139,69 +143,57 @@ class LineageService:
             visited_ids.add(current_id)
 
             if direction == "down":
-                for child_id, activity_id, activity_type in self._children_edges(current_id):
+                for child_id, activity_id, activity_type in self._children_edges(repo, current_id):
                     node_ids.add(child_id)
                     raw_edges[(current_id, child_id, activity_id)] = activity_type
                     queue.append(child_id)
             else:
-                for parent_id, activity_id, activity_type in self._parents_edges(current_id):
+                for parent_id, activity_id, activity_type in self._parents_edges(repo, current_id):
                     node_ids.add(parent_id)
                     raw_edges[(parent_id, current_id, activity_id)] = activity_type
                     queue.append(parent_id)
 
-    def _children_edges(self, item_id: str) -> list[tuple[str, str, ActivityType]]:
+    def _children_edges(
+        self, repo: LineageRepo, item_id: str
+    ) -> list[tuple[str, str, ActivityType]]:
         """Direct children of an item: outputs of activities where it is an
         INGREDIENT input.
 
         :return: List of (child_item_id, activity_id, activity_type).
         """
-        inputs = ActivityInput.select().where(
-            (ActivityInput.item == item_id)
-            & (ActivityInput.role == ActivityInputRole.INGREDIENT)
-        )
-        activity_ids = [ai.activity_id for ai in inputs]
+        activity_ids = repo.activity_ids_with_input_item(item_id)
         if not activity_ids:
             return []
 
-        activity_types = self._activity_types(activity_ids)
-        outputs = ActivityOutput.select().where(ActivityOutput.activity.in_(activity_ids))
+        repo.load_activities(activity_ids)
         return [
-            (out.item_id, out.activity_id, activity_types[out.activity_id])
-            for out in outputs
+            (out.item_id, activity_id, repo.activity_type(activity_id))
+            for activity_id in activity_ids
+            for out in repo.outputs(activity_id)
         ]
 
-    def _parents_edges(self, item_id: str) -> list[tuple[str, str, ActivityType]]:
+    def _parents_edges(
+        self, repo: LineageRepo, item_id: str
+    ) -> list[tuple[str, str, ActivityType]]:
         """Direct parents of an item: INGREDIENT inputs of activities that
         output it.
 
         :return: List of (parent_item_id, activity_id, activity_type).
         """
-        outputs = ActivityOutput.select().where(ActivityOutput.item == item_id)
-        activity_ids = [out.activity_id for out in outputs]
+        activity_ids = repo.activity_ids_with_output_item(item_id)
         if not activity_ids:
             return []
 
-        activity_types = self._activity_types(activity_ids)
-        inputs = ActivityInput.select().where(
-            (ActivityInput.activity.in_(activity_ids))
-            & (ActivityInput.role == ActivityInputRole.INGREDIENT)
-        )
+        repo.load_activities(activity_ids)
         return [
-            (inp.item_id, inp.activity_id, activity_types[inp.activity_id])
-            for inp in inputs
+            (inp.item_id, activity_id, repo.activity_type(activity_id))
+            for activity_id in activity_ids
+            for inp in repo.ingredient_inputs(activity_id)
         ]
-
-    def _activity_types(self, activity_ids: list[str]) -> dict[str, ActivityType]:
-        """Map activity id -> activity type for a set of activities."""
-        return {
-            activity.id: activity.activity_type
-            for activity in Activity.select(Activity.id, Activity.activity_type).where(
-                Activity.id.in_(activity_ids)
-            )
-        }
 
     def _expand_activities(
         self,
+        repo: LineageRepo,
         node_ids: set[str],
         raw_edges: _RawEdges,
     ) -> None:
@@ -216,20 +208,10 @@ class LineageService:
             activity_id: activity_type
             for (_source, _target, activity_id), activity_type in raw_edges.items()
         }
+        repo.load_activities(list(activity_types.keys()))
         for activity_id, activity_type in activity_types.items():
-            input_ids = [
-                inp.item_id
-                for inp in ActivityInput.select().where(
-                    (ActivityInput.activity == activity_id)
-                    & (ActivityInput.role == ActivityInputRole.INGREDIENT)
-                )
-            ]
-            output_ids = [
-                out.item_id
-                for out in ActivityOutput.select().where(
-                    ActivityOutput.activity == activity_id
-                )
-            ]
+            input_ids = [inp.item_id for inp in repo.ingredient_inputs(activity_id)]
+            output_ids = [out.item_id for out in repo.outputs(activity_id)]
             for source_id in input_ids:
                 for target_id in output_ids:
                     raw_edges[(source_id, target_id, activity_id)] = activity_type
@@ -238,9 +220,7 @@ class LineageService:
 
     # ----------------------------------------------------------- assembly
 
-    def _group_activities(
-        self, raw: list[tuple[str, str, str, ActivityType]]
-    ) -> dict[str, dict]:
+    def _group_activities(self, raw: list[tuple[str, str, str, ActivityType]]) -> dict[str, dict]:
         """Group raw item->item links by activity.
 
         :return: ``activity_id -> {"type", "sources": [item ids], "targets": [item ids]}``
@@ -377,11 +357,42 @@ class LineageService:
                 )
         return nodes
 
-    def _build_edges(self, activities: dict[str, dict]) -> list[LineageEdgeDTO]:
+    def _edge_quantities(
+        self, repo: LineageRepo, activity_ids: list[str]
+    ) -> tuple[dict[tuple[str, str], str], dict[tuple[str, str], str]]:
+        """Map (activity_id, item_id) -> pretty signed quantity for in/outputs.
+
+        Used to label input contributions (``-5 L``) and output productions (``+2 L``).
+
+        :return: ``(input_qty, output_qty)`` lookups keyed by (activity, item).
+        """
+        repo.load_activities(activity_ids)
+
+        input_qty: dict[tuple[str, str], str] = {}
+        output_qty: dict[tuple[str, str], str] = {}
+        for activity_id in activity_ids:
+            for inp in repo.ingredient_inputs(activity_id):
+                pretty = inp.get_pretty_quantity()
+                if pretty:
+                    input_qty[(activity_id, inp.item_id)] = pretty
+            for out in repo.outputs(activity_id):
+                pretty = out.get_pretty_quantity()
+                if pretty:
+                    output_qty[(activity_id, out.item_id)] = pretty
+
+        return input_qty, output_qty
+
+    def _build_edges(
+        self,
+        activities: dict[str, dict],
+        input_qty: dict[tuple[str, str], str],
+        output_qty: dict[tuple[str, str], str],
+    ) -> list[LineageEdgeDTO]:
         """Wire bipartite edges (input -> activity, activity -> output).
 
         Every node has a single centered source/target handle, so edges carry no
-        per-handle wiring.
+        per-handle wiring. Each edge is labelled with its contributed/produced
+        quantity when the activity recorded one.
         """
         edges: list[LineageEdgeDTO] = []
         for activity_id, entry in activities.items():
@@ -391,6 +402,7 @@ class LineageService:
                         id=f"{source_id}__{activity_id}",
                         source_id=source_id,
                         target_id=activity_id,
+                        quantity=input_qty.get((activity_id, source_id)),
                     )
                 )
             for target_id in entry["targets"]:
@@ -399,6 +411,7 @@ class LineageService:
                         id=f"{activity_id}__{target_id}",
                         source_id=activity_id,
                         target_id=target_id,
+                        quantity=output_qty.get((activity_id, target_id)),
                     )
                 )
         return edges

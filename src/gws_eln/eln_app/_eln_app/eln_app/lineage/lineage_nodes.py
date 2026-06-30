@@ -20,10 +20,13 @@ from ..activities.activity_type_component import activity_type_badge
 class ItemNodeData(TypedDict):
     """Data payload for an item node.
 
-    The visual is carried as plain string fields.
+    The visual is carried as plain string fields. ``code`` and ``label`` are
+    rendered on two separate lines; ``quantity`` is an optional muted suffix.
     """
 
+    code: str
     label: str
+    quantity: str
     background: str
     border: str
     color: str
@@ -37,14 +40,41 @@ class ActivityNodeData(TypedDict):
 
 @rx.memo
 def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
-    """Custom node for a physical item (visual from data string fields)."""
+    """Custom node for a physical item: code on line 1, label on line 2."""
     return rx.box(
         rxe.flow.handle(type="target", position="top"),
-        rx.text(
-            data["label"],
-            size="1",
-            weight="medium",
-            style={"white-space": "nowrap"},
+        rx.vstack(
+            rx.hstack(
+                rx.text(
+                    data["code"],
+                    size="1",
+                    weight="bold",
+                    style={"white-space": "nowrap"},
+                ),
+                rx.cond(
+                    data["quantity"] != "",
+                    rx.text(
+                        data["quantity"],
+                        size="1",
+                        weight="regular",
+                        style={"white-space": "nowrap", "opacity": "0.6"},
+                    ),
+                ),
+                spacing="1",
+                align="center",
+                justify="center",
+            ),
+            rx.cond(
+                data["label"] != "",
+                rx.text(
+                    data["label"],
+                    size="1",
+                    weight="regular",
+                    style={"white-space": "nowrap", "opacity": "0.8"},
+                ),
+            ),
+            spacing="0",
+            align="center",
         ),
         rxe.flow.handle(type="source", position="bottom"),
         background=data["background"],

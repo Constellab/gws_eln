@@ -76,7 +76,9 @@ class LineageState(rx.State):
                         "type": node.kind.value,
                         "position": {"x": node.position_x, "y": node.position_y},
                         "data": {
-                            "label": self._item_label(node),
+                            "code": node.code or "",
+                            "label": node.label or "",
+                            "quantity": node.pretty_quantity or "",
                             "background": background,
                             "border": border,
                             "color": color,
@@ -97,23 +99,27 @@ class LineageState(rx.State):
         return nodes
 
     def _build_rf_edges(self, graph: LineageGraphDTO) -> list[dict]:
-        """Map bipartite edges to React Flow edge dicts."""
-        return [
-            {
+        """Map bipartite edges to React Flow edge dicts, with a quantity label.
+
+        The input -> activity edge shows the contributed quantity (e.g. ``-5 L``)
+        and each activity -> output edge the produced quantity (e.g. ``+2 L``).
+        """
+        edges: list[dict] = []
+        for edge in graph.edges:
+            rf_edge: dict = {
                 "id": edge.id,
                 "source": edge.source_id,
                 "target": edge.target_id,
                 "markerEnd": {"type": "arrowclosed"},
             }
-            for edge in graph.edges
-        ]
-
-    def _item_label(self, node) -> str:
-        """Compose the item node label: code · label (qty)."""
-        label = node.code if not node.label else f"{node.code} · {node.label}"
-        if node.pretty_quantity:
-            label = f"{label} ({node.pretty_quantity})"
-        return label
+            if edge.quantity:
+                rf_edge["label"] = edge.quantity
+                rf_edge["labelBgPadding"] = [4, 2]
+                rf_edge["labelBgBorderRadius"] = 4
+                rf_edge["labelBgStyle"] = {"fill": "#ffffff", "fillOpacity": 0.75}
+                rf_edge["labelStyle"] = {"fontSize": 10, "fill": "#374151"}
+            edges.append(rf_edge)
+        return edges
 
     def _item_visual(self, status: ItemStatus, is_focus: bool) -> tuple[str, str, str]:
         """Resolve (background, border, color) strings from status and focus."""
