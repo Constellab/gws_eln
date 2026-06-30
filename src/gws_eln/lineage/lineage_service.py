@@ -20,6 +20,8 @@ from gws_core import BadRequestException, CurrentUserService
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.items.item import Item
 from gws_eln.lineage.lineage_dto import (
+    ACTIVITY_NODE_HEIGHT,
+    ITEM_NODE_HEIGHT,
     LineageEdgeDTO,
     LineageGraphDTO,
     LineageNodeDTO,
@@ -33,6 +35,9 @@ from gws_eln.lineage.lineage_repo import LineageRepo
 _ROW_GAP = 150
 # Horizontal spacing between sibling items on the same layer (frontend pixels).
 _X_SPACING = 220
+# Shift the activity down by half the node-height difference so its in/out edges
+# stay equal length (nodes are top-anchored).
+_ACTIVITY_Y_OFFSET = (ITEM_NODE_HEIGHT - ACTIVITY_NODE_HEIGHT) / 2
 
 # Key identifying a raw item->item lineage link, before it is split through an
 # activity node: (source_item_id, target_item_id, activity_id).
@@ -343,7 +348,7 @@ class LineageService:
             # evenly and centered, mirroring the item layout.
             row_activities.sort(key=lambda item: (item[2], item[0]))
             count = len(row_activities)
-            position_y = row * _ROW_GAP
+            position_y = row * _ROW_GAP + _ACTIVITY_Y_OFFSET
             for index, (activity_id, entry, _centroid_x) in enumerate(row_activities):
                 position_x = (index - (count - 1) / 2) * _X_SPACING
 

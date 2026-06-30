@@ -15,6 +15,11 @@ from gws_core import BaseModelDTO
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.items.item_status import ItemStatus
 
+# Fixed node heights (px), shared by the backend layout (lineage_service) and the
+# React Flow node components (lineage_nodes).
+ITEM_NODE_HEIGHT = 52
+ACTIVITY_NODE_HEIGHT = 24
+
 
 class LineageNodeKind(Enum):
     """Kind of lineage node: a physical item or an activity (the junction)."""

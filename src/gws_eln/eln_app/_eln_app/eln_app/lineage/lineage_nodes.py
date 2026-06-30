@@ -13,6 +13,7 @@ from typing import TypedDict
 
 import reflex as rx
 import reflex_enterprise as rxe
+from gws_eln.lineage.lineage_dto import ACTIVITY_NODE_HEIGHT, ITEM_NODE_HEIGHT
 
 from ..activities.activity_type_component import activity_type_badge
 
@@ -84,6 +85,12 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
         border_radius="8px",
         font_size="11px",
         min_width="120px",
+        height=f"{ITEM_NODE_HEIGHT}px",
+        box_sizing="border-box",
+        display="flex",
+        flex_direction="column",
+        align_items="center",
+        justify_content="center",
         text_align="center",
     )
 
@@ -95,5 +102,7 @@ def activity_node(data: rx.Var[ActivityNodeData]) -> rx.Component:
         rxe.flow.handle(type="target", position="top"),
         activity_type_badge(data["activity_type"]),
         rxe.flow.handle(type="source", position="bottom"),
+        height=f"{ACTIVITY_NODE_HEIGHT}px",
+        box_sizing="border-box",
         style={"display": "flex", "align-items": "center", "justify-content": "center"},
     )
