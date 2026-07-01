@@ -8,6 +8,7 @@ from .item_sheets.item_sheets_list_state import ItemSheetsListState
 from .item_sheets.item_sheets_page import item_sheets_page
 from .items.item_detail_page import item_detail_page
 from .items.item_detail_state import ItemDetailState
+from .lineage.lineage_state import LineageState
 from .locations.locations_list_state import LocationsListState
 from .locations.locations_page import locations_page
 from .notes.note_detail_page import note_detail_page
@@ -56,7 +57,7 @@ def note_detail():
     return note_detail_page()
 
 
-@rx.page(route="/items/[item_id]", on_load=[ItemDetailState.on_load])
+@rx.page(route="/items/[item_id]", on_load=[ItemDetailState.on_load, LineageState.reload_on_navigation])
 def item_detail():
     """Item detail page."""
     return item_detail_page()

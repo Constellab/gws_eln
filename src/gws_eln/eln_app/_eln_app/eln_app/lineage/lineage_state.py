@@ -149,11 +149,37 @@ class LineageState(rx.State):
         :type item_id: str
         """
         async with self:
-            if not item_id:
-                return
             # Already loaded for this item: keep it (re-fetch happens on remount).
-            if self._item_id == item_id and self._has_graph:
-                return
+            already_loaded = self._item_id == item_id and self._has_graph
+        if already_loaded:
+            return
+        await self._load_graph(item_id)
+
+    @rx.event(background=True)
+    async def reload_on_navigation(self):
+        """Reload the graph after client-side navigation to another item.
+
+        Navigating between ``/items/A`` and ``/items/B`` does not remount the
+        lineage component, so ``on_mount`` does not re-fire; the page ``on_load``
+        does. Only reload when the graph was already shown for a different item
+        (the tab has been opened), keeping the initial load lazy.
+        """
+        async with self:
+            item_id = self.item_id
+            skip = not item_id or self._item_id is None or self._item_id == item_id
+        if skip:
+            return
+        await self._load_graph(item_id)
+
+    async def _load_graph(self, item_id: str) -> None:
+        """Fetch and build the lineage graph for an item (mount + navigation).
+
+        :param item_id: The focus item ID.
+        :type item_id: str
+        """
+        if not item_id:
+            return
+        async with self:
             self._item_id = item_id
             self._nodes = []
             self._edges = []
