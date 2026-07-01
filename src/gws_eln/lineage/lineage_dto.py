@@ -40,6 +40,7 @@ class LineageNodeDTO(BaseModelDTO):
     :param label: Item free-text label (item nodes only).
     :param item_sheet_name: Item's catalog sheet name (item nodes only).
     :param pretty_quantity: Item human-readable quantity (item nodes only).
+    :param pretty_concentration: Item human-readable concentration (item nodes only, optional).
     :param status: Item status (item nodes only).
     :param activity_type: The activity type (activity nodes only).
     """
@@ -54,6 +55,7 @@ class LineageNodeDTO(BaseModelDTO):
     label: str | None = None
     item_sheet_name: str | None = None
     pretty_quantity: str | None = None
+    pretty_concentration: str | None = None
     status: ItemStatus | None = None
     # activity-only
     activity_type: ActivityType | None = None

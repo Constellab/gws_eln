@@ -85,6 +85,7 @@ class LineageState(rx.State):
                             "code": node.code or "",
                             "label": node.label or "",
                             "quantity": node.pretty_quantity or "",
+                            "concentration": node.pretty_concentration or "",
                             "background": background,
                             "border": border,
                             "color": color,

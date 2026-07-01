@@ -195,6 +195,16 @@ class Item(ModelWithUser):
         """
         return UnitConverter.format_value(self.quantity, self.unit_type)
 
+    def get_pretty_concentration(self) -> str | None:
+        """Get a human-readable string for the concentration, if any.
+
+        :return: Pretty concentration string (e.g. "5 mol/L"), or None if unset.
+        :rtype: str | None
+        """
+        if self.concentration is None:
+            return None
+        return f"{self.concentration.normalize():f} {self.concentration_unit}"
+
     def to_simple_dto(self) -> ItemSimpleDTO:
         """Convert the Item model to a ItemSimpleDTO.
 

@@ -330,6 +330,7 @@ class LineageService:
                         label=item.label,
                         item_sheet_name=item.item_sheet.name,
                         pretty_quantity=item.get_pretty_quantity(),
+                        pretty_concentration=item.get_pretty_concentration(),
                         status=item.status,
                     )
                 )

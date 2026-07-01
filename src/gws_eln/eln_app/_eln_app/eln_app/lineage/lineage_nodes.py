@@ -23,13 +23,15 @@ class ItemNodeData(TypedDict):
     """Data payload for an item node.
 
     The visual is carried as plain string fields. ``code`` and ``label`` are
-    rendered on two separate lines; ``quantity`` is an optional muted suffix.
+    rendered on two separate lines; ``quantity`` is a muted suffix on the code
+    line and ``concentration`` a muted suffix on the label line (both optional).
     ``has_input`` / ``has_output`` gate the top / bottom handles.
     """
 
     code: str
     label: str
     quantity: str
+    concentration: str
     background: str
     border: str
     color: str
@@ -50,26 +52,24 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
     """Custom node for a physical item: code on line 1, label on line 2."""
     return rx.box(
         rx.cond(data["has_input"], rxe.flow.handle(type="target", position="top")),
-        rx.vstack(
-            rx.hstack(
+        rx.grid(
+            rx.text(
+                data["code"],
+                size="1",
+                weight="bold",
+                style={"white-space": "nowrap"},
+                text_align="right",
+            ),
+            rx.cond(
+                data["quantity"] != "",
                 rx.text(
-                    data["code"],
+                    data["quantity"],
                     size="1",
-                    weight="bold",
-                    style={"white-space": "nowrap"},
+                    weight="regular",
+                    style={"white-space": "nowrap", "opacity": "0.6"},
+                    text_align="left",
                 ),
-                rx.cond(
-                    data["quantity"] != "",
-                    rx.text(
-                        data["quantity"],
-                        size="1",
-                        weight="regular",
-                        style={"white-space": "nowrap", "opacity": "0.6"},
-                    ),
-                ),
-                spacing="1",
-                align="center",
-                justify="center",
+                rx.box(),
             ),
             rx.cond(
                 data["label"] != "",
@@ -78,10 +78,24 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
                     size="1",
                     weight="regular",
                     style={"white-space": "nowrap", "opacity": "0.8"},
+                    text_align="right",
                 ),
+                rx.box(),
             ),
-            spacing="0",
+            rx.cond(
+                data["concentration"] != "",
+                rx.text(
+                    data["concentration"],
+                    size="1",
+                    weight="regular",
+                    style={"white-space": "nowrap", "opacity": "0.6"},
+                    text_align="left",
+                ),
+                rx.box(),
+            ),
+            style={"grid-template-columns": "auto auto", "column-gap": "8px", "row-gap": "0"},
             align="center",
+            justify="center",
         ),
         rx.cond(data["has_output"], rxe.flow.handle(type="source", position="bottom")),
         background=data["background"],
