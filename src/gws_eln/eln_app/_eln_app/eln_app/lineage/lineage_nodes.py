@@ -5,8 +5,9 @@ Two node types, registered via ``node_types`` on ``rxe.flow`` and keyed by the
 - item node: a physical item (code/label/quantity), styled by status/focus.
 - activity node: an activity rendered as its colored badge (icon + label).
 
-Every node has a single centered target handle (top) and source handle
-(bottom); all edges share them.
+A node shows a centered target handle (top) only when it has an incoming edge
+and a source handle (bottom) only when it has an outgoing edge; all edges on a
+side share the single handle.
 """
 
 from typing import TypedDict
@@ -23,6 +24,7 @@ class ItemNodeData(TypedDict):
 
     The visual is carried as plain string fields. ``code`` and ``label`` are
     rendered on two separate lines; ``quantity`` is an optional muted suffix.
+    ``has_input`` / ``has_output`` gate the top / bottom handles.
     """
 
     code: str
@@ -31,19 +33,23 @@ class ItemNodeData(TypedDict):
     background: str
     border: str
     color: str
+    has_input: bool
+    has_output: bool
 
 
 class ActivityNodeData(TypedDict):
     """Data payload for an activity node."""
 
     activity_type: str
+    has_input: bool
+    has_output: bool
 
 
 @rx.memo
 def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
     """Custom node for a physical item: code on line 1, label on line 2."""
     return rx.box(
-        rxe.flow.handle(type="target", position="top"),
+        rx.cond(data["has_input"], rxe.flow.handle(type="target", position="top")),
         rx.vstack(
             rx.hstack(
                 rx.text(
@@ -77,7 +83,7 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
             spacing="0",
             align="center",
         ),
-        rxe.flow.handle(type="source", position="bottom"),
+        rx.cond(data["has_output"], rxe.flow.handle(type="source", position="bottom")),
         background=data["background"],
         border=data["border"],
         color=data["color"],
@@ -99,9 +105,9 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
 def activity_node(data: rx.Var[ActivityNodeData]) -> rx.Component:
     """Custom node for an activity, rendered as its colored type badge."""
     return rx.box(
-        rxe.flow.handle(type="target", position="top"),
+        rx.cond(data["has_input"], rxe.flow.handle(type="target", position="top")),
         activity_type_badge(data["activity_type"]),
-        rxe.flow.handle(type="source", position="bottom"),
+        rx.cond(data["has_output"], rxe.flow.handle(type="source", position="bottom")),
         height=f"{ACTIVITY_NODE_HEIGHT}px",
         box_sizing="border-box",
         style={"display": "flex", "align-items": "center", "justify-content": "center"},

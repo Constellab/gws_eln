@@ -65,7 +65,13 @@ class LineageState(rx.State):
         return self._edges
 
     def _build_rf_nodes(self, graph: LineageGraphDTO) -> list[dict]:
-        """Map item + activity nodes to React Flow node dicts (typed by kind)."""
+        """Map item + activity nodes to React Flow node dicts (typed by kind).
+
+        A node only gets a top/bottom handle when it actually has an incoming /
+        outgoing edge (roots have no input handle, leaves no output handle).
+        """
+        with_input = {edge.target_id for edge in graph.edges}
+        with_output = {edge.source_id for edge in graph.edges}
         nodes: list[dict] = []
         for node in graph.nodes:
             if node.kind == LineageNodeKind.ITEM:
@@ -82,6 +88,8 @@ class LineageState(rx.State):
                             "background": background,
                             "border": border,
                             "color": color,
+                            "has_input": node.id in with_input,
+                            "has_output": node.id in with_output,
                         },
                     }
                 )
@@ -93,6 +101,8 @@ class LineageState(rx.State):
                         "position": {"x": node.position_x, "y": node.position_y},
                         "data": {
                             "activity_type": node.activity_type.value,
+                            "has_input": node.id in with_input,
+                            "has_output": node.id in with_output,
                         },
                     }
                 )
