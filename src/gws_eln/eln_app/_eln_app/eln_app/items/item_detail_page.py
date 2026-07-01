@@ -224,23 +224,34 @@ def _details_sidebar() -> rx.Component:
 def _main_content() -> rx.Component:
     """Create the main content area: tabs for activities and lineage.
 
+    Instruments (non-consumable item sheets) have no meaningful lineage - they
+    are only referenced through USE activities - so the Lineage tab is hidden for
+    them and the activities list is enough.
+
     :return: The main content component
     :rtype: rx.Component
     """
+    is_consumable = ItemDetailState.item.item_sheet.is_consumable
     return rx.tabs.root(
         rx.tabs.list(
             rx.tabs.trigger("Activities", value="activities"),
-            rx.tabs.trigger("Lineage", value="lineage"),
+            rx.cond(
+                is_consumable,
+                rx.tabs.trigger("Lineage", value="lineage"),
+            ),
         ),
         rx.tabs.content(
             activities_list_component(ItemDetailState.item.id),
             value="activities",
             padding_top="1rem",
         ),
-        rx.tabs.content(
-            lineage_graph_component(ItemDetailState.item.id),
-            value="lineage",
-            padding_top="1rem",
+        rx.cond(
+            is_consumable,
+            rx.tabs.content(
+                lineage_graph_component(ItemDetailState.item.id),
+                value="lineage",
+                padding_top="1rem",
+            ),
         ),
         default_value="activities",
         width="100%",
