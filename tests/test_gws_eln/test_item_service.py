@@ -21,6 +21,7 @@ from gws_eln.items.item_dto import (
     CreateItemsBulkDTO,
     DecrementQuantityDTO,
     DeleteItemResultDTO,
+    DiluteDiluentDTO,
     DiluteItemDTO,
     DiscardItemDTO,
     MoveItemDTO,
@@ -405,9 +406,11 @@ class TestItemService(BaseTestCase):
             DiluteItemDTO(
                 quantity_contributed=Decimal(5),
                 unit="units",
-                diluent_item_id=diluent.id,
-                diluent_quantity_contributed=Decimal(5),
-                diluent_unit="units",
+                diluents=[
+                    DiluteDiluentDTO(
+                        item_id=diluent.id, quantity_contributed=Decimal(5), unit="units"
+                    )
+                ],
                 output_quantity=Decimal(10),
                 output_unit="units",
             ),
@@ -417,6 +420,45 @@ class TestItemService(BaseTestCase):
         # Both the target and the diluent are reduced in place
         self.assertEqual(ItemService().get_item(target.id).quantity, Decimal(5))
         self.assertEqual(ItemService().get_item(diluent.id).quantity, Decimal(5))
+
+    def test_dilute_reduces_every_diluent(self):
+        target = self._count_item("MDL1", "10")
+        diluent_a = self._count_item("MDL2", "10")
+        diluent_b = self._count_item("MDL3", "10")
+        result = ItemService().dilute_item(
+            target.id,
+            DiluteItemDTO(
+                quantity_contributed=Decimal(4),
+                unit="units",
+                diluents=[
+                    DiluteDiluentDTO(item_id=diluent_a.id, quantity_contributed=Decimal(3), unit="units"),
+                    DiluteDiluentDTO(item_id=diluent_b.id, quantity_contributed=Decimal(2), unit="units"),
+                ],
+                output_quantity=Decimal(9),
+                output_unit="units",
+            ),
+        )
+        self.assertEqual(len(result.outputs), 1)
+        # Target and every diluent are reduced in place
+        self.assertEqual(ItemService().get_item(target.id).quantity, Decimal(6))
+        self.assertEqual(ItemService().get_item(diluent_a.id).quantity, Decimal(7))
+        self.assertEqual(ItemService().get_item(diluent_b.id).quantity, Decimal(8))
+        # Both diluents are recorded as INGREDIENT inputs (with the target)
+        self.assertEqual(len(result.inputs), 3)
+
+    def test_dilute_requires_at_least_one_diluent(self):
+        target = self._count_item("NODL", "10")
+        with self.assertRaises(BadRequestException):
+            ItemService().dilute_item(
+                target.id,
+                DiluteItemDTO(
+                    quantity_contributed=Decimal(5),
+                    unit="units",
+                    diluents=[],
+                    output_quantity=Decimal(5),
+                    output_unit="units",
+                ),
+            )
 
     # ----------------------------------------------------- transform instruments
 
@@ -502,9 +544,11 @@ class TestItemService(BaseTestCase):
             DiluteItemDTO(
                 quantity_contributed=Decimal(5),
                 unit="units",
-                diluent_item_id=diluent.id,
-                diluent_quantity_contributed=Decimal(5),
-                diluent_unit="units",
+                diluents=[
+                    DiluteDiluentDTO(
+                        item_id=diluent.id, quantity_contributed=Decimal(5), unit="units"
+                    )
+                ],
                 output_quantity=Decimal(10),
                 output_unit="units",
                 instrument_item_ids=[vortex.id],

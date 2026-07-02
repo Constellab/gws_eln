@@ -1008,15 +1008,16 @@ class ItemService:
     @ElnDbManager.transaction()
     def dilute_item(self, item_id: str, dto: DiluteItemDTO) -> TransformResult:
         """
-        Dilute a target item with a diluent into a new, less concentrated item.
+        Dilute a target item with one or more diluents into a new, less
+        concentrated item.
 
-        BOTH the target and the diluent are reduced in place. A brand new
+        The target and EVERY diluent are reduced in place. A brand new
         output item is created on the target's own sheet at the user-entered
         concentration; its quantity is user-entered, never computed by summing
-        target+diluent. The diluent may be of any dimension. The
-        DILUTE activity records the target and diluent as INGREDIENT inputs, the
-        new item as the output, and the initial/final concentration + dilution
-        factor as store-only audit.
+        target+diluents. Diluents may be of any dimension. The
+        DILUTE activity records the target and each diluent as INGREDIENT inputs,
+        the new item as the output, and the initial/final concentration +
+        dilution factor as store-only audit.
 
         :param item_id: The ID of the target item being diluted
         :type item_id: str
@@ -1028,15 +1029,13 @@ class ItemService:
         :raises BadRequestException: If validation fails (discarded/non-consumable
                                      input, bad unit, or insufficient quantity)
         """
+        if not dto.diluents:
+            raise BadRequestException("Dilute requires at least one diluent")
+
         target = self.get_item(item_id)
         if target.is_discarded():
             raise BadRequestException(f"Cannot dilute discarded item '{target.code}'")
         target.assert_can_consume()
-
-        diluent = self.get_item(dto.diluent_item_id)
-        if diluent.is_discarded():
-            raise BadRequestException(f"Cannot use discarded item '{diluent.code}' as a diluent")
-        diluent.assert_can_consume()
 
         # Concentration of the target before the operation
         initial_concentration = target.concentration
@@ -1048,14 +1047,36 @@ class ItemService:
         target.quantity = target.quantity - base_target
         target.save()
 
-        # Reduce the diluent (its own dimension - not enforced)
-        diluent_quantity = QuantityValidator.validate_quantity(dto.diluent_quantity_contributed)
-        base_diluent = self._validate_and_convert_quantity(
-            diluent, diluent_quantity, dto.diluent_unit
-        )
-        diluent.validate_sufficient_quantity(base_diluent)
-        diluent.quantity = diluent.quantity - base_diluent
-        diluent.save()
+        # Reduce each diluent in place (each of its own dimension - not enforced)
+        diluent_items: list[Item] = []
+        diluent_activity_inputs: list[CreateActivityInputDTO] = []
+        for diluent_dto in dto.diluents:
+            diluent = self.get_item(diluent_dto.item_id)
+            if diluent.is_discarded():
+                raise BadRequestException(
+                    f"Cannot use discarded item '{diluent.code}' as a diluent"
+                )
+            diluent.assert_can_consume()
+
+            diluent_quantity = QuantityValidator.validate_quantity(
+                diluent_dto.quantity_contributed
+            )
+            base_diluent = self._validate_and_convert_quantity(
+                diluent, diluent_quantity, diluent_dto.unit
+            )
+            diluent.validate_sufficient_quantity(base_diluent)
+            diluent.quantity = diluent.quantity - base_diluent
+            diluent.save()
+
+            diluent_items.append(diluent)
+            diluent_activity_inputs.append(
+                CreateActivityInputDTO(
+                    item_id=diluent.id,
+                    role=ActivityInputRole.INGREDIENT,
+                    quantity_contributed=base_diluent,
+                    unit_type=diluent.unit_type,
+                )
+            )
 
         # Create the new, diluted output item (on the target's sheet)
         output, output_base_quantity = self._create_concentration_output(
@@ -1088,12 +1109,7 @@ class ItemService:
                         quantity_contributed=base_target,
                         unit_type=target.unit_type,
                     ),
-                    CreateActivityInputDTO(
-                        item_id=diluent.id,
-                        role=ActivityInputRole.INGREDIENT,
-                        quantity_contributed=base_diluent,
-                        unit_type=diluent.unit_type,
-                    ),
+                    *diluent_activity_inputs,
                     *self._build_instrument_inputs(dto.instrument_item_ids),
                 ],
                 outputs=[
@@ -1106,7 +1122,9 @@ class ItemService:
             )
         )
 
-        return TransformResult(activity=activity, inputs=[target, diluent], outputs=[output])
+        return TransformResult(
+            activity=activity, inputs=[target, *diluent_items], outputs=[output]
+        )
 
     @ElnDbManager.transaction()
     def transform_items(self, dto: TransformItemsDTO) -> TransformResult:

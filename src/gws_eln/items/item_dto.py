@@ -231,23 +231,29 @@ class ConcentrateItemDTO(BaseModelDTO):
     note_id: str | None = None  # Link to Constellab Note
 
 
-class DiluteItemDTO(BaseModelDTO):
-    """DTO for diluting one target item with a diluent into a new, less
-    concentrated item.
+class DiluteDiluentDTO(BaseModelDTO):
+    """One diluent drawn into a dilute (reduced in place, of any dimension)."""
 
-    BOTH the target (acted on) and the diluent are reduced in place. A brand new
+    item_id: str
+    quantity_contributed: Decimal  # Amount drawn from this diluent (reduces it)
+    unit: str  # Validated against the diluent item's own unit type (any dimension)
+
+
+class DiluteItemDTO(BaseModelDTO):
+    """DTO for diluting one target item with one or more diluents into a new,
+    less concentrated item.
+
+    The target (acted on) and EVERY diluent are reduced in place. A brand new
     output item is created on the target's own sheet at the user-entered
     concentration; its quantity is user-entered, never computed by summing
-    target+diluent. The diluent may be of any dimension. Concentration
+    target+diluents. Diluents may be of any dimension. Concentration
     is store-only - the activity records initial/final concentration + dilution
     factor as audit.
     """
 
     quantity_contributed: Decimal  # Amount drawn from the target (reduces it)
     unit: str  # Validated against the target item's unit type
-    diluent_item_id: str
-    diluent_quantity_contributed: Decimal  # Amount drawn from the diluent (reduces it)
-    diluent_unit: str  # Validated against the diluent item's own unit type (any dimension)
+    diluents: list[DiluteDiluentDTO]  # One or more diluents, each reduced in place
     output_quantity: Decimal
     output_unit: str  # Validated against the target item's unit type (same sheet)
     output_concentration: Decimal | None = None

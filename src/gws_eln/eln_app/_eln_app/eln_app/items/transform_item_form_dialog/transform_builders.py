@@ -17,6 +17,7 @@ from gws_eln.items.item_dto import (
     CombineInputDTO,
     CombineItemDTO,
     ConcentrateItemDTO,
+    DiluteDiluentDTO,
     DiluteItemDTO,
     SplitItemDTO,
     SplitOutputDTO,
@@ -231,15 +232,22 @@ def build_dilute(
     notes: str | None,
     note_id: str | None,
 ) -> tuple[str, DiluteItemDTO]:
-    """Validate and build the dilute DTO. Returns ``(target_item_id, dto)``."""
-    target = next((row for row in inputs if row.role == INPUT_ROLE_TARGET), None)
-    diluent = next((row for row in inputs if row.role == INPUT_ROLE_DILUENT), None)
-    if target is None or not target.qty:
-        raise ReflexAppException("Dilute needs a target consumable item with a quantity")
-    if diluent is None or not diluent.qty:
-        raise ReflexAppException("Dilute needs a diluent consumable item with a quantity")
+    """Validate and build the dilute DTO. Returns ``(target_item_id, dto)``.
+
+    A dilute needs exactly one target, at least one diluent, and exactly one
+    output.
+    """
+    targets = [row for row in inputs if row.role == INPUT_ROLE_TARGET]
+    diluents = [row for row in inputs if row.role == INPUT_ROLE_DILUENT]
+    if len(targets) != 1 or not targets[0].qty:
+        raise ReflexAppException("Dilute needs exactly one target consumable item with a quantity")
+    if not diluents:
+        raise ReflexAppException("Dilute needs at least one diluent")
+    if any(not diluent.qty for diluent in diluents):
+        raise ReflexAppException("Each diluent needs a quantity")
     if len(outputs) != 1:
         raise ReflexAppException("Dilute produces exactly one output")
+    target = targets[0]
     output = outputs[0]
     validate_concentration_change(
         target.init_conc,
@@ -253,9 +261,14 @@ def build_dilute(
     dto = DiluteItemDTO(
         quantity_contributed=Decimal(target.qty),
         unit=target.unit,
-        diluent_item_id=diluent.item_id,
-        diluent_quantity_contributed=Decimal(diluent.qty),
-        diluent_unit=diluent.unit,
+        diluents=[
+            DiluteDiluentDTO(
+                item_id=diluent.item_id,
+                quantity_contributed=Decimal(diluent.qty),
+                unit=diluent.unit,
+            )
+            for diluent in diluents
+        ],
         output_quantity=Decimal(output.qty),
         output_unit=output.unit,
         output_concentration=Decimal(output.conc) if output.conc else None,
