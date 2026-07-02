@@ -652,9 +652,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             raise ReflexAppException("Consumed quantity is required")
         if self.in_item_consumable:
             self._validate_input_quantity()
-        consumed = (
-            "instrument" if not self.in_item_consumable else f"{self.in_qty.strip()} {self.in_unit}"
-        )
+        qty = self.in_qty.strip()
+        if self.in_item_consumable:
+            qty = UnitConverter.format_number(Decimal(qty))
+        consumed = "instrument" if not self.in_item_consumable else f"{qty} {self.in_unit}"
         row = TransformInputRow(
             id=self.in_item_id,
             item_id=self.in_item_id,
@@ -665,7 +666,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             label=self.in_item_label,
             loc=self.in_item_loc,
             is_consumable=self.in_item_consumable,
-            qty=self.in_qty.strip(),
+            qty=qty,
             unit=self.in_unit,
             unit_type=self.in_unit_type,
             available=self.in_item_available,
@@ -845,13 +846,13 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             sheet_name=self.out_sheet_name,
             label=dto.label,
             loc=loc_name,
-            qty=str(dto.quantity),
+            qty=UnitConverter.format_number(dto.quantity),
             unit=dto.unit,
             location_id=dto.location_id or "",
             conc=str(dto.concentration) if dto.concentration is not None else "",
             conc_unit=dto.concentration_unit or "",
             code_preview=f"{self.out_sheet_code}-{date.today().year}-XXXX",
-            produced=f"{dto.quantity} {dto.unit}",
+            produced=f"{UnitConverter.format_number(dto.quantity)} {dto.unit}",
             dilution_factor=self._pending_dilution_factor,
         )
         if self._editing_output_id:

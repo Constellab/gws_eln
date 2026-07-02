@@ -374,7 +374,7 @@ class UnitConverter:
         else:
             display_unit, display_value = UnitConverter._select_best_unit(decimal_value, unit_type)
 
-        formatted_value = UnitConverter._format_number(display_value)
+        formatted_value = UnitConverter.format_number(display_value)
         return f"{formatted_value} {display_unit}"
 
     @staticmethod
@@ -403,7 +403,7 @@ class UnitConverter:
         return base_unit, value
 
     @staticmethod
-    def _format_number(value: Decimal) -> str:
+    def format_number(value: Decimal) -> str:
         """
         Format a Decimal number for display, removing unnecessary trailing zeros.
         """
