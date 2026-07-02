@@ -14,6 +14,7 @@ from gws_eln.items.item_dto import (
 )
 from gws_eln.items.item_service import ItemService
 from gws_eln.utils.units_converter import UnitConverter
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
@@ -180,17 +181,17 @@ class ItemEventFormDialogState(
 
         # Validate required fields
         if not quantity_str:
-            raise Exception("Quantity is required")
+            raise ReflexAppException("Quantity is required")
 
         try:
             quantity = Decimal(quantity_str)
             if quantity <= 0:
-                raise Exception("Quantity must be positive")
+                raise ReflexAppException("Quantity must be positive")
         except (ValueError, ArithmeticError):
-            raise Exception("Invalid quantity value")
+            raise ReflexAppException("Invalid quantity value") from None
 
         if not unit:
-            raise Exception("Unit is required")
+            raise ReflexAppException("Unit is required")
 
         return quantity, unit, notes
 
@@ -204,7 +205,7 @@ class ItemEventFormDialogState(
             Reflex events (rx.toast)
         """
         if not self._item:
-            raise Exception("Item is required")
+            raise ReflexAppException("Item is required")
 
         # Validate and parse form data
         quantity, unit, notes = self._validate_form_data(form_data)

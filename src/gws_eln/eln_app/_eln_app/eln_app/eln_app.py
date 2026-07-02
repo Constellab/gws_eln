@@ -2,6 +2,7 @@ import reflex as rx
 import reflex_enterprise as rxe
 from gws_reflex_main import register_gws_reflex_app
 
+from .exception_handler import eln_backend_exception_handler
 from .item_sheets.item_sheet_detail_page import item_sheet_detail_page
 from .item_sheets.item_sheet_detail_state import ItemSheetDetailState
 from .item_sheets.item_sheets_list_state import ItemSheetsListState
@@ -19,6 +20,7 @@ from .suppliers.suppliers_list_state import SuppliersListState
 from .suppliers.suppliers_page import suppliers_page
 
 app = register_gws_reflex_app(rxe.App())
+app.backend_exception_handler = eln_backend_exception_handler
 
 
 @rx.page(route="/", on_load=[NotesListState.on_load])

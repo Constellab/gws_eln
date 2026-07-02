@@ -4,6 +4,7 @@ from typing import Any
 import reflex as rx
 from gws_eln.items.item_dto import ItemDTO, MoveItemDTO
 from gws_eln.items.item_service import ItemService
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
@@ -81,11 +82,11 @@ class MoveItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State
 
         # Validate required fields
         if not location_id:
-            raise Exception("Destination location is required")
+            raise ReflexAppException("Destination location is required")
 
         # Validate not moving to the same location
         if self._item and self._item.location and location_id == self._item.location.id:
-            raise Exception("Item is already at this location")
+            raise ReflexAppException("Item is already at this location")
 
         return location_id
 
@@ -99,7 +100,7 @@ class MoveItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State
             Reflex events (rx.toast)
         """
         if not self._item:
-            raise Exception("Item is required")
+            raise ReflexAppException("Item is required")
 
         # Validate and parse form data
         location_id = self._validate_form_data(form_data)

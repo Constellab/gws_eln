@@ -646,19 +646,12 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
         The row id is the item id, so an item can only appear once as an input.
         """
-        # Surface validation errors as bottom-right toasts (the app default),
-        # rather than letting ReflexAppException bubble to the global handler
-        # which renders them top-center.
-        try:
-            if not self.in_item_id:
-                raise ReflexAppException("Please select an item first")
-            if self.in_item_consumable and not self.in_qty.strip():
-                raise ReflexAppException("Consumed quantity is required")
-            if self.in_item_consumable:
-                self._validate_input_quantity()
-        except ReflexAppException as error:
-            yield rx.toast.error(error.detail)
-            return
+        if not self.in_item_id:
+            raise ReflexAppException("Please select an item first")
+        if self.in_item_consumable and not self.in_qty.strip():
+            raise ReflexAppException("Consumed quantity is required")
+        if self.in_item_consumable:
+            self._validate_input_quantity()
         consumed = (
             "instrument" if not self.in_item_consumable else f"{self.in_qty.strip()} {self.in_unit}"
         )
@@ -817,11 +810,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         selects the new sheet and auto-advances to step 2.
         """
         sheet_state = await self.get_state(ItemSheetFormDialogState)
-        try:
-            async for event in sheet_state._create(form_data):
-                yield event
-        except Exception as error:
-            yield rx.toast.error(str(error))
+        async for event in sheet_state._create(form_data):
+            yield event
 
     @rx.event
     async def submit_collect_item(self, form_data: dict):
@@ -834,11 +824,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         # CreateItemDTO does not carry it, so the callback reads it back from here.
         self._pending_dilution_factor = form_data.get("dilution_factor", "").strip()
         item_state = await self.get_state(ItemFormDialogState)
-        try:
-            async for event in item_state._create(form_data):
-                yield event
-        except Exception as error:
-            yield rx.toast.error(str(error))
+        async for event in item_state._create(form_data):
+            yield event
 
     async def _on_sheet_created(self, sheet: ItemSheetDTO):
         """Callback after a new ItemSheet is created: select it and advance to step 2."""
@@ -961,9 +948,9 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """
         source = next((row for row in self.inputs if row.is_consumable), None)
         if source is None:
-            raise Exception("Split needs a source consumable item")
+            raise ReflexAppException("Split needs a source consumable item")
         if len(self.outputs) < SPLIT_MIN_OUTPUTS:
-            raise Exception(f"Split needs at least {SPLIT_MIN_OUTPUTS} outputs")
+            raise ReflexAppException(f"Split needs at least {SPLIT_MIN_OUTPUTS} outputs")
 
         outputs = [
             SplitOutputDTO(
@@ -1005,9 +992,9 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """
         consumables = [row for row in self.inputs if row.is_consumable]
         if len(consumables) < COMBINE_MIN_INPUTS:
-            raise Exception(f"Combine needs at least {COMBINE_MIN_INPUTS} consumable inputs")
+            raise ReflexAppException(f"Combine needs at least {COMBINE_MIN_INPUTS} consumable inputs")
         if len(self.outputs) != 1:
-            raise Exception("Combine produces exactly one output")
+            raise ReflexAppException("Combine produces exactly one output")
         output = self.outputs[0]
 
         inputs = [
@@ -1067,7 +1054,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """
         # Output concentration is mandatory for concentrate/dilute.
         if not out_conc or not out_unit:
-            raise Exception(f"{kind_label} requires an output concentration (value and unit)")
+            raise ReflexAppException(f"{kind_label} requires an output concentration (value and unit)")
         # Without a source concentration, or across different families, the
         # direction can't be compared — accept it and leave it to the user.
         if not init_conc or not init_unit:
@@ -1078,12 +1065,12 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         initial = convert_concentration(init_conc, init_unit, out_unit)
         final = Decimal(out_conc)
         if must_increase and final <= initial:
-            raise Exception(
+            raise ReflexAppException(
                 "Concentrate must increase the concentration "
                 "(output concentration must be higher than the source's)"
             )
         if not must_increase and final >= initial:
-            raise Exception(
+            raise ReflexAppException(
                 "Dilute must decrease the concentration "
                 "(output concentration must be lower than the target's)"
             )
@@ -1096,9 +1083,9 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """
         source = next((row for row in self.inputs if row.is_consumable), None)
         if source is None or not source.qty:
-            raise Exception("Concentrate needs a source consumable item with a quantity")
+            raise ReflexAppException("Concentrate needs a source consumable item with a quantity")
         if len(self.outputs) != 1:
-            raise Exception("Concentrate produces exactly one output")
+            raise ReflexAppException("Concentrate produces exactly one output")
         output = self.outputs[0]
         self._validate_concentration_change(
             source.init_conc,
@@ -1149,11 +1136,11 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         target = next((row for row in self.inputs if row.role == INPUT_ROLE_TARGET), None)
         diluent = next((row for row in self.inputs if row.role == INPUT_ROLE_DILUENT), None)
         if target is None or not target.qty:
-            raise Exception("Dilute needs a target consumable item with a quantity")
+            raise ReflexAppException("Dilute needs a target consumable item with a quantity")
         if diluent is None or not diluent.qty:
-            raise Exception("Dilute needs a diluent consumable item with a quantity")
+            raise ReflexAppException("Dilute needs a diluent consumable item with a quantity")
         if len(self.outputs) != 1:
-            raise Exception("Dilute produces exactly one output")
+            raise ReflexAppException("Dilute produces exactly one output")
         output = self.outputs[0]
         self._validate_concentration_change(
             target.init_conc,

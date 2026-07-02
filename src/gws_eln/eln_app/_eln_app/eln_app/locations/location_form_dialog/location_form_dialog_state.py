@@ -5,6 +5,7 @@ import reflex as rx
 from gws_eln.locations.location import Location
 from gws_eln.locations.location_dto import CreateLocationDTO, LocationDTO, UpdateLocationDTO
 from gws_eln.locations.location_service import LocationService
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 FormDialogCloseCallback = Callable[[LocationDTO], Coroutine[Any, Any, None]]
@@ -69,7 +70,7 @@ class LocationFormDialogState(FormDialogState, rx.State):
 
         # Validate required fields
         if not name:
-            raise Exception("Location name is required")
+            raise ReflexAppException("Location name is required")
 
         return name, description
 

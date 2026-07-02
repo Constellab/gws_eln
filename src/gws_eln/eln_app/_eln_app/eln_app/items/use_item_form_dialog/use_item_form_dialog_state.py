@@ -6,6 +6,7 @@ from typing import Any
 import reflex as rx
 from gws_eln.items.item_dto import ItemDTO, UseItemDTO
 from gws_eln.items.item_service import ItemService
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
@@ -78,7 +79,7 @@ class UseItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State)
             Reflex events (rx.toast)
         """
         if not self._item:
-            raise Exception("Item is required")
+            raise ReflexAppException("Item is required")
 
         dto = self._validate_form_data(form_data)
         dto.note_id = self.note_dto_id

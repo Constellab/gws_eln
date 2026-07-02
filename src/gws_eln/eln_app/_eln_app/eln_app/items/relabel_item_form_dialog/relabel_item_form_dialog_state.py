@@ -6,6 +6,7 @@ from typing import Any
 import reflex as rx
 from gws_eln.items.item_dto import ItemDTO, RelabelItemDTO
 from gws_eln.items.item_service import ItemService
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
@@ -87,7 +88,7 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
         label_changed = label != (self._item.label or "") if self._item else True
 
         if not label_changed:
-            raise Exception("No changes detected")
+            raise ReflexAppException("No changes detected")
 
         return RelabelItemDTO(label=label)
 
@@ -101,7 +102,7 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
             Reflex events (rx.toast)
         """
         if not self._item:
-            raise Exception("Item is required")
+            raise ReflexAppException("Item is required")
 
         # Validate and parse form data
         dto = self._validate_form_data(form_data)

@@ -5,7 +5,6 @@ These are used by both the standalone form dialogs and the note activity dialog.
 """
 
 import reflex as rx
-from gws_eln.items.item_dto import ItemDTO
 
 from ..common.unit.unit_components import quantity_unit_input
 from ..item_sheets.core.item_sheet_select_component import item_sheet_select_component

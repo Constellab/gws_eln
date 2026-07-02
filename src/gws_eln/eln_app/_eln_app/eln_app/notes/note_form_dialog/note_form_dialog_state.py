@@ -6,6 +6,7 @@ from typing import Any
 import reflex as rx
 from gws_core import NoteDTO, NoteSaveDTO, NoteService
 from gws_eln.notes.eln_note_service import ElnNoteService
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 FormDialogCloseCallback = Callable[[], Coroutine[Any, Any, None]]
@@ -48,7 +49,7 @@ class NoteFormDialogState(FormDialogState, rx.State):
         title = form_data.get("title", "").strip()
 
         if not title:
-            raise Exception("Note title is required")
+            raise ReflexAppException("Note title is required")
 
         main_state: ReflexMainState
         async with self:
@@ -73,7 +74,7 @@ class NoteFormDialogState(FormDialogState, rx.State):
         title = form_data.get("title", "").strip()
 
         if not title:
-            raise Exception("Note title is required")
+            raise ReflexAppException("Note title is required")
 
         main_state: ReflexMainState
         async with self:

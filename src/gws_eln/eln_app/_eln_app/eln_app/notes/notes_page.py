@@ -5,8 +5,8 @@ from gws_core import NoteDTO
 from gws_reflex_main import main_component, user_with_date_component
 
 from ..common.page_layout import page_layout
-from .note_form_dialog.note_form_dialog_component import note_create_dialog
 from .note_actions_menu import note_actions_menu
+from .note_form_dialog.note_form_dialog_component import note_create_dialog
 from .notes_list_state import NotesListState
 
 

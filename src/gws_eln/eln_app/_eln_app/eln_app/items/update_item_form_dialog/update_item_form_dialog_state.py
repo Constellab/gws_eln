@@ -8,6 +8,7 @@ from typing import Any
 import reflex as rx
 from gws_eln.items.item_dto import ItemDTO, UpdateItemDTO
 from gws_eln.items.item_service import ItemService
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
@@ -112,7 +113,7 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
             try:
                 expiry_date = date.fromisoformat(self.form_expiry_date)
             except ValueError as err:
-                raise Exception("Invalid expiry date format") from err
+                raise ReflexAppException("Invalid expiry date format") from err
 
         # Get supplier_id from state
         supplier_id = self.form_supplier_id if self.form_supplier_id != "__none__" else None
@@ -124,9 +125,9 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
             try:
                 concentration = Decimal(concentration_str)
             except (ValueError, ArithmeticError) as exc:
-                raise Exception("Invalid concentration value") from exc
+                raise ReflexAppException("Invalid concentration value") from exc
             if concentration <= 0:
-                raise Exception("Concentration must be positive")
+                raise ReflexAppException("Concentration must be positive")
 
         # Concentration unit (optional). "__none__" means no unit.
         concentration_unit = (
@@ -160,7 +161,7 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
             Reflex events (rx.toast)
         """
         if not self._item:
-            raise Exception("Item is required")
+            raise ReflexAppException("Item is required")
 
         # Validate and parse form data
         dto = self._validate_form_data(form_data)

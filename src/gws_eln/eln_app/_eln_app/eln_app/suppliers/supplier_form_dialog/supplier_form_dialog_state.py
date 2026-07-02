@@ -5,6 +5,7 @@ import reflex as rx
 from gws_eln.suppliers.supplier import Supplier
 from gws_eln.suppliers.supplier_dto import CreateSupplierDTO, SupplierDTO, UpdateSupplierDTO
 from gws_eln.suppliers.supplier_service import SupplierService
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 FormDialogCloseCallback = Callable[[SupplierDTO], Coroutine[Any, Any, None]]
@@ -69,7 +70,7 @@ class SupplierFormDialogState(FormDialogState, rx.State):
 
         # Validate required fields
         if not name:
-            raise Exception("Supplier name is required")
+            raise ReflexAppException("Supplier name is required")
 
         return name, description
 

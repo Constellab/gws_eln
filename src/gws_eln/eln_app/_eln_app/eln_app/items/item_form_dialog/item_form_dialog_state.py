@@ -11,6 +11,7 @@ from gws_eln.items.item_service import ItemService
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_eln.items.item_sheet_service import ItemSheetService
 from gws_eln.utils.units_converter import UnitConverter
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
@@ -219,19 +220,19 @@ class ItemFormDialogState(FormDialogState, rx.State):
         try:
             return date.fromisoformat(self.form_expiry_date)
         except ValueError as err:
-            raise Exception("Invalid expiry date format") from err
+            raise ReflexAppException("Invalid expiry date format") from err
 
     @staticmethod
     def _parse_quantity(quantity_str: str) -> Decimal:
         """Parse a required, strictly-positive quantity."""
         if not quantity_str:
-            raise Exception("Quantity is required")
+            raise ReflexAppException("Quantity is required")
         try:
             quantity = Decimal(quantity_str)
         except (ValueError, ArithmeticError) as err:
-            raise Exception("Invalid quantity value") from err
+            raise ReflexAppException("Invalid quantity value") from err
         if quantity <= 0:
-            raise Exception("Quantity must be positive")
+            raise ReflexAppException("Quantity must be positive")
         return quantity
 
     @staticmethod
@@ -242,9 +243,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
         try:
             concentration = Decimal(concentration_str)
         except (ValueError, ArithmeticError) as err:
-            raise Exception("Invalid concentration value") from err
+            raise ReflexAppException("Invalid concentration value") from err
         if concentration <= 0:
-            raise Exception("Concentration must be positive")
+            raise ReflexAppException("Concentration must be positive")
         return concentration
 
     def _validate_form_data(
@@ -282,11 +283,11 @@ class ItemFormDialogState(FormDialogState, rx.State):
         # Values from state (select components)
         location_id = self.form_location_id
         if not location_id:
-            raise Exception("Location is required")
+            raise ReflexAppException("Location is required")
 
         unit = self.form_unit
         if not unit:
-            raise Exception("Unit is required")
+            raise ReflexAppException("Unit is required")
 
         supplier_id = (
             self.form_supplier_id
@@ -313,7 +314,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         sheets create N serialized units in one action (the bulk path).
         """
         if not self._item_sheet:
-            raise Exception("ItemSheet is required")
+            raise ReflexAppException("ItemSheet is required")
 
         # Collect mode: hand the spec to the caller, do not persist.
         if self._collect_callback is not None:
@@ -442,7 +443,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
         location_id = self.form_location_id
         if not location_id:
-            raise Exception("Location is required")
+            raise ReflexAppException("Location is required")
 
         supplier_id = (
             self.form_supplier_id
@@ -453,7 +454,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         # One serial per unit (empty -> None for not-yet-serialized units)
         serial_numbers = [serial.strip() or None for serial in self.form_serials]
         if not serial_numbers:
-            raise Exception("At least one unit is required")
+            raise ReflexAppException("At least one unit is required")
 
         main_state: ReflexMainState
         async with self:

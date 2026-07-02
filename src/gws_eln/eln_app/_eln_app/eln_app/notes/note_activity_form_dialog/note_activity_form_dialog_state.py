@@ -17,6 +17,7 @@ from gws_core import Note, RichTextDTO
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.items.item_dto import ItemDTO
 from gws_eln.notes.eln_note_service import ElnNoteService
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import ReflexMainState
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
@@ -151,16 +152,13 @@ class NoteActivityFormDialogState(rx.State):
         created activity to the block on success.
         """
         if not self.form_activity_type:
-            yield rx.toast.error("Please select an activity type")
-            return
+            raise ReflexAppException("Please select an activity type")
         if not self._item:
-            yield rx.toast.error("Please select an item")
-            return
+            raise ReflexAppException("Please select an item")
 
         spec = _ACTIVITY_DISPATCH.get(self.form_activity_type)
         if spec is None:
-            yield rx.toast.error("Unsupported activity type")
-            return
+            raise ReflexAppException("Unsupported activity type")
 
         state_class, open_method, event_type = spec
         target = await self.get_state(state_class)

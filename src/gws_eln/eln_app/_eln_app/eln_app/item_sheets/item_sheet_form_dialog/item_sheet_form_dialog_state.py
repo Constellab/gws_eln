@@ -8,6 +8,7 @@ from gws_eln.items.item_sheet_dto import CreateItemSheetDTO, ItemSheetDTO, Updat
 from gws_eln.items.item_sheet_service import ItemSheetService
 from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 
 FormDialogCloseCallback = Callable[[ItemSheetDTO], Coroutine[Any, Any, None]]
@@ -221,7 +222,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
 
         # Validate required fields
         if not name:
-            raise Exception("ItemSheet name is required")
+            raise ReflexAppException("ItemSheet name is required")
 
         return name, description, supplier_id, is_consumable, unit_type, storage_conditions
 
