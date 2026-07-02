@@ -23,6 +23,7 @@ from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item_dto import ItemDTO
 from gws_eln.items.item_service import ItemService
 from gws_eln.utils.units_converter import UnitConverter
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import ConfirmDialogState, FormDialogState, ReflexMainState
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
@@ -60,6 +61,9 @@ class TransformItemFormDialogState(
     transform_step: TransformStep = TransformStep.CHOOSE
     # Launching item, seeded as the first input only after the kind is picked.
     _seed_item: ItemDTO | None = None
+    # Launching item's unit type, kept for the whole dialog (unlike _seed_item,
+    # which is cleared once seeded) so the chooser can gate volume-only kinds.
+    _launch_unit_type: str = ""
 
     _callback_after_close: FormDialogCloseCallback | None = None
 
@@ -84,6 +88,15 @@ class TransformItemFormDialogState(
     @rx.var
     def kind_is_concentrate(self) -> bool:
         return self.transform_kind == TransformKind.CONCENTRATE.value
+
+    @rx.var
+    def seed_is_volume(self) -> bool:
+        """Whether the launching item is measured in a volume unit.
+
+        Dilute and concentrate only make sense for solutions with a volume unit,
+        so those two activities are hidden in the chooser for any other unit type.
+        """
+        return self._launch_unit_type == UnitType.VOLUME.value
 
     @rx.var
     def dilute_target_inputs(self) -> list[TransformInputRow]:
@@ -272,6 +285,7 @@ class TransformItemFormDialogState(
         await self._load_locations()
         self.is_update_mode = False
         self._seed_item = item
+        self._launch_unit_type = item.unit_type.value
         self.transform_step = TransformStep.CHOOSE
         self.dialog_opened = True
 
@@ -282,6 +296,15 @@ class TransformItemFormDialogState(
         If the dialog was launched from an item, seed it as the first input and
         open the quantity modal straight away.
         """
+        # Dilute/concentrate are solution-only: guard against a non-volume seed
+        # (the chooser already hides these cards, this is defense in depth).
+        if (
+            kind in (TransformKind.DILUTE.value, TransformKind.CONCENTRATE.value)
+            and not self.seed_is_volume
+        ):
+            raise ReflexAppException(
+                "Dilute and concentrate are only available for items measured in a volume unit"
+            )
         self.transform_kind = kind
         self.transform_step = TransformStep.BUILD
         if self._seed_item is not None:
@@ -471,6 +494,7 @@ class TransformItemFormDialogState(
         self.transform_kind = ""
         self.transform_step = TransformStep.CHOOSE
         self._seed_item = None
+        self._launch_unit_type = ""
         self._editing_input_id = ""
         self.input_dialog_opened = False
         self.out_sheet_id = ""

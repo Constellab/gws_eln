@@ -377,17 +377,24 @@ def _chooser() -> rx.Component:
                 "Several items → one new item.",
                 TransformKind.COMBINE.value,
             ),
-            _kind_card(
-                "droplets",
-                "Dilute",
-                "Target + diluent → one diluted item.",
-                TransformKind.DILUTE.value,
+            # Dilute/concentrate only apply to solutions with a volume unit.
+            rx.cond(
+                _S.seed_is_volume,
+                _kind_card(
+                    "droplets",
+                    "Dilute",
+                    "Target + diluent → one diluted item.",
+                    TransformKind.DILUTE.value,
+                ),
             ),
-            _kind_card(
-                "filter",
-                "Concentrate",
-                "One item → one more concentrated item.",
-                TransformKind.CONCENTRATE.value,
+            rx.cond(
+                _S.seed_is_volume,
+                _kind_card(
+                    "filter",
+                    "Concentrate",
+                    "One item → one more concentrated item.",
+                    TransformKind.CONCENTRATE.value,
+                ),
             ),
             _kind_card(
                 "shuffle",
