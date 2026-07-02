@@ -305,33 +305,41 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         return ""
 
     @rx.var
-    def split_quantity_warning(self) -> str:
-        """Live warning when a split's total output quantity exceeds the source's.
+    def quantity_warning(self) -> str:
+        """Live warning when a total output quantity exceeds the total input quantity.
 
         Non-blocking: the user can still save (a confirmation is asked at save
-        time). Empty when it does not apply (not a split, no source or no outputs
+        time). Empty when it does not apply (no inputs or no outputs
         yet, or the quantities are consistent / not parseable).
         """
-        is_split = self.transform_kind == TransformKind.SPLIT.value
-        source = next((row for row in self.inputs if row.is_consumable), None)
-        if not is_split or not source or not self.outputs:
+        consumable_inputs = [row for row in self.inputs if row.is_consumable]
+        if not consumable_inputs or not self.outputs:
             return ""
 
-        unit_type = UnitType(source.unit_type)
         try:
-            source_base = UnitConverter.to_base_unit(Decimal(source.qty), source.unit, unit_type)
-            total_base = Decimal(0)
-            for row in self.outputs:
-                total_base += UnitConverter.to_base_unit(Decimal(row.qty), row.unit, unit_type)
+            unit_type = UnitType(consumable_inputs[0].unit_type)
+            total_input_quantity = self._sum_base_quantity(consumable_inputs, unit_type)
+            total_output_quantity = self._sum_base_quantity(self.outputs, unit_type)
         except Exception:  # noqa: BLE001 - a computed var must never raise
             return ""
-        if total_base <= source_base:
+
+        if total_output_quantity <= total_input_quantity:
             return ""
         return (
             f"The total output quantity "
-            f"({UnitConverter.format_value(total_base, unit_type)}) exceeds the "
-            f"source quantity ({UnitConverter.format_value(source_base, unit_type)})."
+            f"({UnitConverter.format_value(total_output_quantity, unit_type)}) exceeds the "
+            f"total input quantity ({UnitConverter.format_value(total_input_quantity, unit_type)})."
         )
+
+    @staticmethod
+    def _sum_base_quantity(
+        rows: list[TransformInputRow] | list[TransformOutputRow], unit_type: UnitType
+    ) -> Decimal:
+        """Sum the rows' quantities converted to the base unit of ``unit_type``."""
+        total = Decimal(0)
+        for row in rows:
+            total += UnitConverter.to_base_unit(Decimal(row.qty), row.unit, unit_type)
+        return total
 
     @rx.var
     def can_add_output(self) -> bool:
@@ -881,17 +889,17 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     async def submit_form(self, form_data: dict):
         """Save the transform.
 
-        For a split, if the total output quantity exceeds the source quantity
-        (a non-blocking condition), ask the user to confirm before saving instead
+        If the total output quantity exceeds the total input quantity (a
+        non-blocking condition), ask the user to confirm before saving instead
         of submitting directly.
         """
         async with self:
-            over_quantity = bool(self.split_quantity_warning)
+            over_quantity = bool(self.quantity_warning)
             if over_quantity:
                 confirm_state = await self.get_state(ConfirmDialogState)
                 confirm_state.open_dialog(
                     title="Output quantity exceeds input",
-                    content=f"{self.split_quantity_warning} Do you want to save anyway?",
+                    content=f"{self.quantity_warning} Do you want to save anyway?",
                     action=lambda: self._run_submit(form_data),
                 )
         if over_quantity:
@@ -993,7 +1001,9 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """
         consumables = [row for row in self.inputs if row.is_consumable]
         if len(consumables) < COMBINE_MIN_INPUTS:
-            raise ReflexAppException(f"Combine needs at least {COMBINE_MIN_INPUTS} consumable inputs")
+            raise ReflexAppException(
+                f"Combine needs at least {COMBINE_MIN_INPUTS} consumable inputs"
+            )
         if len(self.outputs) != 1:
             raise ReflexAppException("Combine produces exactly one output")
         output = self.outputs[0]
@@ -1055,7 +1065,9 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """
         # Output concentration is mandatory for concentrate/dilute.
         if not out_conc or not out_unit:
-            raise ReflexAppException(f"{kind_label} requires an output concentration (value and unit)")
+            raise ReflexAppException(
+                f"{kind_label} requires an output concentration (value and unit)"
+            )
         # Without a source concentration, or across different families, the
         # direction can't be compared — accept it and leave it to the user.
         if not init_conc or not init_unit:
