@@ -11,10 +11,10 @@ from gws_reflex_main import dialog_header
 
 from ...common.feedback_components import compact_warning
 from .transform_input_dialog_component import transform_input_dialog
-from .transform_item_form_dialog_state import (
+from .transform_item_form_dialog_state import TransformItemFormDialogState
+from .transform_models import (
     INPUT_ROLE_TARGET,
     TransformInputRow,
-    TransformItemFormDialogState,
     TransformKind,
     TransformOutputRow,
 )

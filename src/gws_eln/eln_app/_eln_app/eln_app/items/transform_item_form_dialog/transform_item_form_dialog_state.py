@@ -7,10 +7,8 @@ persisting) so the Transform itself creates the output items on save.
 """
 
 from collections.abc import Callable, Coroutine
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from enum import Enum, IntEnum
 from typing import Any
 
 import reflex as rx
@@ -19,19 +17,7 @@ from gws_eln.core.concentration_unit import (
     same_concentration_family,
 )
 from gws_eln.core.unit_type import UnitType
-from gws_eln.items.item_dto import (
-    CombineInputDTO,
-    CombineItemDTO,
-    ConcentrateItemDTO,
-    CreateItemDTO,
-    DiluteItemDTO,
-    ItemDTO,
-    SplitItemDTO,
-    SplitOutputDTO,
-    TransformInputDTO,
-    TransformItemsDTO,
-    TransformOutputDTO,
-)
+from gws_eln.items.item_dto import CreateItemDTO, ItemDTO
 from gws_eln.items.item_service import ItemService
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_eln.locations.location_service import LocationService
@@ -48,91 +34,18 @@ from ..item_form_dialog.item_form_dialog_state import ItemFormDialogState
 from ..update_item_form_dialog.update_item_form_dialog_state import (
     UpdateItemFormDialogState,
 )
+from . import transform_builders
+from .transform_models import (
+    INPUT_ROLE_DILUENT,
+    INPUT_ROLE_TARGET,
+    OutputStep,
+    TransformInputRow,
+    TransformKind,
+    TransformOutputRow,
+    TransformStep,
+)
 
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
-
-
-class OutputStep(IntEnum):
-    """Steps of the output wizard (serializes as int for the frontend)."""
-
-    SHEET = 1  # choose or create the destination ItemSheet
-    ITEM = 2  # create the produced item
-
-
-class TransformKind(Enum):
-    """The transformation chosen in the wizard's first step.
-
-    Values match ``ActivityType`` for the specialised kinds; ``CUSTOM`` is the
-    generic N->M transform (``ActivityType.TRANSFORM``).
-    """
-
-    SPLIT = "split"
-    COMBINE = "combine"
-    DILUTE = "dilute"
-    CONCENTRATE = "concentrate"
-    CUSTOM = "transform"
-
-
-class TransformStep(IntEnum):
-    """Steps of the transform wizard (serializes as int for the frontend)."""
-
-    CHOOSE = 1  # pick the transformation kind
-    BUILD = 2  # build the inputs/outputs
-
-
-# A combine needs at least this many consumable ingredients.
-COMBINE_MIN_INPUTS = 2
-
-# A split must produce at least this many outputs (1 output would be a move/aliquot).
-SPLIT_MIN_OUTPUTS = 2
-
-# Roles for the two consumable inputs of a dilute (target is the item being diluted).
-INPUT_ROLE_TARGET = "target"
-INPUT_ROLE_DILUENT = "diluent"
-
-
-@dataclass
-class TransformInputRow:
-    """One committed input (item or instrument) consumed by the transform."""
-
-    id: str
-    item_id: str
-    sheet_id: str  # the item's sheet id (used to fix the output sheet for split)
-    sheet_code: str  # the item's sheet code (for the output code preview)
-    sheet_name: str
-    code: str
-    label: str
-    loc: str
-    is_consumable: bool
-    qty: str  # raw, for DTO (empty for instruments)
-    unit: str  # raw, for DTO
-    unit_type: str  # for re-populating the edit form
-    available: str  # available quantity (display), for re-populating the edit form
-    qty_base: str  # available quantity in base unit, for edit-time validation
-    consumed: str  # display, e.g. "4 units" or "instrument"
-    role: str = ""  # dilute role: INPUT_ROLE_TARGET / INPUT_ROLE_DILUENT ("" otherwise)
-    init_conc: str = ""  # the item's current concentration (for concentrate/dilute checks)
-    init_conc_unit: str = ""  # unit of init_conc ("" when none)
-
-
-@dataclass
-class TransformOutputRow:
-    """One committed output (new item) produced by the transform."""
-
-    id: str
-    sheet_id: str
-    sheet_code: str
-    sheet_name: str
-    label: str
-    loc: str
-    qty: str  # raw, for DTO
-    unit: str  # raw, for DTO
-    location_id: str  # raw, for DTO
-    conc: str  # raw, for DTO
-    conc_unit: str  # raw, for DTO ("" when none)
-    code_preview: str
-    produced: str  # display
-    dilution_factor: str = ""  # raw, for DTO (concentrate/dilute audit; "" when none)
 
 
 class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State):
@@ -318,8 +231,10 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
         try:
             unit_type = UnitType(consumable_inputs[0].unit_type)
-            total_input_quantity = self._sum_base_quantity(consumable_inputs, unit_type)
-            total_output_quantity = self._sum_base_quantity(self.outputs, unit_type)
+            total_input_quantity = transform_builders.sum_base_quantity(
+                consumable_inputs, unit_type
+            )
+            total_output_quantity = transform_builders.sum_base_quantity(self.outputs, unit_type)
         except Exception:  # noqa: BLE001 - a computed var must never raise
             return ""
 
@@ -330,16 +245,6 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             f"({UnitConverter.format_value(total_output_quantity, unit_type)}) exceeds the "
             f"total input quantity ({UnitConverter.format_value(total_input_quantity, unit_type)})."
         )
-
-    @staticmethod
-    def _sum_base_quantity(
-        rows: list[TransformInputRow] | list[TransformOutputRow], unit_type: UnitType
-    ) -> Decimal:
-        """Sum the rows' quantities converted to the base unit of ``unit_type``."""
-        total = Decimal(0)
-        for row in rows:
-            total += UnitConverter.to_base_unit(Decimal(row.qty), row.unit, unit_type)
-        return total
 
     @rx.var
     def can_add_output(self) -> bool:
@@ -629,25 +534,6 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     def close_input_dialog(self):
         self.input_dialog_opened = False
 
-    def _validate_input_quantity(self):
-        """Validate the draft consumed quantity against the item's availability.
-
-        :raises Exception: if the quantity is invalid, non-positive, or exceeds
-            the available quantity of the selected item.
-        """
-        try:
-            qty = Decimal(self.in_qty.strip())
-        except (ArithmeticError, ValueError):
-            raise ReflexAppException("Invalid quantity") from None
-        if qty <= 0:
-            raise ReflexAppException("Quantity must be positive")
-        base_qty = UnitConverter.to_base_unit(qty, self.in_unit, UnitType(self.in_unit_type))
-        if base_qty > Decimal(self.in_item_qty_base):
-            raise ReflexAppException(
-                f"Consumed quantity ({self.in_qty.strip()} {self.in_unit}) "
-                f"exceeds the available quantity ({self.in_item_available})"
-            )
-
     @rx.event
     def commit_input(self):
         """Validate the draft and add it (or update the edited row) in the list.
@@ -659,7 +545,13 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         if self.in_item_consumable and not self.in_qty.strip():
             raise ReflexAppException("Consumed quantity is required")
         if self.in_item_consumable:
-            self._validate_input_quantity()
+            transform_builders.validate_consumed_quantity(
+                self.in_qty,
+                self.in_unit,
+                self.in_unit_type,
+                self.in_item_qty_base,
+                self.in_item_available,
+            )
         qty = self.in_qty.strip()
         if self.in_item_consumable:
             qty = UnitConverter.format_number(Decimal(qty))
@@ -949,300 +841,83 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         async for event in self._create_custom(form_data):
             yield event
 
-    async def _create_split(self, form_data: dict):
-        """Split the single source item into the listed output items.
+    async def _persist_and_finish(self, service_call: Callable[[], Any], success_msg: str):
+        """Shared orchestration tail of every ``_create_*`` kind.
 
-        Children inherit the source's sheet/unit/concentration; only quantity,
-        unit, location and label are user-entered per output.
+        Authenticate, run the (kind-specific) service call, link the note,
+        toast, and fire the post-close callback with the first affected item.
         """
-        source = next((row for row in self.inputs if row.is_consumable), None)
-        if source is None:
-            raise ReflexAppException("Split needs a source consumable item")
-        if len(self.outputs) < SPLIT_MIN_OUTPUTS:
-            raise ReflexAppException(f"Split needs at least {SPLIT_MIN_OUTPUTS} outputs")
-
-        outputs = [
-            SplitOutputDTO(
-                quantity=Decimal(row.qty),
-                unit=row.unit,
-                location_id=row.location_id or None,
-                label=row.label or None,
-            )
-            for row in self.outputs
-        ]
-        instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
-        notes = form_data.get("notes", "").strip() or None
-        dto = SplitItemDTO(
-            outputs=outputs,
-            instrument_item_ids=instrument_ids,
-            notes=notes,
-            note_id=self.note_dto_id,
-        )
-
         main_state: ReflexMainState
         async with self:
             main_state = await self.get_state(ReflexMainState)
 
         with await main_state.authenticate_user():
-            result = ItemService().split_item(source.item_id, dto)
+            result = service_call()
             linked_note = self._link_note_activity(result.activity.id)
 
-        yield rx.toast.success(f"Split saved — {len(outputs)} item(s) created")
+        yield rx.toast.success(success_msg)
         await self._after_note_link(linked_note)
 
         if self._callback_after_close and result.inputs:
             await self._callback_after_close(result.inputs[0].to_dto())
+
+    async def _create_split(self, form_data: dict):
+        """Split the single source item into the listed output items."""
+        notes = form_data.get("notes", "").strip() or None
+        source_id, dto = transform_builders.build_split(
+            self.inputs, self.outputs, notes, self.note_dto_id
+        )
+        async for event in self._persist_and_finish(
+            lambda: ItemService().split_item(source_id, dto),
+            f"Split saved — {len(dto.outputs)} item(s) created",
+        ):
+            yield event
 
     async def _create_combine(self, form_data: dict):
-        """Combine 2..N consumable ingredients into the single output item.
-
-        Each ingredient is reduced in place by its contribution; the output is a
-        new item on its chosen sheet (concentration user-entered or null).
-        """
-        consumables = [row for row in self.inputs if row.is_consumable]
-        if len(consumables) < COMBINE_MIN_INPUTS:
-            raise ReflexAppException(
-                f"Combine needs at least {COMBINE_MIN_INPUTS} consumable inputs"
-            )
-        if len(self.outputs) != 1:
-            raise ReflexAppException("Combine produces exactly one output")
-        output = self.outputs[0]
-
-        inputs = [
-            CombineInputDTO(item_id=row.item_id, quantity=Decimal(row.qty), unit=row.unit)
-            for row in consumables
-        ]
-        instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
+        """Combine 2..N consumable ingredients into the single output item."""
         notes = form_data.get("notes", "").strip() or None
-        dto = CombineItemDTO(
-            inputs=inputs,
-            output_item_sheet_id=output.sheet_id,
-            output_quantity=Decimal(output.qty),
-            output_unit=output.unit,
-            instrument_item_ids=instrument_ids,
-            output_location_id=output.location_id or None,
-            output_label=output.label or None,
-            output_concentration=Decimal(output.conc) if output.conc else None,
-            output_concentration_unit=output.conc_unit or None,
-            notes=notes,
-            note_id=self.note_dto_id,
-        )
-
-        main_state: ReflexMainState
-        async with self:
-            main_state = await self.get_state(ReflexMainState)
-
-        with await main_state.authenticate_user():
-            result = ItemService().combine_items(dto)
-            linked_note = self._link_note_activity(result.activity.id)
-
-        yield rx.toast.success(f"Combine saved — {len(inputs)} input(s) → 1 item")
-        await self._after_note_link(linked_note)
-
-        if self._callback_after_close and result.inputs:
-            await self._callback_after_close(result.inputs[0].to_dto())
-
-    def _validate_concentration_change(
-        self,
-        init_conc: str,
-        init_unit: str,
-        out_conc: str,
-        out_unit: str,
-        must_increase: bool,
-        kind_label: str,
-    ):
-        """Enforce the output concentration and its direction for concentrate/dilute.
-
-        The output concentration (value + unit) is mandatory. The direction is
-        checked only when it can be compared meaningfully: the source/target
-        already carries a concentration AND both values are in the **same family**
-        (converted via :func:`convert_concentration`) — then concentrate must raise
-        it and dilute must lower it. A cross-family output unit is accepted as-is:
-        the direction can't be inferred across families, so it is left to the user.
-
-        :raises Exception: if the output concentration is missing, or if it changes
-            in the wrong direction while in the same family as the source's.
-        """
-        # Output concentration is mandatory for concentrate/dilute.
-        if not out_conc or not out_unit:
-            raise ReflexAppException(
-                f"{kind_label} requires an output concentration (value and unit)"
-            )
-        # Without a source concentration, or across different families, the
-        # direction can't be compared — accept it and leave it to the user.
-        if not init_conc or not init_unit:
-            return
-        if not same_concentration_family(init_unit, out_unit):
-            return
-        # Compare in the output's unit (same family → lossless conversion).
-        initial = convert_concentration(init_conc, init_unit, out_unit)
-        final = Decimal(out_conc)
-        if must_increase and final <= initial:
-            raise ReflexAppException(
-                "Concentrate must increase the concentration "
-                "(output concentration must be higher than the source's)"
-            )
-        if not must_increase and final >= initial:
-            raise ReflexAppException(
-                "Dilute must decrease the concentration "
-                "(output concentration must be lower than the target's)"
-            )
+        dto = transform_builders.build_combine(self.inputs, self.outputs, notes, self.note_dto_id)
+        async for event in self._persist_and_finish(
+            lambda: ItemService().combine_items(dto),
+            f"Combine saved — {len(dto.inputs)} input(s) → 1 item",
+        ):
+            yield event
 
     async def _create_concentrate(self, form_data: dict):
-        """Concentrate the single source item into one more concentrated item.
-
-        The source is reduced in place by its contributed quantity; the output is
-        a new item on the source's own sheet at the user-entered concentration.
-        """
-        source = next((row for row in self.inputs if row.is_consumable), None)
-        if source is None or not source.qty:
-            raise ReflexAppException("Concentrate needs a source consumable item with a quantity")
-        if len(self.outputs) != 1:
-            raise ReflexAppException("Concentrate produces exactly one output")
-        output = self.outputs[0]
-        self._validate_concentration_change(
-            source.init_conc,
-            source.init_conc_unit,
-            output.conc,
-            output.conc_unit,
-            must_increase=True,
-            kind_label="Concentrate",
-        )
-
-        instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
+        """Concentrate the single source item into one more concentrated item."""
         notes = form_data.get("notes", "").strip() or None
-        dto = ConcentrateItemDTO(
-            quantity_contributed=Decimal(source.qty),
-            unit=source.unit,
-            output_quantity=Decimal(output.qty),
-            output_unit=output.unit,
-            output_concentration=Decimal(output.conc) if output.conc else None,
-            output_concentration_unit=output.conc_unit or None,
-            dilution_factor=Decimal(output.dilution_factor) if output.dilution_factor else None,
-            instrument_item_ids=instrument_ids,
-            output_location_id=output.location_id or None,
-            output_label=output.label or None,
-            notes=notes,
-            note_id=self.note_dto_id,
+        source_id, dto = transform_builders.build_concentrate(
+            self.inputs, self.outputs, notes, self.note_dto_id
         )
-
-        main_state: ReflexMainState
-        async with self:
-            main_state = await self.get_state(ReflexMainState)
-
-        with await main_state.authenticate_user():
-            result = ItemService().concentrate_item(source.item_id, dto)
-            linked_note = self._link_note_activity(result.activity.id)
-
-        yield rx.toast.success("Concentrate saved — 1 item created")
-        await self._after_note_link(linked_note)
-
-        if self._callback_after_close and result.inputs:
-            await self._callback_after_close(result.inputs[0].to_dto())
+        async for event in self._persist_and_finish(
+            lambda: ItemService().concentrate_item(source_id, dto),
+            "Concentrate saved — 1 item created",
+        ):
+            yield event
 
     async def _create_dilute(self, form_data: dict):
-        """Dilute the target with the diluent into one less-concentrated item.
-
-        BOTH the target and the diluent are reduced in place; the output is a new
-        item on the target's own sheet at the user-entered concentration.
-        """
-        target = next((row for row in self.inputs if row.role == INPUT_ROLE_TARGET), None)
-        diluent = next((row for row in self.inputs if row.role == INPUT_ROLE_DILUENT), None)
-        if target is None or not target.qty:
-            raise ReflexAppException("Dilute needs a target consumable item with a quantity")
-        if diluent is None or not diluent.qty:
-            raise ReflexAppException("Dilute needs a diluent consumable item with a quantity")
-        if len(self.outputs) != 1:
-            raise ReflexAppException("Dilute produces exactly one output")
-        output = self.outputs[0]
-        self._validate_concentration_change(
-            target.init_conc,
-            target.init_conc_unit,
-            output.conc,
-            output.conc_unit,
-            must_increase=False,
-            kind_label="Dilute",
-        )
-
-        instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
+        """Dilute the target with the diluent into one less-concentrated item."""
         notes = form_data.get("notes", "").strip() or None
-        dto = DiluteItemDTO(
-            quantity_contributed=Decimal(target.qty),
-            unit=target.unit,
-            diluent_item_id=diluent.item_id,
-            diluent_quantity_contributed=Decimal(diluent.qty),
-            diluent_unit=diluent.unit,
-            output_quantity=Decimal(output.qty),
-            output_unit=output.unit,
-            output_concentration=Decimal(output.conc) if output.conc else None,
-            output_concentration_unit=output.conc_unit or None,
-            dilution_factor=Decimal(output.dilution_factor) if output.dilution_factor else None,
-            instrument_item_ids=instrument_ids,
-            output_location_id=output.location_id or None,
-            output_label=output.label or None,
-            notes=notes,
-            note_id=self.note_dto_id,
+        target_id, dto = transform_builders.build_dilute(
+            self.inputs, self.outputs, notes, self.note_dto_id
         )
-
-        main_state: ReflexMainState
-        async with self:
-            main_state = await self.get_state(ReflexMainState)
-
-        with await main_state.authenticate_user():
-            result = ItemService().dilute_item(target.item_id, dto)
-            linked_note = self._link_note_activity(result.activity.id)
-
-        yield rx.toast.success("Dilute saved — 1 item created")
-        await self._after_note_link(linked_note)
-
-        if self._callback_after_close and result.inputs:
-            await self._callback_after_close(result.inputs[0].to_dto())
+        async for event in self._persist_and_finish(
+            lambda: ItemService().dilute_item(target_id, dto),
+            "Dilute saved — 1 item created",
+        ):
+            yield event
 
     async def _create_custom(self, form_data: dict):
         """Build the TransformItemsDTO and call the generic transform service."""
-        if not self.inputs or not self.outputs:
-            return
-
-        input_dtos = [
-            TransformInputDTO(
-                item_id=row.item_id,
-                quantity=Decimal(row.qty) if (row.is_consumable and row.qty) else None,
-                unit=row.unit if row.is_consumable else None,
-            )
-            for row in self.inputs
-        ]
-        output_dtos = [
-            TransformOutputDTO(
-                output_item_sheet_id=row.sheet_id,
-                quantity=Decimal(row.qty),
-                unit=row.unit,
-                location_id=row.location_id or None,
-                label=row.label,
-                concentration=Decimal(row.conc) if row.conc else None,
-                concentration_unit=row.conc_unit or None,
-            )
-            for row in self.outputs
-        ]
         notes = form_data.get("notes", "").strip() or None
-        dto = TransformItemsDTO(
-            inputs=input_dtos, outputs=output_dtos, notes=notes, note_id=self.note_dto_id
-        )
-
-        main_state: ReflexMainState
-        async with self:
-            main_state = await self.get_state(ReflexMainState)
-
-        with await main_state.authenticate_user():
-            result = ItemService().transform_items(dto)
-            linked_note = self._link_note_activity(result.activity.id)
-
-        yield rx.toast.success(
-            f"Transform saved — {len(input_dtos)} input(s) → {len(output_dtos)} output(s)"
-        )
-        await self._after_note_link(linked_note)
-
-        if self._callback_after_close and result.inputs:
-            await self._callback_after_close(result.inputs[0].to_dto())
+        dto = transform_builders.build_custom(self.inputs, self.outputs, notes, self.note_dto_id)
+        if dto is None:
+            return
+        async for event in self._persist_and_finish(
+            lambda: ItemService().transform_items(dto),
+            f"Transform saved — {len(dto.inputs)} input(s) → {len(dto.outputs)} output(s)",
+        ):
+            yield event
 
     async def _update(self, form_data: dict):
         """Not implemented - this dialog only creates transforms."""
