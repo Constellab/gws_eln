@@ -483,6 +483,12 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
 
     # ------------------------------------------------------------------ inputs
 
+    def _reset_input_draft(self):
+        """Fully reset the input draft: fields + editing/role state."""
+        self._reset_input_fields()
+        self._editing_input_id = ""
+        self._pending_input_role = ""
+
     def _reset_input_fields(self):
         """Reset the input draft fields to their defaults (no item selected)."""
         self.in_item_id = ""
@@ -521,17 +527,14 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     @rx.event
     def open_consumable_input_dialog(self):
         """Open the dialog to add a consumable input."""
-        self._reset_input_fields()
-        self._editing_input_id = ""
-        self._pending_input_role = ""
+        self._reset_input_draft()
         self.input_dialog_is_consumable = True
         self.input_dialog_opened = True
 
     @rx.event
     def open_target_input_dialog(self):
         """Open the dialog to set the dilute target (the item being diluted)."""
-        self._reset_input_fields()
-        self._editing_input_id = ""
+        self._reset_input_draft()
         self._pending_input_role = INPUT_ROLE_TARGET
         self.input_dialog_is_consumable = True
         self.input_dialog_opened = True
@@ -539,8 +542,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     @rx.event
     def open_diluent_input_dialog(self):
         """Open the dialog to set the dilute diluent."""
-        self._reset_input_fields()
-        self._editing_input_id = ""
+        self._reset_input_draft()
         self._pending_input_role = INPUT_ROLE_DILUENT
         self.input_dialog_is_consumable = True
         self.input_dialog_opened = True
@@ -574,9 +576,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
     @rx.event
     def open_instrument_input_dialog(self):
         """Open the dialog to add an instrument (non-consumable) input."""
-        self._reset_input_fields()
-        self._editing_input_id = ""
-        self._pending_input_role = ""
+        self._reset_input_draft()
         self.input_dialog_is_consumable = False
         self.input_dialog_opened = True
 
@@ -680,8 +680,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             self.inputs = [row if r.id == self._editing_input_id else r for r in self.inputs]
         else:
             self.inputs = self.inputs + [row]
-        self._editing_input_id = ""
         self.input_dialog_opened = False
+        self._reset_input_draft()
 
     @rx.event
     def remove_input_by_id(self, row_id: str):
