@@ -49,7 +49,7 @@ class ItemsListState(rx.State):
 
     _item_sheet_id: str | None = None
     _items: list[ItemDTO] = []
-    is_loading: bool = False
+    is_loading: bool = True  # Start loading so the table shows a spinner, not "no items", before fetch
     error_message: str = ""
 
     # Filter state

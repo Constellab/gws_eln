@@ -17,7 +17,7 @@ class ItemSheetDetailState(rx.State):
     """
 
     item_sheet: ItemSheetDTO | None = None
-    is_loading: bool = False
+    is_loading: bool = True  # Start loading so the page shows a spinner, before on_load
     error_message: str = ""
 
     async def load_item_sheet(self, item_sheet_id: str):

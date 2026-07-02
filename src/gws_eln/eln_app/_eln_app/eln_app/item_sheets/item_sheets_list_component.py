@@ -4,6 +4,7 @@ import reflex as rx
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_reflex_main import main_component, user_with_date_component
 
+from ..common.eln_app_router import ElnAppRouter
 from ..common.page_layout import page_layout
 from ..common.unit.unit_type_select_component import unit_type_select_component
 from ..items.core.item_components import consumable_badge
@@ -126,7 +127,10 @@ def _row(item_sheet: ItemSheetDTO) -> rx.Component:
             )
         ),
         style={":hover": {"background_color": "var(--gray-3)"}, "cursor": "pointer"},
-        on_click=lambda: ItemSheetsListState.go_to_item_sheet(item_sheet.id),
+        on_click=lambda: [
+            rx.redirect(ElnAppRouter.get_item_sheet_detail_url(item_sheet.id)),
+            ItemSheetsListState.prepare_item_sheet_navigation(item_sheet.id),
+        ],
     )
 
 

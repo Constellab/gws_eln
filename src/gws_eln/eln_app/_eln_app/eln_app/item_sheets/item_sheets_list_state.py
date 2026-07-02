@@ -9,7 +9,8 @@ from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
-from ..common.eln_app_router import ElnAppRouter
+from ..items.items_list_state import ItemsListState
+from .item_sheet_detail_state import ItemSheetDetailState
 from .item_sheet_form_dialog.item_sheet_form_dialog_state import ItemSheetFormDialogState
 
 # Constants for "all" filter options
@@ -194,10 +195,24 @@ class ItemSheetsListState(rx.State):
         await self.load_item_sheets()
 
     @rx.event
-    def go_to_item_sheet(self, item_sheet_id: str):
-        """Navigate to the item_sheet detail page.
+    async def prepare_item_sheet_navigation(self, item_sheet_id: str):
+        """Prime the destination states to "loading" for an item_sheet detail view.
 
-        :param item_sheet_id: The ID of the item_sheet to view
+        The navigation itself is a client-side ``rx.redirect`` fired from the
+        row's ``on_click`` (instant, no backend round-trip). This event runs in
+        parallel to reset the detail/items states so the destination page shows
+        a spinner instead of the previous sheet's data while it reloads.
+
+        :param item_sheet_id: The ID of the item_sheet being opened
         :type item_sheet_id: str
         """
-        return rx.redirect(ElnAppRouter.get_item_sheet_detail_url(item_sheet_id))
+        detail_state = await self.get_state(ItemSheetDetailState)
+        detail_state.is_loading = True
+        detail_state.item_sheet = None
+        detail_state.error_message = ""
+
+        items_state = await self.get_state(ItemsListState)
+        items_state.is_loading = True
+        items_state._items = []
+        items_state._item_sheet_id = None  # Force a reload for the new sheet
+        items_state.error_message = ""
