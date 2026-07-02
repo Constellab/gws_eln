@@ -258,6 +258,10 @@ def _outputs_section() -> rx.Component:
             compact_warning(_S.output_concentration_warning),
         ),
         rx.cond(
+            _S.split_quantity_warning,
+            compact_warning(_S.split_quantity_warning),
+        ),
+        rx.cond(
             _S.can_add_output,
             _create_button("Create output", _S.open_output_wizard),
         ),

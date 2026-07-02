@@ -37,7 +37,7 @@ from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_eln.locations.location_service import LocationService
 from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_base import ReflexAppException
-from gws_reflex_main import FormDialogState, ReflexMainState
+from gws_reflex_main import ConfirmDialogState, FormDialogState, ReflexMainState
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
 from ...item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_state import (
@@ -289,9 +289,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             or not same_concentration_family(source.init_conc_unit, output.conc_unit)
         ):
             return ""
-        initial = convert_concentration(
-            source.init_conc, source.init_conc_unit, output.conc_unit
-        )
+        initial = convert_concentration(source.init_conc, source.init_conc_unit, output.conc_unit)
         final = Decimal(output.conc)
         direction_wrong = (
             self.transform_kind == TransformKind.CONCENTRATE.value and final <= initial
@@ -305,6 +303,35 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
                 "(output is not lower than the target's)."
             )
         return ""
+
+    @rx.var
+    def split_quantity_warning(self) -> str:
+        """Live warning when a split's total output quantity exceeds the source's.
+
+        Non-blocking: the user can still save (a confirmation is asked at save
+        time). Empty when it does not apply (not a split, no source or no outputs
+        yet, or the quantities are consistent / not parseable).
+        """
+        is_split = self.transform_kind == TransformKind.SPLIT.value
+        source = next((row for row in self.inputs if row.is_consumable), None)
+        if not is_split or not source or not self.outputs:
+            return ""
+
+        unit_type = UnitType(source.unit_type)
+        try:
+            source_base = UnitConverter.to_base_unit(Decimal(source.qty), source.unit, unit_type)
+            total_base = Decimal(0)
+            for row in self.outputs:
+                total_base += UnitConverter.to_base_unit(Decimal(row.qty), row.unit, unit_type)
+        except Exception:  # noqa: BLE001 - a computed var must never raise
+            return ""
+        if total_base <= source_base:
+            return ""
+        return (
+            f"The total output quantity "
+            f"({UnitConverter.format_value(total_base, unit_type)}) exceeds the "
+            f"source quantity ({UnitConverter.format_value(source_base, unit_type)})."
+        )
 
     @rx.var
     def can_add_output(self) -> bool:
@@ -633,9 +660,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             yield rx.toast.error(error.detail)
             return
         consumed = (
-            "instrument"
-            if not self.in_item_consumable
-            else f"{self.in_qty.strip()} {self.in_unit}"
+            "instrument" if not self.in_item_consumable else f"{self.in_qty.strip()} {self.in_unit}"
         )
         row = TransformInputRow(
             id=self.in_item_id,
@@ -676,9 +701,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         Dilute uses the target; split/concentrate use the (single) consumable.
         """
         if self.transform_kind == TransformKind.DILUTE.value:
-            return next(
-                (r for r in self.inputs if r.role == INPUT_ROLE_TARGET), None
-            )
+            return next((r for r in self.inputs if r.role == INPUT_ROLE_TARGET), None)
         return next((r for r in self.inputs if r.is_consumable), None)
 
     @rx.event
@@ -727,9 +750,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         item_state.form_quantity = row.qty
         item_state.form_unit = row.unit
         item_state.form_concentration = row.conc
-        item_state.form_concentration_unit = (
-            row.conc_unit or item_state.NO_CONCENTRATION_VALUE
-        )
+        item_state.form_concentration_unit = row.conc_unit or item_state.NO_CONCENTRATION_VALUE
         item_state.form_location_id = row.location_id
         item_state.set_collect_callback(self._on_output_item_collected)
 
@@ -868,6 +889,49 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         self.outputs = []
         self.input_dialog_opened = False
 
+    @rx.event(background=True)  # type: ignore
+    async def submit_form(self, form_data: dict):
+        """Save the transform.
+
+        For a split, if the total output quantity exceeds the source quantity
+        (a non-blocking condition), ask the user to confirm before saving instead
+        of submitting directly.
+        """
+        async with self:
+            over_quantity = bool(self.split_quantity_warning)
+            if over_quantity:
+                confirm_state = await self.get_state(ConfirmDialogState)
+                confirm_state.open_dialog(
+                    title="Output quantity exceeds input",
+                    content=f"{self.split_quantity_warning} Do you want to save anyway?",
+                    action=lambda: self._run_submit(form_data),
+                )
+        if over_quantity:
+            return
+        async for event in self._run_submit(form_data):
+            yield event
+
+    async def _run_submit(self, form_data: dict):
+        """Run the create/update flow (loading + persist + close on success).
+
+        Shared by the direct save and the over-quantity confirmation path.
+        """
+        async with self:
+            self.is_loading = True
+            is_update = self.is_update_mode
+        try:
+            if is_update:
+                async for event in self._update(form_data):
+                    yield event
+            else:
+                async for event in self._create(form_data):
+                    yield event
+            async with self:
+                await self.close_dialog()
+        finally:
+            async with self:
+                self.is_loading = False
+
     async def _create(self, form_data: dict):
         """Route to the dedicated service for the chosen transformation kind."""
         if self.transform_kind == TransformKind.SPLIT.value:
@@ -941,9 +1005,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """
         consumables = [row for row in self.inputs if row.is_consumable]
         if len(consumables) < COMBINE_MIN_INPUTS:
-            raise Exception(
-                f"Combine needs at least {COMBINE_MIN_INPUTS} consumable inputs"
-            )
+            raise Exception(f"Combine needs at least {COMBINE_MIN_INPUTS} consumable inputs")
         if len(self.outputs) != 1:
             raise Exception("Combine produces exactly one output")
         output = self.outputs[0]
@@ -1005,9 +1067,7 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         """
         # Output concentration is mandatory for concentrate/dilute.
         if not out_conc or not out_unit:
-            raise Exception(
-                f"{kind_label} requires an output concentration (value and unit)"
-            )
+            raise Exception(f"{kind_label} requires an output concentration (value and unit)")
         # Without a source concentration, or across different families, the
         # direction can't be compared — accept it and leave it to the user.
         if not init_conc or not init_unit:
@@ -1041,8 +1101,12 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             raise Exception("Concentrate produces exactly one output")
         output = self.outputs[0]
         self._validate_concentration_change(
-            source.init_conc, source.init_conc_unit, output.conc, output.conc_unit,
-            must_increase=True, kind_label="Concentrate",
+            source.init_conc,
+            source.init_conc_unit,
+            output.conc,
+            output.conc_unit,
+            must_increase=True,
+            kind_label="Concentrate",
         )
 
         instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
@@ -1082,12 +1146,8 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
         BOTH the target and the diluent are reduced in place; the output is a new
         item on the target's own sheet at the user-entered concentration.
         """
-        target = next(
-            (row for row in self.inputs if row.role == INPUT_ROLE_TARGET), None
-        )
-        diluent = next(
-            (row for row in self.inputs if row.role == INPUT_ROLE_DILUENT), None
-        )
+        target = next((row for row in self.inputs if row.role == INPUT_ROLE_TARGET), None)
+        diluent = next((row for row in self.inputs if row.role == INPUT_ROLE_DILUENT), None)
         if target is None or not target.qty:
             raise Exception("Dilute needs a target consumable item with a quantity")
         if diluent is None or not diluent.qty:
@@ -1096,8 +1156,12 @@ class TransformItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.
             raise Exception("Dilute produces exactly one output")
         output = self.outputs[0]
         self._validate_concentration_change(
-            target.init_conc, target.init_conc_unit, output.conc, output.conc_unit,
-            must_increase=False, kind_label="Dilute",
+            target.init_conc,
+            target.init_conc_unit,
+            output.conc,
+            output.conc_unit,
+            must_increase=False,
+            kind_label="Dilute",
         )
 
         instrument_ids = [row.item_id for row in self.inputs if not row.is_consumable]
