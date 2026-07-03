@@ -235,7 +235,7 @@ def _create_button(label: str, handler) -> rx.Component:
 
 
 def _input_group(
-    title: str,
+    title: str | None,
     description: str,
     rows: rx.Var,
     button_label: str,
@@ -243,14 +243,17 @@ def _input_group(
     editable: bool,
     can_create=True,
 ) -> rx.Component:
-    """A persistent input sub-section: subtitle, helper text, its rows, a create button.
+    """A persistent input sub-section: (optional subtitle), helper text, its rows,
+    a create button.
 
-    The helper text is shown only while the sub-section has no row yet. Rows are
-    clickable to edit when ``editable`` is True (consumables only). The create
-    button is hidden when ``can_create`` is falsy (e.g. split allows one source).
+    The subtitle is omitted when ``title`` is None (e.g. when the enclosing box
+    already carries a section header). The helper text is shown only while the
+    sub-section has no row yet. Rows are clickable to edit when ``editable`` is
+    True (consumables only). The create button is hidden when ``can_create`` is
+    falsy (e.g. split allows one source).
     """
     return rx.vstack(
-        rx.text(title, size="2", weight="medium"),
+        rx.text(title, size="2", weight="medium") if title is not None else rx.fragment(),
         rx.cond(rows.length() == 0, rx.text(description, size="1", color="gray")),
         rx.foreach(rows, lambda row: _input_row(row, editable)),
         rx.cond(can_create, _create_button(button_label, on_create)),
@@ -287,14 +290,28 @@ def _dilute_consumable_groups() -> rx.Component:
     )
 
 
-def _inputs_section() -> rx.Component:
+def _section_box(*children: rx.Component) -> rx.Component:
+    """The rounded, tinted panel shared by the input/output sections."""
     return rx.vstack(
-        _section_label("INPUTS", _S.input_count),
+        *children,
+        spacing="3",
+        align="stretch",
+        padding="16px",
+        background="var(--gray-2)",
+        border="1px solid var(--gray-4)",
+        border_radius="14px",
+    )
+
+
+def _consumable_inputs_section() -> rx.Component:
+    """Consumable inputs, in their own panel with a dedicated counter."""
+    return _section_box(
+        _section_label("CONSUMABLE INPUTS", _S.consumable_inputs.length()),
         rx.cond(
             _S.kind_is_dilute,
             _dilute_consumable_groups(),
             _input_group(
-                "Consumables",
+                None,
                 "Items consumed by the transform — a quantity is deducted from their stock.",
                 _S.consumable_inputs,
                 "Create consumable input",
@@ -303,23 +320,33 @@ def _inputs_section() -> rx.Component:
                 can_create=_S.can_add_consumable_input,
             ),
         ),
-        rx.divider(),
+    )
+
+
+def _instrument_inputs_section() -> rx.Component:
+    """Instrument (non-consumable) inputs, in their own panel with a counter."""
+    return _section_box(
+        _section_label("INSTRUMENTS", _S.instrument_inputs.length()),
         _input_group(
-            "Instruments",
+            None,
             "Non-consumable items used during the transform — no quantity change.",
             _S.instrument_inputs,
             "Create instrument input",
             _S.open_instrument_input_dialog,
             editable=False,
         ),
+    )
+
+
+def _inputs_section() -> rx.Component:
+    """Left column: consumable inputs and instruments as two dissociated panels."""
+    return rx.vstack(
+        _consumable_inputs_section(),
+        _instrument_inputs_section(),
         spacing="4",
         flex="1",
         min_width="0",
         align="stretch",
-        padding="16px",
-        background="var(--gray-2)",
-        border="1px solid var(--gray-4)",
-        border_radius="14px",
     )
 
 
