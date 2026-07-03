@@ -79,6 +79,35 @@ def _row_warns_no_concentration(row: TransformInputRow) -> rx.Var:
     )
 
 
+def _row_shows_concentration(row: TransformInputRow) -> rx.Var:
+    """Whether to surface this input's concentration on its card (the "before"
+    value for concentrate's source / dilute's target)."""
+    return (
+        row.is_consumable
+        & (row.init_conc != "")
+        & (
+            _S.kind_is_concentrate
+            | (_S.kind_is_dilute & (row.role == INPUT_ROLE_TARGET))
+        )
+    )
+
+
+def _concentration_badge(value: rx.Var, unit: rx.Var) -> rx.Component:
+    """A small chip showing an item's concentration.
+
+    Used on the source and output cards of a concentrate/dilute to display the
+    "before" and "after" concentration. Kept visually distinct (iris) from the
+    consumed/produced quantity badges so the pair reads across the arrow.
+    """
+    return rx.badge(
+        rx.icon("beaker", size=11),
+        rx.cond(unit != "", f"{value} {unit}", value),
+        variant="soft",
+        color_scheme="iris",
+        radius="full",
+    )
+
+
 def _input_row(row: TransformInputRow, editable: bool) -> rx.Component:
     """One input row. Consumable rows (editable=True) are clickable to edit the
     quantity (except the remove button); instruments are not editable. A missing
@@ -94,20 +123,30 @@ def _input_row(row: TransformInputRow, editable: bool) -> rx.Component:
                 flex="1",
                 min_width="0",
             ),
-            rx.cond(
-                row.is_consumable,
+            # Consumed quantity, with the source's concentration ("before") stacked
+            # under it for concentrate/dilute.
+            rx.vstack(
                 rx.cond(
-                    row.qty != "",
-                    rx.badge(f"- {row.consumed}", color_scheme="ruby", variant="soft"),
-                    # No quantity set yet: clicking the row (or this badge) opens
-                    # the edit dialog to set the consumed quantity.
-                    rx.badge(
-                        rx.icon("plus", size=12),
-                        "Add",
-                        variant="soft",
-                        style={"cursor": "pointer"},
+                    row.is_consumable,
+                    rx.cond(
+                        row.qty != "",
+                        rx.badge(f"- {row.consumed}", color_scheme="ruby", variant="soft"),
+                        # No quantity set yet: clicking the row (or this badge) opens
+                        # the edit dialog to set the consumed quantity.
+                        rx.badge(
+                            rx.icon("plus", size=12),
+                            "Add",
+                            variant="soft",
+                            style={"cursor": "pointer"},
+                        ),
                     ),
                 ),
+                rx.cond(
+                    _row_shows_concentration(row),
+                    _concentration_badge(row.init_conc, row.init_conc_unit),
+                ),
+                spacing="1",
+                align="end",
             ),
             rx.icon_button(
                 rx.icon("x", size=14),
@@ -151,7 +190,17 @@ def _output_row(row: TransformOutputRow, index: int) -> rx.Component:
             flex="1",
             min_width="0",
         ),
-        rx.badge(f"+ {row.produced}", color_scheme="grass", variant="soft"),
+        # Produced quantity, with the output concentration ("after") stacked
+        # under it for concentrate/dilute.
+        rx.vstack(
+            rx.badge(f"+ {row.produced}", color_scheme="grass", variant="soft"),
+            rx.cond(
+                _S.needs_concentration & (row.conc != ""),
+                _concentration_badge(row.conc, row.conc_unit),
+            ),
+            spacing="1",
+            align="end",
+        ),
         rx.icon_button(
             rx.icon("x", size=14),
             type="button",
