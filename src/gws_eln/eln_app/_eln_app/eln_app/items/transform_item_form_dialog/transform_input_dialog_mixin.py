@@ -120,6 +120,42 @@ class TransformInputDialogMixin(rx.State, mixin=True):
         self.in_qty = ""
         self.in_unit = UnitConverter.get_default_unit(UnitType.COUNT)
 
+    def _append_seed_input(self, item: ItemDTO, role: str) -> None:
+        """Commit the launching item as an input row without a quantity yet.
+
+        Used when opening the transform from an item: the item is already
+        selected, but its consumed quantity is left empty so the row shows an
+        "Add" affordance instead of the consumed badge. The user sets
+        the quantity later by clicking the row (which opens the edit dialog).
+        """
+        is_consumable = item.item_sheet.is_consumable
+        row = TransformInputRow(
+            id=item.id,
+            item_id=item.id,
+            sheet_id=item.item_sheet.id,
+            sheet_code=item.item_sheet.code,
+            sheet_name=item.item_sheet.name,
+            code=item.code,
+            label=item.label,
+            loc=item.location.name,
+            is_consumable=is_consumable,
+            qty="",
+            unit=UnitConverter.get_default_unit(item.unit_type),
+            unit_type=item.unit_type.value,
+            available=item.pretty_quantity,
+            qty_base=str(item.quantity),
+            # No quantity yet for a consumable; instruments never carry one.
+            consumed="instrument" if not is_consumable else "",
+            role=role,
+            init_conc=(
+                UnitConverter.format_number(item.concentration)
+                if item.concentration is not None
+                else ""
+            ),
+            init_conc_unit=item.concentration_unit or "",
+        )
+        self.inputs = self.inputs + [row]
+
     def _set_input_from_item(self, item: ItemDTO):
         """Fill the input draft fields from a selected item."""
         self.in_item_id = item.id

@@ -287,22 +287,65 @@ class TestItemService(BaseTestCase):
         result = ItemService().split_item(
             source.id,
             SplitItemDTO(
+                quantity_contributed=Decimal(7),
+                unit="units",
                 outputs=[
                     SplitOutputDTO(quantity=Decimal(3), unit="units"),
                     SplitOutputDTO(quantity=Decimal(4), unit="units"),
-                ]
+                ],
             ),
         )
         self.assertEqual(len(result.outputs), 2)
-        # Source reduced in place by the sum of the outputs (10 - 7 = 3)
+        # Source reduced in place by the consumed quantity (10 - 7 = 3)
         self.assertEqual(ItemService().get_item(source.id).quantity, Decimal(3))
         self.assertEqual({o.quantity for o in result.outputs}, {Decimal(3), Decimal(4)})
+
+    def test_split_loss_reduces_source_by_full_consumed_quantity(self):
+        # Outputs may sum to less than the consumed quantity; the remainder is
+        # lost (the source is still reduced by the full consumed amount).
+        sheet = self._sheet("SPLW", unit_type=UnitType.COUNT)
+        source = self._create_consumable(sheet, quantity="10", unit="units")
+        result = ItemService().split_item(
+            source.id,
+            SplitItemDTO(
+                quantity_contributed=Decimal(8),
+                unit="units",
+                outputs=[
+                    SplitOutputDTO(quantity=Decimal(3), unit="units"),
+                    SplitOutputDTO(quantity=Decimal(4), unit="units"),
+                ],
+            ),
+        )
+        self.assertEqual(len(result.outputs), 2)
+        # Source reduced by the full 8 consumed (10 - 8 = 2), 1 unit lost.
+        self.assertEqual(ItemService().get_item(source.id).quantity, Decimal(2))
+
+    def test_split_outputs_exceeding_consumed_fails(self):
+        sheet = self._sheet("SPLX", unit_type=UnitType.COUNT)
+        source = self._create_consumable(sheet, quantity="10", unit="units")
+        with self.assertRaises(BadRequestException):
+            ItemService().split_item(
+                source.id,
+                SplitItemDTO(
+                    quantity_contributed=Decimal(5),
+                    unit="units",
+                    outputs=[
+                        SplitOutputDTO(quantity=Decimal(3), unit="units"),
+                        SplitOutputDTO(quantity=Decimal(4), unit="units"),
+                    ],
+                ),
+            )
 
     def test_split_full_quantity_exhausts_source(self):
         sheet = self._sheet("SPL2")
         source = self._create_consumable(sheet, quantity="5", unit="mL")
         ItemService().split_item(
-            source.id, SplitItemDTO(outputs=[SplitOutputDTO(quantity=Decimal(5), unit="mL")])
+            source.id,
+            SplitItemDTO(
+                quantity_contributed=Decimal(5),
+                unit="mL",
+                outputs=[SplitOutputDTO(quantity=Decimal(5), unit="mL")],
+            ),
         )
         self.assertEqual(ItemService().get_item(source.id).status, ItemStatus.EXHAUSTED)
 
@@ -311,7 +354,12 @@ class TestItemService(BaseTestCase):
         source = self._create_consumable(sheet, quantity="2", unit="mL")
         with self.assertRaises(BadRequestException):
             ItemService().split_item(
-                source.id, SplitItemDTO(outputs=[SplitOutputDTO(quantity=Decimal(5), unit="mL")])
+                source.id,
+                SplitItemDTO(
+                    quantity_contributed=Decimal(5),
+                    unit="mL",
+                    outputs=[SplitOutputDTO(quantity=Decimal(5), unit="mL")],
+                ),
             )
 
     def test_split_non_consumable_fails(self):
@@ -321,7 +369,12 @@ class TestItemService(BaseTestCase):
         )[0]
         with self.assertRaises(BadRequestException):
             ItemService().split_item(
-                item.id, SplitItemDTO(outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units")])
+                item.id,
+                SplitItemDTO(
+                    quantity_contributed=Decimal(1),
+                    unit="units",
+                    outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units")],
+                ),
             )
 
     # ----------------------------------------------------------------- combine
@@ -495,6 +548,8 @@ class TestItemService(BaseTestCase):
         result = ItemService().split_item(
             source.id,
             SplitItemDTO(
+                quantity_contributed=Decimal(3),
+                unit="units",
                 outputs=[SplitOutputDTO(quantity=Decimal(3), unit="units")],
                 instrument_item_ids=[pipette.id],
             ),
@@ -564,6 +619,8 @@ class TestItemService(BaseTestCase):
             ItemService().split_item(
                 source.id,
                 SplitItemDTO(
+                    quantity_contributed=Decimal(1),
+                    unit="units",
                     outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units")],
                     instrument_item_ids=[consumable.id],
                 ),
@@ -577,6 +634,8 @@ class TestItemService(BaseTestCase):
             ItemService().split_item(
                 source.id,
                 SplitItemDTO(
+                    quantity_contributed=Decimal(1),
+                    unit="units",
                     outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units")],
                     instrument_item_ids=[instrument.id],
                 ),

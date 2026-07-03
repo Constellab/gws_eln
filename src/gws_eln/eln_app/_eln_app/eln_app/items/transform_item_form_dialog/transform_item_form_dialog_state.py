@@ -293,8 +293,10 @@ class TransformItemFormDialogState(
     def select_transform_kind(self, kind: str):
         """Pick the transformation kind and move to the build step.
 
-        If the dialog was launched from an item, seed it as the first input and
-        open the quantity modal straight away.
+        If the dialog was launched from an item, seed it as the first input
+        already selected but without a quantity: the row shows an "Add"
+        affordance so the user sets the consumed quantity when they choose to,
+        rather than being forced through a quantity modal up front.
         """
         # Dilute/concentrate are solution-only: guard against a non-volume seed
         # (the chooser already hides these cards, this is defense in depth).
@@ -308,15 +310,9 @@ class TransformItemFormDialogState(
         self.transform_kind = kind
         self.transform_step = TransformStep.BUILD
         if self._seed_item is not None:
-            item = self._seed_item
-            self._set_input_from_item(item)
-            self.input_dialog_is_consumable = item.item_sheet.is_consumable
-            self._editing_input_id = ""
             # For dilute the launching item is the target being diluted.
-            self._pending_input_role = (
-                INPUT_ROLE_TARGET if kind == TransformKind.DILUTE.value else ""
-            )
-            self.input_dialog_opened = True
+            role = INPUT_ROLE_TARGET if kind == TransformKind.DILUTE.value else ""
+            self._append_seed_input(self._seed_item, role)
             self._seed_item = None
 
     @rx.event

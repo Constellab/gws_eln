@@ -639,23 +639,25 @@ class ItemService:
         """
         Split one source item into 1..N new output items.
 
-        The source quantity is reduced in place by the sum of the output
-        quantities (the leftover stays in the source item). Each output is
-        a brand new item that inherits the source's item sheet, unit_type and
-        concentration; only quantity/location/label/expiry are per-output.
-        A single SPLIT activity records the source as one INGREDIENT input and
-        every created item as an output, capturing the lineage.
+        The source is reduced in place by ``quantity_contributed`` (the amount
+        drawn from it). The output quantities must sum to at most that amount;
+        any remainder is consumed as loss (the leftover does not stay in the
+        source). Each output is a brand new item that inherits the source's item
+        sheet, unit_type and concentration; only quantity/location/label/expiry
+        are per-output. A single SPLIT activity records the source as one
+        INGREDIENT input and every created item as an output, capturing the lineage.
 
         :param item_id: The ID of the source item to split
         :type item_id: str
-        :param dto: DTO containing the output items to create
+        :param dto: DTO containing the consumed quantity and the output items
         :type dto: SplitItemDTO
         :return: The mutated source item and the created output items + activity
         :rtype: TransformResult
         :raises NotFoundException: If the source item not found
         :raises BadRequestException: If validation fails (no outputs, discarded
-                                     or non-consumable source, bad unit, or
-                                     insufficient quantity)
+                                     or non-consumable source, bad unit,
+                                     insufficient quantity, or outputs exceeding
+                                     the consumed quantity)
         """
         # Get and guard the source item
         source = self.get_item(item_id)
@@ -670,23 +672,36 @@ class ItemService:
 
         unit_type = source.unit_type
 
+        # The amount drawn from the source (reduces it, bounds the outputs).
+        validated_contributed = QuantityValidator.validate_quantity(dto.quantity_contributed)
+        contributed_base_quantity = self._validate_and_convert_quantity(
+            source, validated_contributed, dto.unit
+        )
+
         # Validate every output and convert its quantity to base units, while
-        # accumulating the total amount drawn from the source.
-        total_base_quantity = Decimal(0)
+        # accumulating the total that ends up in the outputs.
+        total_output_base_quantity = Decimal(0)
         prepared_outputs = []
         for output_dto in dto.outputs:
             validated_quantity = QuantityValidator.validate_quantity(output_dto.quantity)
             base_quantity = self._validate_and_convert_quantity(
                 source, validated_quantity, output_dto.unit
             )
-            total_base_quantity += base_quantity
+            total_output_base_quantity += base_quantity
             prepared_outputs.append((output_dto, base_quantity))
 
-        # Cannot draw more than the source holds (no negative stock)
-        source.validate_sufficient_quantity(total_base_quantity)
+        # Outputs cannot amount to more than what was drawn from the source.
+        if total_output_base_quantity > contributed_base_quantity:
+            raise BadRequestException(
+                "The total output quantity cannot exceed the consumed quantity "
+                f"({UnitConverter.format_value(contributed_base_quantity, unit_type)})"
+            )
 
-        # Reduce the source in place
-        source.quantity = source.quantity - total_base_quantity
+        # Cannot draw more than the source holds (no negative stock)
+        source.validate_sufficient_quantity(contributed_base_quantity)
+
+        # Reduce the source in place by the full consumed amount (loss included)
+        source.quantity = source.quantity - contributed_base_quantity
         source.save()
 
         # Create the new output items. Each code is generated just before the
@@ -733,7 +748,7 @@ class ItemService:
             CreateActivityInputDTO(
                 item_id=source.id,
                 role=ActivityInputRole.INGREDIENT,
-                quantity_contributed=total_base_quantity,
+                quantity_contributed=contributed_base_quantity,
                 unit_type=unit_type,
             )
         ]
@@ -743,7 +758,7 @@ class ItemService:
             CreateActivityDTO(
                 activity_type=ActivityType.SPLIT,
                 item_id=source.id,
-                quantity=total_base_quantity,
+                quantity=contributed_base_quantity,
                 unit_type=unit_type,
                 notes=dto.notes,
                 note_id=dto.note_id,

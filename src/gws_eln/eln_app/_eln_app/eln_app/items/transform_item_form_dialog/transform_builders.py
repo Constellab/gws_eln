@@ -133,6 +133,8 @@ def build_split(
     source = next((row for row in inputs if row.is_consumable), None)
     if source is None:
         raise ReflexAppException("Split needs a source consumable item")
+    if not source.qty:
+        raise ReflexAppException("Split needs a consumed quantity for the source item")
     if len(outputs) < SPLIT_MIN_OUTPUTS:
         raise ReflexAppException(f"Split needs at least {SPLIT_MIN_OUTPUTS} outputs")
 
@@ -146,6 +148,8 @@ def build_split(
         for row in outputs
     ]
     dto = SplitItemDTO(
+        quantity_contributed=Decimal(source.qty),
+        unit=source.unit,
         outputs=output_dtos,
         instrument_item_ids=_instrument_ids(inputs),
         notes=notes,
@@ -164,6 +168,8 @@ def build_combine(
     consumables = [row for row in inputs if row.is_consumable]
     if len(consumables) < COMBINE_MIN_INPUTS:
         raise ReflexAppException(f"Combine needs at least {COMBINE_MIN_INPUTS} consumable inputs")
+    if any(not row.qty for row in consumables):
+        raise ReflexAppException("Each consumable input needs a quantity")
     if len(outputs) != 1:
         raise ReflexAppException("Combine produces exactly one output")
     output = outputs[0]

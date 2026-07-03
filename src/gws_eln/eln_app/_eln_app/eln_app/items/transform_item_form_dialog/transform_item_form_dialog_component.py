@@ -44,6 +44,28 @@ def _section_label(text: str, count: rx.Var) -> rx.Component:
     )
 
 
+# On hover, expose the full text as the native browser tooltip only when the
+# text is actually truncated (overflowing its box); clear it otherwise.
+_TRUNCATION_TITLE_JS = rx.Var(
+    "(e) => { const t = e.currentTarget;"
+    " t.title = t.scrollWidth > t.clientWidth ? t.textContent : ''; }"
+)
+
+
+def _ellipsis_text(text, **props) -> rx.Component:
+    """Single-line text truncated with an ellipsis when it overflows the
+    available width, with a native browser tooltip shown only when truncated."""
+    return rx.text(
+        text,
+        width="100%",
+        white_space="nowrap",
+        overflow="hidden",
+        text_overflow="ellipsis",
+        custom_attrs={"onMouseEnter": _TRUNCATION_TITLE_JS},
+        **props,
+    )
+
+
 def _row_warns_no_concentration(row: TransformInputRow) -> rx.Var:
     """Whether to warn that this input lacks a concentration (concentrate source /
     dilute target only)."""
@@ -65,8 +87,8 @@ def _input_row(row: TransformInputRow, editable: bool) -> rx.Component:
         rx.hstack(
             rx.box(rx.text(row.code, style=_CODE_BADGE)),
             rx.vstack(
-                rx.text(row.label, size="2", weight="medium", no_of_lines=1),
-                rx.text(f"{row.sheet_name} · {row.loc}", size="1", color="gray"),
+                _ellipsis_text(row.label, size="2", weight="medium"),
+                _ellipsis_text(f"{row.sheet_name} · {row.loc}", size="1", color="gray"),
                 spacing="0",
                 align="start",
                 flex="1",
@@ -74,7 +96,18 @@ def _input_row(row: TransformInputRow, editable: bool) -> rx.Component:
             ),
             rx.cond(
                 row.is_consumable,
-                rx.badge(f"- {row.consumed}", color_scheme="ruby", variant="soft"),
+                rx.cond(
+                    row.qty != "",
+                    rx.badge(f"- {row.consumed}", color_scheme="ruby", variant="soft"),
+                    # No quantity set yet: clicking the row (or this badge) opens
+                    # the edit dialog to set the consumed quantity.
+                    rx.badge(
+                        rx.icon("plus", size=12),
+                        "Add",
+                        variant="soft",
+                        style={"cursor": "pointer"},
+                    ),
+                ),
             ),
             rx.icon_button(
                 rx.icon("x", size=14),
@@ -111,8 +144,8 @@ def _output_row(row: TransformOutputRow, index: int) -> rx.Component:
     return rx.hstack(
         rx.box(rx.text(row.code_preview, style=_CODE_BADGE)),
         rx.vstack(
-            rx.text(row.label, size="2", weight="medium", no_of_lines=1),
-            rx.text(f"{row.sheet_name} · {row.loc}", size="1", color="gray"),
+            _ellipsis_text(row.label, size="2", weight="medium"),
+            _ellipsis_text(f"{row.sheet_name} · {row.loc}", size="1", color="gray"),
             spacing="0",
             align="start",
             flex="1",
@@ -489,7 +522,7 @@ def _dialog() -> rx.Component:
         rx.dialog.content(
             rx.cond(_S.step_is_choose, _chooser(), _builder()),
             # Narrow for the kind chooser, wide for the inputs/outputs builder.
-            max_width=rx.cond(_S.step_is_choose, "480px", "980px"),
+            max_width=rx.cond(_S.step_is_choose, "480px", "1024px"),
             max_height="90vh",
             display="flex",
             flex_direction="column",

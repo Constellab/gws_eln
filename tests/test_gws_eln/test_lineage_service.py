@@ -82,7 +82,9 @@ class TestLineageService(BaseTestCase):
         result = ItemService().split_item(
             source.id,
             SplitItemDTO(
-                outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units") for _ in out_codes]
+                quantity_contributed=Decimal(len(out_codes)),
+                unit="units",
+                outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units") for _ in out_codes],
             ),
         )
         return result.outputs

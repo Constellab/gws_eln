@@ -161,11 +161,15 @@ class SplitOutputDTO(BaseModelDTO):
 class SplitItemDTO(BaseModelDTO):
     """DTO for splitting one source item into 1..N new output items.
 
-    The source quantity is reduced in place by the sum of the output
-    quantities; the leftover stays in the source item. Each output is a
-    new item that inherits the source's sheet/unit_type/concentration.
+    The source is reduced in place by `quantity_contributed` (the amount drawn
+    from it). The output quantities must sum to at most that amount; any
+    remainder (`quantity_contributed` - sum of outputs) is consumed as loss.
+    Each output is a new item that inherits the source's sheet/unit_type/
+    concentration.
     """
 
+    quantity_contributed: Decimal  # Amount drawn from the source (reduces it)
+    unit: str  # Validated against the source item's unit type
     outputs: list[SplitOutputDTO]
     instrument_item_ids: list[str] = []  # Optional instrument inputs (non-consumable)
     notes: str | None = None
