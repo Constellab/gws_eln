@@ -1,9 +1,9 @@
-"""Item lineage DAG component (Reflex Enterprise React Flow)."""
+"""Item lineage DAG component (React Flow)."""
 
 import reflex as rx
-import reflex_enterprise as rxe
 from gws_eln.lineage.lineage_dto import LineageNodeKind
 
+from ..common.react_flow import react_flow, react_flow_background, react_flow_controls
 from .lineage_nodes import activity_node, item_node
 from .lineage_state import LineageState
 
@@ -11,9 +11,9 @@ from .lineage_state import LineageState
 def _graph_canvas() -> rx.Component:
     """The React Flow canvas wired to the lineage state."""
     return rx.box(
-        rxe.flow(
-            rxe.flow.background(gap=16, size=1),
-            rxe.flow.controls(),
+        react_flow(
+            react_flow_background(gap=16, size=1),
+            react_flow_controls(),
             default_nodes=LineageState.rf_nodes,
             default_edges=LineageState.rf_edges,
             node_types={

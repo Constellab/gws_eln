@@ -6,7 +6,7 @@
     },
     "env_type": "NONE",
     "env_file_path": "",
-    "is_reflex_enterprise": true,
+    "is_reflex_enterprise": false,
     "is_streamlit_v2": false,
     "dev_user_email": ""
 }

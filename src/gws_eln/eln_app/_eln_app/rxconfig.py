@@ -1,7 +1,6 @@
 import os
 
 import reflex as rx
-import reflex_enterprise as rxe
 
 # [START_AUTO_CODE]
 # Code to load gws_core environment and initialize the main state.
@@ -29,7 +28,7 @@ if api_url is None:
     raise ValueError("GWS_REFLEX_API_URL environment variable is not set")
 # [END_AUTO_CODE]
 
-config = rxe.Config(
+config = rx.Config(
     app_name="eln_app",
     plugins=[rx.plugins.SitemapPlugin()],
     # [START_AUTO_CODE]

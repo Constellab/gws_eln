@@ -1,5 +1,4 @@
 import reflex as rx
-import reflex_enterprise as rxe
 from gws_reflex_main import register_gws_reflex_app
 
 from .exception_handler import eln_backend_exception_handler
@@ -19,7 +18,7 @@ from .notes.notes_page import notes_page
 from .suppliers.suppliers_list_state import SuppliersListState
 from .suppliers.suppliers_page import suppliers_page
 
-app = register_gws_reflex_app(rxe.App())
+app = register_gws_reflex_app(rx.App())
 app.backend_exception_handler = eln_backend_exception_handler
 
 

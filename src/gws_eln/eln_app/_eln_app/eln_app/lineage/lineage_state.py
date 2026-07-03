@@ -1,9 +1,8 @@
-"""State for the item lineage DAG component (Reflex Enterprise React Flow)."""
+"""State for the item lineage DAG component (React Flow)."""
 
-from typing import Any, TypeAlias
+from typing import Any
 
 import reflex as rx
-import reflex_enterprise as rxe
 from gws_core import Logger
 from gws_eln.items.item_status import ItemStatus
 from gws_eln.lineage.lineage_dto import (
@@ -14,11 +13,7 @@ from gws_eln.lineage.lineage_service import LineageService
 from gws_reflex_main import ReflexMainState
 
 from ..common.eln_app_router import ElnAppRouter
-
-# React Flow node/edge TypedDict shapes (Reflex Enterprise), used to type the
-# computed vars so they satisfy the rxe.flow `nodes`/`edges` prop types.
-Node: TypeAlias = rxe.flow.util.Node
-Edge: TypeAlias = rxe.flow.util.Edge
+from ..common.react_flow import Edge, Node
 
 # Item node visual (background / border / text color) per status. Focus is a
 # border + background override on top. Carried as plain strings (see
@@ -210,7 +205,7 @@ class LineageState(rx.State):
     def node_click(self, node: dict[str, Any]):
         """Navigate to the clicked node's item detail page (recenters the DAG).
 
-        The Enterprise ``on_node_click`` passes the node as the first argument.
+        ``on_node_click`` forwards the clicked node as its first argument.
 
         :param node: The clicked React Flow node (carries its item id).
         :type node: dict

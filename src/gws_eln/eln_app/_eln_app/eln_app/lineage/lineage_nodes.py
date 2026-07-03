@@ -1,6 +1,6 @@
-"""Custom React Flow node components for the lineage DAG (Reflex Enterprise).
+"""Custom React Flow node components for the lineage DAG.
 
-Two node types, registered via ``node_types`` on ``rxe.flow`` and keyed by the
+Two node types, registered via ``node_types`` on ``react_flow`` and keyed by the
 ``LineageNodeKind`` values ("item" / "activity"):
 - item node: a physical item (code/label/quantity), styled by status/focus.
 - activity node: an activity rendered as its colored badge (icon + label).
@@ -13,10 +13,10 @@ side share the single handle.
 from typing import TypedDict
 
 import reflex as rx
-import reflex_enterprise as rxe
 from gws_eln.lineage.lineage_dto import ACTIVITY_NODE_HEIGHT, ITEM_NODE_HEIGHT
 
 from ..activities.activity_type_component import activity_type_badge
+from ..common.react_flow import react_flow_handle
 
 
 class ItemNodeData(TypedDict):
@@ -51,7 +51,7 @@ class ActivityNodeData(TypedDict):
 def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
     """Custom node for a physical item: code on line 1, label on line 2."""
     return rx.box(
-        rx.cond(data["has_input"], rxe.flow.handle(type="target", position="top")),
+        rx.cond(data["has_input"], react_flow_handle(type="target", position="top")),
         rx.grid(
             rx.text(
                 data["code"],
@@ -97,7 +97,7 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
             align="center",
             justify="center",
         ),
-        rx.cond(data["has_output"], rxe.flow.handle(type="source", position="bottom")),
+        rx.cond(data["has_output"], react_flow_handle(type="source", position="bottom")),
         background=data["background"],
         border=data["border"],
         color=data["color"],
@@ -119,9 +119,9 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
 def activity_node(data: rx.Var[ActivityNodeData]) -> rx.Component:
     """Custom node for an activity, rendered as its colored type badge."""
     return rx.box(
-        rx.cond(data["has_input"], rxe.flow.handle(type="target", position="top")),
+        rx.cond(data["has_input"], react_flow_handle(type="target", position="top")),
         activity_type_badge(data["activity_type"]),
-        rx.cond(data["has_output"], rxe.flow.handle(type="source", position="bottom")),
+        rx.cond(data["has_output"], react_flow_handle(type="source", position="bottom")),
         height=f"{ACTIVITY_NODE_HEIGHT}px",
         box_sizing="border-box",
         style={"display": "flex", "align-items": "center", "justify-content": "center"},
