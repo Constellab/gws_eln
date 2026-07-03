@@ -652,9 +652,11 @@ class TestFormatValue(BaseTestCaseLight):
     # ==================== EDGE CASES ====================
 
     def test_format_value_zero(self):
-        """Test format_value with zero."""
-        result = UnitConverter.format_value(0, UnitType.MASS)
-        self.assertEqual(result, "0 µg")
+        """Zero keeps the field's default unit instead of the smallest one."""
+        self.assertEqual(UnitConverter.format_value(0, UnitType.MASS), "0 g")
+        self.assertEqual(UnitConverter.format_value(0, UnitType.VOLUME), "0 mL")
+        self.assertEqual(UnitConverter.format_value(0, UnitType.LENGTH), "0 cm")
+        self.assertEqual(UnitConverter.format_value(0, UnitType.COUNT), "0 units")
 
     def test_format_value_negative(self):
         """Test format_value with negative value."""
@@ -675,6 +677,21 @@ class TestFormatValue(BaseTestCaseLight):
         """Test auto-selection at exactly 1000 (should go to larger unit)."""
         result = UnitConverter.format_value(1000, UnitType.MASS)
         self.assertEqual(result, "1 kg")
+
+    def test_format_value_overflows_largest_unit_volume(self):
+        """Values too big even for the largest unit stay in it, not the smallest."""
+        self.assertEqual(UnitConverter.format_value(1000, UnitType.VOLUME), "1000 L")
+        self.assertEqual(UnitConverter.format_value(1010, UnitType.VOLUME), "1010 L")
+
+    def test_format_value_overflows_largest_unit_mass(self):
+        """1_000_000 g stays in kg (the largest unit) rather than µg."""
+        result = UnitConverter.format_value(1000000, UnitType.MASS)
+        self.assertEqual(result, "1000 kg")
+
+    def test_format_value_overflows_largest_unit_length(self):
+        """A large length stays in m (the largest unit) rather than mm."""
+        result = UnitConverter.format_value(5000, UnitType.LENGTH)
+        self.assertEqual(result, "5000 m")
 
     # ==================== ERROR HANDLING ====================
 

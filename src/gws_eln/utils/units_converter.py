@@ -382,21 +382,22 @@ class UnitConverter:
         """
         Select the most appropriate unit for a given value.
 
-        Chooses the unit that results in a value between 1 and 1000 when possible.
-        """
-        unit_order: dict[UnitType, list[str]] = {
-            UnitType.VOLUME: ["L", "mL", "µL"],
-            UnitType.MASS: ["kg", "g", "mg", "µg"],
-            UnitType.LENGTH: ["m", "cm", "mm"],
-            UnitType.COUNT: ["units"],
-        }
+        Units are ordered largest to smallest; converting to a smaller unit only
+        increases the number. The first unit that yields a value >= 1 is therefore
+        the largest one that keeps the number readable. If even the smallest unit
+        stays below 1, that smallest unit is used.
 
-        units = unit_order[unit_type]
+        Zero has no magnitude to scale, so it keeps the field's default unit
+        (e.g. "0 g" rather than "0 µg").
+        """
+        if value == 0:
+            return UnitConverter.DEFAULT_UNITS[unit_type], Decimal("0")
+
+        units = UnitConverter.UNIT_ORDER[unit_type]
 
         for unit in units:
             converted = UnitConverter.from_base_unit(value, unit, unit_type)
-            abs_converted = abs(converted)
-            if Decimal("1") <= abs_converted < Decimal("1000") or unit == units[-1]:
+            if abs(converted) >= Decimal("1") or unit == units[-1]:
                 return unit, converted
 
         base_unit = UnitConverter.BASE_UNITS[unit_type]
