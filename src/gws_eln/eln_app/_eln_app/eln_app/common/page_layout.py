@@ -62,6 +62,8 @@ def page_layout(
     :return: The page layout component
     :rtype: rx.Component
     """
+    content = rx.box(content, width="100%", padding_bottom="2rem")
+
     return page_sidebar_component(
         sidebar_content=sidebar_content(),
         content=content,
