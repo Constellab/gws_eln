@@ -15,6 +15,7 @@ from gws_eln.items.item_dto import CreateItemDTO
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_eln.locations.location_service import LocationService
 from gws_eln.utils.units_converter import UnitConverter
+from gws_reflex_base import ReflexAppException
 from gws_reflex_main import ReflexMainState
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
@@ -203,6 +204,14 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         # CreateItemDTO does not carry it, so the callback reads it back from here.
         self._pending_dilution_factor = form_data.get("dilution_factor", "").strip()
         item_state = await self.get_state(ItemFormDialogState)
+        # Output concentration (value + unit) is mandatory for concentrate/dilute.
+        if self.needs_concentration and (
+            not item_state.form_concentration.strip()
+            or item_state.form_concentration_unit == item_state.NO_CONCENTRATION_VALUE
+        ):
+            raise ReflexAppException(
+                f"{self.kind_title} requires an output concentration (value and unit)"
+            )
         async for event in item_state._create(form_data):
             yield event
 
