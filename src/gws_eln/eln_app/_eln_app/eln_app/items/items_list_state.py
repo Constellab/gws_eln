@@ -88,27 +88,18 @@ class ItemsListState(rx.State):
         self.error_message = ""
 
         try:
-            search_builder = ItemSearchBuilder()
+            # Sentinel "all" filter values mean "do not filter on that field".
+            def _selected(value: str) -> str | None:
+                return value if value and value != ALL_FILTER_VALUE else None
 
-            # Always filter by item_sheet_id
-            search_builder.add_item_sheet_filter(self._item_sheet_id)
-
-            # Apply text search filter (label or code)
-            if self.search_text:
-                search_builder.add_label_or_code_filter(self.search_text)
-
-            # Apply location filter
-            if self.filter_location_id and self.filter_location_id != ALL_FILTER_VALUE:
-                search_builder.add_location_filter(self.filter_location_id)
-
-            # Apply supplier filter
-            if self.filter_supplier_id and self.filter_supplier_id != ALL_FILTER_VALUE:
-                search_builder.add_supplier_filter(self.filter_supplier_id)
-
-            # Apply status filter
-            if self.filter_status and self.filter_status != ALL_FILTER_VALUE:
-                status = ItemStatus(self.filter_status)
-                search_builder.add_status_filter(status)
+            status_value = _selected(self.filter_status)
+            search_builder = ItemSearchBuilder.build_filtered(
+                item_sheet_id=self._item_sheet_id,
+                search_text=self.search_text,
+                location_id=_selected(self.filter_location_id),
+                supplier_id=_selected(self.filter_supplier_id),
+                status=ItemStatus(status_value) if status_value else None,
+            )
 
             items = cast(list[Item], search_builder.search_all())
 

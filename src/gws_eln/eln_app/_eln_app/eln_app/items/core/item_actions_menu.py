@@ -84,14 +84,14 @@ def item_actions_menu(
                 on_click=_wrap_click(on_move),
             ),
             rx.menu.item(
-                rx.icon("pencil", size=16),
-                "Update Item",
-                on_click=_wrap_click(on_update),
-            ),
-            rx.menu.item(
                 rx.icon("tag", size=16),
                 "Relabel Item",
                 on_click=_wrap_click(on_relabel),
+            ),
+            rx.menu.item(
+                rx.icon("pencil", size=16),
+                "Update Item",
+                on_click=_wrap_click(on_update),
             ),
             *(
                 [

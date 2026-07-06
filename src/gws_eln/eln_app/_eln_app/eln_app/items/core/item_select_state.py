@@ -25,11 +25,10 @@ class ItemSelectState(rx.State):
         """
         search_param = SearchParam.from_json(query)
 
-        search_builder = ItemSearchBuilder()
-        search_builder.add_active_only_filter()
-
-        if search_param.search_text:
-            search_builder.add_label_or_code_filter(search_param.search_text)
+        search_builder = ItemSearchBuilder.build_filtered(
+            active_only=True,
+            search_text=search_param.search_text,
+        )
 
         result = search_builder.search_page(
             page=search_param.page, number_of_items_per_page=search_param.page_size

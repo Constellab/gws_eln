@@ -19,6 +19,7 @@ from gws_eln.activities.activity_service import ActivityService
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.concentration_unit import CONCENTRATION_UNITS, is_valid_concentration_unit
 from gws_eln.core.eln_db_manager import ElnDbManager
+from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item import Item
 from gws_eln.items.item_activity_dto import ItemActivityResult, TransformResult
 from gws_eln.items.item_dto import (
@@ -445,9 +446,9 @@ class ItemService:
 
     def update_item(self, item_id: str, dto: UpdateItemDTO) -> Item:
         """
-        Update item metadata (label, notes, expiry_date).
+        Correct/complete item metadata (notes, expiry_date, supplier, storage).
 
-        Note: To change the label with activity logging, use relabel_item().
+        Note: to change the label with activity logging, use relabel_item().
 
         :param item_id: The ID of the item to update
         :type item_id: str
@@ -462,11 +463,6 @@ class ItemService:
 
         # Update notes if provided (can be set to empty string to clear)
         item.notes = dto.notes.strip() if dto.notes else None
-
-        # Update concentration (value + unit, None clears them)
-        self._validate_concentration(dto.concentration, dto.concentration_unit)
-        item.concentration = dto.concentration
-        item.concentration_unit = dto.concentration_unit or None
 
         # Update storage condition (free text, None/empty clears it)
         item.storage_conditions = dto.storage_conditions.strip() if dto.storage_conditions else None
@@ -961,6 +957,7 @@ class ItemService:
             raise BadRequestException(f"Cannot concentrate discarded item '{source.code}'")
 
         source.assert_can_consume()
+        self._assert_has_concentration(source, "concentrate")
 
         # Reduce the source by the drawn amount
         validated_quantity = QuantityValidator.validate_quantity(dto.quantity_contributed)
@@ -1050,6 +1047,7 @@ class ItemService:
         if target.is_discarded():
             raise BadRequestException(f"Cannot dilute discarded item '{target.code}'")
         target.assert_can_consume()
+        self._assert_has_concentration(target, "dilute")
 
         # Concentration of the target before the operation
         initial_concentration = target.concentration
@@ -1071,6 +1069,12 @@ class ItemService:
                     f"Cannot use discarded item '{diluent.code}' as a diluent"
                 )
             diluent.assert_can_consume()
+            if diluent.unit_type != UnitType.VOLUME:
+                raise BadRequestException(
+                    f"Diluent '{diluent.code}' must be expressed in volume "
+                    f"(its quantity is in {diluent.unit_type.value}). Only volume "
+                    "items can be used as diluents."
+                )
 
             diluent_quantity = QuantityValidator.validate_quantity(
                 diluent_dto.quantity_contributed
@@ -1390,6 +1394,26 @@ class ItemService:
         item.save()
 
         return DeleteItemResultDTO.DISCARDED
+
+    @staticmethod
+    def _assert_has_concentration(item: Item, action: str) -> None:
+        """Ensure an item carries a concentration before a dilute/concentrate.
+
+        Dilute/concentrate operate on the item's concentration, so the source/
+        target must already have one (set at creation). An item expressed only as
+        a quantity, with no concentration, cannot be diluted or concentrated.
+
+        :param item: The source (concentrate) or target (dilute) item
+        :type item: Item
+        :param action: The action name, for the error message ("dilute"/"concentrate")
+        :type action: str
+        :raises BadRequestException: If the item has no recorded concentration
+        """
+        if item.concentration is None:
+            raise BadRequestException(
+                f"Cannot {action} item '{item.code}': it has no recorded concentration. "
+                f"Only items with a concentration can be diluted or concentrated."
+            )
 
     def _validate_concentration(
         self, concentration: Decimal | None, concentration_unit: str | None

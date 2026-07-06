@@ -29,12 +29,11 @@ class InstrumentSelectState(rx.State):
         """
         search_param = InstrumentSearchParam.from_json(query)
 
-        search_builder = ItemSearchBuilder()
-        search_builder.add_active_only_filter()
-        search_builder.add_consumable_filter(False)
-
-        if search_param.search_text:
-            search_builder.add_label_or_code_filter(search_param.search_text)
+        search_builder = ItemSearchBuilder.build_filtered(
+            active_only=True,
+            is_consumable=False,
+            search_text=search_param.search_text,
+        )
 
         result = search_builder.search_page(
             page=search_param.page, number_of_items_per_page=search_param.page_size

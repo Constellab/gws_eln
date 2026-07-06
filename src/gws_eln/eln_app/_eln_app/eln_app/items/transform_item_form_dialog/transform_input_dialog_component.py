@@ -9,7 +9,6 @@ import reflex as rx
 from gws_reflex_main import dialog_header
 from gws_reflex_main.gws_components import input_search_component
 
-from ...common.feedback_components import compact_warning
 from ...common.unit.unit_components import quantity_unit_input
 from .transform_input_select_state import TransformInputSelectState
 from .transform_item_form_dialog_state import TransformItemFormDialogState
@@ -64,23 +63,6 @@ def _selected_item() -> rx.Component:
                 f"Concentration : {_S.in_item_conc} {_S.in_item_conc_unit}",
                 size="1",
                 color="gray",
-            ),
-        ),
-        rx.cond(
-            _S.input_warn_no_concentration,
-            rx.vstack(
-                compact_warning("This item has no recorded concentration."),
-                rx.button(
-                    rx.icon("plus", size=14),
-                    "Update item",
-                    type="button",
-                    variant="soft",
-                    size="1",
-                    on_click=_S.add_concentration_to_input,
-                ),
-                spacing="2",
-                width="100%",
-                align="start",
             ),
         ),
         rx.cond(

@@ -7,11 +7,13 @@ dropdown so the user picks the input type explicitly.
 
 import reflex as rx
 from gws_core import PageDTO
+from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item_search_builder import ItemSearchBuilder
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
 from ..core.item_select_state import SearchParam
 from .transform_item_form_dialog_state import TransformItemFormDialogState
+from .transform_models import INPUT_ROLE_DILUENT, INPUT_ROLE_TARGET, TransformKind
 
 
 def _to_result(item) -> InputSearchResultDTO:
@@ -23,7 +25,10 @@ class TransformInputSelectState(rx.State):
     """Two filtered item searches (consumable / instrument) for the input dialog.
 
     Items already added as inputs are excluded from the results (so the same item
-    can't be added twice), except the one currently being edited.
+    can't be added twice), except the one currently being edited. For a
+    concentrate source or a dilute target, results are further restricted to items
+    that already carry a concentration - those are the only ones that can be
+    diluted/concentrated, so unusable items are never even offered.
     """
 
     consumable_results: rx.Field[PageDTO[InputSearchResultDTO] | None] = rx.field(None)
@@ -39,12 +44,27 @@ class TransformInputSelectState(rx.State):
             if row.id != transform_state._editing_input_id
         ]
 
-        search_builder = ItemSearchBuilder()
-        search_builder.add_active_only_filter()
-        search_builder.add_consumable_filter(is_consumable)
-        search_builder.add_exclude_ids_filter(excluded_ids)
-        if search_param.search_text:
-            search_builder.add_label_or_code_filter(search_param.search_text)
+        kind = transform_state.transform_kind
+        role = transform_state._pending_input_role
+
+        # Concentrate's source and dilute's target must already carry a
+        # concentration; restrict the list so only usable items appear.
+        requires_concentration = is_consumable and (
+            kind == TransformKind.CONCENTRATE.value
+            or (kind == TransformKind.DILUTE.value and role == INPUT_ROLE_TARGET)
+        )
+
+        # A dilute diluent must be expressed in volume (concentration optional).
+        is_diluent = kind == TransformKind.DILUTE.value and role == INPUT_ROLE_DILUENT
+
+        search_builder = ItemSearchBuilder.build_filtered(
+            active_only=True,
+            is_consumable=is_consumable,
+            has_concentration=True if requires_concentration else None,
+            unit_type=UnitType.VOLUME if is_diluent else None,
+            exclude_ids=excluded_ids,
+            search_text=search_param.search_text,
+        )
         result = search_builder.search_page(
             page=search_param.page, number_of_items_per_page=search_param.page_size
         )

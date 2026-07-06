@@ -12,21 +12,15 @@ from decimal import Decimal
 import reflex as rx
 from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item_dto import ItemDTO
-from gws_eln.items.item_service import ItemService
 from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_base import ReflexAppException
-from gws_reflex_main import ReflexMainState
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
-from ..update_item_form_dialog.update_item_form_dialog_state import (
-    UpdateItemFormDialogState,
-)
 from . import transform_builders
 from .transform_models import (
     INPUT_ROLE_DILUENT,
     INPUT_ROLE_TARGET,
     TransformInputRow,
-    TransformKind,
 )
 
 
@@ -77,22 +71,6 @@ class TransformInputDialogMixin(rx.State, mixin=True):
     def input_has_concentration(self) -> bool:
         """Whether the selected input carries a concentration (for info display)."""
         return bool(self.in_item_id) and bool(self.in_item_conc)
-
-    @rx.var
-    def input_warn_no_concentration(self) -> bool:
-        """Warn that the selected input has no concentration, when it matters.
-
-        Concentrate's source and dilute's target are expected to carry a
-        concentration (it drives the dilution audit). A missing concentration is
-        allowed, but surfaced as a warning once the item is selected.
-        """
-        if not self.input_is_consumable or self.in_item_conc:
-            return False
-        if self.transform_kind == TransformKind.CONCENTRATE.value:
-            return True
-        if self.transform_kind == TransformKind.DILUTE.value:
-            return self._pending_input_role == INPUT_ROLE_TARGET
-        return False
 
     # ------------------------------------------------------------------ draft helpers
 
@@ -248,33 +226,6 @@ class TransformInputDialogMixin(rx.State, mixin=True):
     @rx.event
     def set_input_unit(self, value: str):
         self.in_unit = value
-
-    @rx.event
-    async def add_concentration_to_input(self):
-        """Open the update-item dialog to add a concentration to the selected input.
-
-        Used when the source/target of a concentrate/dilute has no concentration:
-        the user can set one on the fly without leaving the transform.
-        """
-        if not self.in_item_id:
-            return
-        main_state = await self.get_state(ReflexMainState)
-        with await main_state.authenticate_user():
-            item = ItemService().get_item(self.in_item_id).to_dto()
-        update_state = await self.get_state(UpdateItemFormDialogState)
-        update_state.set_callback_after_close(self._on_input_item_updated)
-        await update_state.open_update_dialog(item)
-
-    async def _on_input_item_updated(self, item: ItemDTO):
-        """Refresh the selected input's concentration after an on-the-fly update."""
-        if item.id != self.in_item_id:
-            return
-        self.in_item_conc = (
-            UnitConverter.format_number(item.concentration)
-            if item.concentration is not None
-            else ""
-        )
-        self.in_item_conc_unit = item.concentration_unit or ""
 
     @rx.event
     def close_input_dialog(self):

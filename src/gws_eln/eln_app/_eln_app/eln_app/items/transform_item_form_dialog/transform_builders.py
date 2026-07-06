@@ -81,25 +81,28 @@ def validate_concentration_change(
     must_increase: bool,
     kind_label: str,
 ) -> None:
-    """Enforce the output concentration and its direction for concentrate/dilute.
+    """Enforce the source and output concentrations (and direction) for concentrate/dilute.
 
-    The output concentration (value + unit) is mandatory. The direction is
-    checked only when it can be compared meaningfully: the source/target
-    already carries a concentration AND both values are in the **same family**
+    The source/target concentration (value + unit) is mandatory: concentrate and
+    dilute act on the concentration, so they only apply to items that already
+    carry one. The output concentration (value + unit) is mandatory too. The
+    direction is checked only when both values are in the **same family**
     (converted via :func:`convert_concentration`) — then concentrate must raise
     it and dilute must lower it. A cross-family output unit is accepted as-is:
     the direction can't be inferred across families, so it is left to the user.
 
-    :raises ReflexAppException: if the output concentration is missing, or if it
-        changes in the wrong direction while in the same family as the source's.
+    :raises ReflexAppException: if the source or output concentration is missing,
+        or if it changes in the wrong direction while in the same family.
     """
+    # The source/target must already carry a concentration.
+    if not init_conc or not init_unit:
+        raise ReflexAppException(
+            f"{kind_label} requires an item that already has a concentration"
+        )
     # Output concentration is mandatory for concentrate/dilute.
     if not out_conc or not out_unit:
         raise ReflexAppException(f"{kind_label} requires an output concentration (value and unit)")
-    # Without a source concentration, or across different families, the
-    # direction can't be compared — accept it and leave it to the user.
-    if not init_conc or not init_unit:
-        return
+    # Across different families the direction can't be compared — accept it.
     if not same_concentration_family(init_unit, out_unit):
         return
     # Compare in the output's unit (same family → lossless conversion).
