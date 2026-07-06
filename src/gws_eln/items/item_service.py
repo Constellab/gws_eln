@@ -999,6 +999,7 @@ class ItemService:
                 final_concentration=dto.output_concentration,
                 concentration_unit=dto.output_concentration_unit,
                 dilution_factor=dto.dilution_factor,
+                concentration_method=dto.concentration_method,
                 inputs=[
                     CreateActivityInputDTO(
                         item_id=source.id,

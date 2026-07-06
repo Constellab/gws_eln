@@ -8,6 +8,7 @@ dialog state stays a thin orchestrator and this logic is unit-testable on its ow
 
 from decimal import Decimal
 
+from gws_eln.core.concentration_method import ConcentrationMethod
 from gws_eln.core.concentration_unit import (
     convert_concentration,
     same_concentration_family,
@@ -223,6 +224,11 @@ def build_concentrate(
         output_concentration=Decimal(output.conc) if output.conc else None,
         output_concentration_unit=output.conc_unit or None,
         dilution_factor=Decimal(output.dilution_factor) if output.dilution_factor else None,
+        concentration_method=(
+            ConcentrationMethod(output.concentration_method)
+            if output.concentration_method
+            else None
+        ),
         instrument_item_ids=_instrument_ids(inputs),
         output_location_id=output.location_id or None,
         output_label=output.label or None,

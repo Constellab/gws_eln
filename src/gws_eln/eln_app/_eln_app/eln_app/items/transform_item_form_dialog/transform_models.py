@@ -89,3 +89,4 @@ class TransformOutputRow:
     code_preview: str
     produced: str  # display
     dilution_factor: str = ""  # raw, for DTO (concentrate/dilute audit; "" when none)
+    concentration_method: str = ""  # ConcentrationMethod value (concentrate audit; "" when none)

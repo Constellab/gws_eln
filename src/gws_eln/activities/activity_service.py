@@ -96,6 +96,7 @@ class ActivityService:
         activity.final_concentration = dto.final_concentration
         activity.concentration_unit = dto.concentration_unit or None
         activity.dilution_factor = dto.dilution_factor
+        activity.concentration_method = dto.concentration_method
 
         activity.save()
 

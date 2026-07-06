@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from gws_core import BadRequestException, BaseTestCase, DateHelper
 from gws_eln.activities.activity_input_role import ActivityInputRole
+from gws_eln.core.concentration_method import ConcentrationMethod
 from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item import Item
 from gws_eln.items.item_dto import (
@@ -432,6 +433,22 @@ class TestItemService(BaseTestCase):
         source_after = ItemService().get_item(source.id)
         self.assertEqual(source_after.quantity, Decimal(0))
         self.assertEqual(source_after.status, ItemStatus.EXHAUSTED)
+
+    def test_concentrate_persists_concentration_method(self):
+        source = self._count_item("CONM", "10")
+        result = ItemService().concentrate_item(
+            source.id,
+            ConcentrateItemDTO(
+                quantity_contributed=Decimal(10),
+                unit="units",
+                output_quantity=Decimal(4),
+                output_unit="units",
+                concentration_method=ConcentrationMethod.LYOPHILIZATION,
+            ),
+        )
+        self.assertEqual(
+            result.activity.concentration_method, ConcentrationMethod.LYOPHILIZATION
+        )
 
     def test_concentrate_non_consumable_fails(self):
         sheet = self._sheet("CON2", is_consumable=False, unit_type=UnitType.COUNT)

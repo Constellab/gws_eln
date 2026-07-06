@@ -10,6 +10,7 @@ from gws_core import BaseModelDTO, ModelDTO, UserDTO
 
 from gws_eln.activities.activity_input_role import ActivityInputRole
 from gws_eln.activities.activity_type import ActivityType
+from gws_eln.core.concentration_method import ConcentrationMethod
 from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item_dto import ItemSimpleDTO
 from gws_eln.locations.location_dto import LocationDTO
@@ -50,6 +51,7 @@ class CreateActivityDTO(BaseModelDTO):
     final_concentration: Decimal | None = None
     concentration_unit: str | None = None
     dilution_factor: Decimal | None = None
+    concentration_method: ConcentrationMethod | None = None  # concentrate only
 
     # Structured lineage: items the activity took from / created
     inputs: list[CreateActivityInputDTO] = []
@@ -92,6 +94,7 @@ class ActivityDTO(ModelDTO):
     final_concentration: Decimal | None
     concentration_unit: str | None
     dilution_factor: Decimal | None
+    concentration_method: ConcentrationMethod | None
     inputs: list[ActivityInputDTO]
     outputs: list[ActivityOutputDTO]
     quantity_color: str = ""  # CSS color token for pretty_quantity ("" = default)

@@ -11,6 +11,7 @@ from decimal import Decimal
 from enum import Enum
 
 from gws_core import BaseModelDTO, UserDTO
+from gws_eln.core.concentration_method import ConcentrationMethod
 from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_eln.items.item_status import ItemStatus
@@ -227,6 +228,7 @@ class ConcentrateItemDTO(BaseModelDTO):
     output_concentration: Decimal | None = None
     output_concentration_unit: str | None = None
     dilution_factor: Decimal | None = None  # Store-only audit
+    concentration_method: ConcentrationMethod | None = None  # Store-only audit, optional
     instrument_item_ids: list[str] = []  # Optional instrument inputs (non-consumable)
     output_location_id: str | None = None  # Defaults to the source's location if None
     output_label: str | None = None

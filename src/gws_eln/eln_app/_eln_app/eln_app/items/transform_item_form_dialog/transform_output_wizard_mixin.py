@@ -18,6 +18,7 @@ from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_main import ReflexMainState
 from gws_reflex_main.gws_components import InputSearchResultDTO
 
+from ...common.unit.concentration_method_components import NO_CONCENTRATION_METHOD_VALUE
 from ...item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_state import (
     ItemSheetFormDialogState,
 )
@@ -40,6 +41,13 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
     # Dilution factor entered on the output step (concentrate/dilute audit), read
     # back when the output item is collected.
     _pending_dilution_factor: str = ""
+    # Concentration method selected on the output step (concentrate audit). Held
+    # as a controlled select value; the sentinel means "no method".
+    concentration_method: str = NO_CONCENTRATION_METHOD_VALUE
+
+    @rx.event
+    def set_concentration_method(self, value: str):
+        self.concentration_method = value
 
     # id (str) -> name, to display the location on committed output rows
     _loc_names: dict[str, str] = {}
@@ -76,6 +84,7 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         """
         self.output_create_sheet_mode = False
         self._editing_output_id = ""
+        self.concentration_method = NO_CONCENTRATION_METHOD_VALUE
         if self.output_sheet_is_fixed:
             source = self._fixed_output_source()
             if source is None:
@@ -103,6 +112,7 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         self.out_sheet_code = row.sheet_code
         self.out_sheet_name = row.sheet_name
         self._pending_dilution_factor = row.dilution_factor
+        self.concentration_method = row.concentration_method or NO_CONCENTRATION_METHOD_VALUE
 
         # Prepare the item form for the row's sheet, then prefill its fields and
         # arm collect mode (order matters: prepare clears the collect callback).
@@ -224,6 +234,11 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
             code_preview=f"{self.out_sheet_code}-{date.today().year}-XXXX",
             produced=f"{UnitConverter.format_number(dto.quantity)} {dto.unit}",
             dilution_factor=self._pending_dilution_factor,
+            concentration_method=(
+                ""
+                if self.concentration_method == NO_CONCENTRATION_METHOD_VALUE
+                else self.concentration_method
+            ),
         )
         if self._editing_output_id:
             self.outputs = [row if r.id == self._editing_output_id else r for r in self.outputs]
@@ -231,6 +246,7 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
             self.outputs = self.outputs + [row]
         self._editing_output_id = ""
         self._pending_dilution_factor = ""
+        self.concentration_method = NO_CONCENTRATION_METHOD_VALUE
         self.output_dialog_opened = False
         self.output_step = OutputStep.SHEET
 

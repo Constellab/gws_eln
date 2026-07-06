@@ -12,6 +12,7 @@ import reflex as rx
 from gws_reflex_main import dialog_header
 from gws_reflex_main.gws_components import input_search_component
 
+from ...common.unit.concentration_method_components import concentration_method_select
 from ...item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_component import (
     item_sheet_form_content,
 )
@@ -183,6 +184,37 @@ def _dilution_factor_field() -> rx.Component:
     )
 
 
+def _concentration_method_field() -> rx.Component:
+    """Concentration-method audit select (concentrate only); store-only, optional."""
+    return rx.vstack(
+        rx.text("Concentration method", size="2", weight="bold"),
+        concentration_method_select(
+            value=_S.concentration_method,
+            on_change=_S.set_concentration_method,
+        ),
+        spacing="1",
+        width="100%",
+        align="start",
+    )
+
+
+def _extra_concentration_content() -> rx.Component:
+    """Audit fields slotted after the concentration row: dilution factor
+    (concentrate/dilute) and, for concentrate only, the concentration method —
+    laid out side by side on the same row for concentrate."""
+    return rx.cond(
+        _S.kind_is_concentrate,
+        rx.hstack(
+            _dilution_factor_field(),
+            _concentration_method_field(),
+            width="100%",
+            spacing="3",
+            align="start",
+        ),
+        rx.cond(_S.needs_concentration, _dilution_factor_field(), rx.fragment()),
+    )
+
+
 def _step2_body() -> rx.Component:
     """Step 2: the reused item creation form (collect mode)."""
     return rx.form(
@@ -194,9 +226,7 @@ def _step2_body() -> rx.Component:
         _scroll_box(
             rx.box(
                 item_form_content(
-                    extra_concentration_content=rx.cond(
-                        _S.needs_concentration, _dilution_factor_field(), rx.fragment()
-                    ),
+                    extra_concentration_content=_extra_concentration_content(),
                 ),
                 key=_S.out_sheet_id,
                 width="100%",

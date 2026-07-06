@@ -10,6 +10,7 @@ from gws_core import (
 
 from gws_eln.activities.activity_dto import ActivityDTO
 from gws_eln.activities.activity_type import ActivityType
+from gws_eln.core.concentration_method import ConcentrationMethod
 from gws_eln.core.eln_db_manager import ElnDbManager
 from gws_eln.core.model_with_user import ModelWithUser
 from gws_eln.core.unit_type import UnitType
@@ -78,6 +79,8 @@ class Activity(ModelWithUser):
     final_concentration = NullableDecimalField(max_digits=20, decimal_places=12)
     concentration_unit = NullableCharField(max_length=20)
     dilution_factor = NullableDecimalField(max_digits=20, decimal_places=12)
+    # Concentration method (concentrate only) - store-only audit, optional.
+    concentration_method = NullableEnumField(choices=ConcentrationMethod, max_length=30)
 
     @classmethod
     def find_by_item_id(cls, item_id: str) -> list["Activity"]:
@@ -135,6 +138,7 @@ class Activity(ModelWithUser):
             final_concentration=self.final_concentration,
             concentration_unit=self.concentration_unit,
             dilution_factor=self.dilution_factor,
+            concentration_method=self.concentration_method,
             inputs=[activity_input.to_dto() for activity_input in self.inputs],
             outputs=[activity_output.to_dto() for activity_output in self.outputs],
             created_at=self.created_at,
