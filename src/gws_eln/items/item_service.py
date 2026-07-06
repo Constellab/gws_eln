@@ -6,7 +6,7 @@ Handles CRUD operations, validation, and business logic for items.
 
 from decimal import Decimal
 
-from gws_core import BadRequestException, CurrentUserService, DateHelper
+from gws_core import BadRequestException, CurrentUserService
 from gws_eln.activities.activity import Activity
 from gws_eln.activities.activity_dto import (
     CreateActivityDTO,
@@ -164,7 +164,7 @@ class ItemService:
         item.concentration_unit = dto.concentration_unit or None
         item.location = location
         item.expiry_date = dto.expiry_date
-        item.label = dto.label.strip() if dto.label else None
+        item.label = self._normalize_required_label(dto.label)
         item.serial_number = serial_number
         item.storage_conditions = self._resolve_storage_conditions(
             dto.storage_conditions, item_sheet
@@ -242,7 +242,7 @@ class ItemService:
         # Shared fields resolved once for every created unit
         location = LocationService().get_or_default_location(dto.location_id)
         supplier = SupplierService().get_supplier(dto.supplier_id) if dto.supplier_id else None
-        label = dto.label.strip() if dto.label else None
+        label = self._normalize_required_label(dto.label)
         storage_conditions = self._resolve_storage_conditions(dto.storage_conditions, item_sheet)
         notes = dto.notes.strip() if dto.notes else None
         unit_type = item_sheet.unit_type
@@ -581,16 +581,14 @@ class ItemService:
         # Get existing item
         item = self.get_item(item_id)
 
-        # Validate the label field is provided
-        if dto.label is None:
-            raise BadRequestException("A label must be provided for relabeling")
+        # Label is mandatory: reject a missing or blank value
+        new_label = self._normalize_required_label(dto.label)
 
         # Track what changed for activity notes
         changes = []
 
         # Update label
         old_label = item.label
-        new_label = dto.label.strip() if dto.label else None
         if old_label != new_label:
             item.label = new_label
             changes.append(f"label: '{old_label}' -> '{new_label}'")
@@ -726,7 +724,7 @@ class ItemService:
             item.expiry_date = (
                 output_dto.expiry_date if output_dto.expiry_date is not None else source.expiry_date
             )
-            item.label = output_dto.label.strip() if output_dto.label else None
+            item.label = self._normalize_required_label(output_dto.label)
             # Storage condition inherits the output's own sheet default
             item.storage_conditions = source.item_sheet.storage_conditions
             item.notes = output_dto.notes.strip() if output_dto.notes else None
@@ -861,7 +859,7 @@ class ItemService:
         output.concentration_unit = dto.output_concentration_unit or None
         output.location = location
         output.expiry_date = dto.output_expiry_date
-        output.label = dto.output_label.strip() if dto.output_label else None
+        output.label = self._normalize_required_label(dto.output_label)
         # Storage condition inherits the output's own sheet default
         output.storage_conditions = output_sheet.storage_conditions
         output.notes = dto.notes.strip() if dto.notes else None
@@ -927,7 +925,7 @@ class ItemService:
         output.concentration_unit = concentration_unit or None
         output.location = location
         output.expiry_date = expiry_date if expiry_date is not None else reference_item.expiry_date
-        output.label = label.strip() if label else None
+        output.label = self._normalize_required_label(label)
         # Storage condition inherits the output's own sheet default
         output.storage_conditions = reference_item.item_sheet.storage_conditions
         output.notes = None
@@ -1243,7 +1241,7 @@ class ItemService:
             output.concentration_unit = output_dto.concentration_unit or None
             output.location = location
             output.expiry_date = output_dto.expiry_date
-            output.label = output_dto.label.strip() if output_dto.label else None
+            output.label = self._normalize_required_label(output_dto.label)
             # Storage condition inherits the output's own sheet default
             output.storage_conditions = output_sheet.storage_conditions
             output.notes = None
@@ -1474,6 +1472,24 @@ class ItemService:
         """
         return value.strip() if value else item_sheet.storage_conditions
 
+    @staticmethod
+    def _normalize_required_label(label: str | None) -> str:
+        """Strip and validate a required item label.
+
+        The label is mandatory on every item (duplicates are allowed). Empty or
+        whitespace-only values are rejected.
+
+        :param label: The raw label from the DTO
+        :type label: str | None
+        :return: The stripped, non-empty label
+        :rtype: str
+        :raises BadRequestException: If the label is missing or blank
+        """
+        normalized = label.strip() if label else ""
+        if not normalized:
+            raise BadRequestException("A label is required")
+        return normalized
+
     def _validate_serial_number_unique(self, serial_number: str | None) -> None:
         """Validate that a serial number is not already used by another item.
 
@@ -1498,7 +1514,7 @@ class ItemService:
     ) -> None:
         """Save a new item, (re)generating its code until it is unique.
 
-        The code is ``MAX + 1`` over existing items of the ``(sheet, year)``. Under
+        The code is ``MAX + 1`` over existing items of the sheet. Under
         concurrency two inserts can pick the same code; the unique index rejects the
         loser, which then recomputes ``MAX + 1`` and retries.
 
@@ -1538,10 +1554,9 @@ class ItemService:
     def _generate_item_code(self, item_sheet: ItemSheet) -> str:
         """Generate one unique item code for the sheet.
 
-        Format ``{item_sheet.code}-{year}-{increment}`` (e.g. ``ETHA-2026-0007``).
-        The increment is the *numeric* ``MAX + 1`` over existing items of that
-        ``(sheet, year)``. It is zero-padded to a minimum width of 4 and overflows
-        naturally past 9999.
+        Format ``{item_sheet.code}-{increment}`` (e.g. ``ETHA-0007``). The
+        increment is the *numeric* ``MAX + 1`` over existing items of that sheet.
+        It is zero-padded to a minimum width of 4 and overflows naturally past 9999.
 
         For bulk creation (split), call this once per item *after saving the
         previous one*, so each call sees the prior increment in the database. The
@@ -1552,8 +1567,7 @@ class ItemService:
         :return: A unique item code
         :rtype: str
         """
-        year = DateHelper.now_utc().year
-        prefix = f"{item_sheet.code}-{year}-"
+        prefix = f"{item_sheet.code}-"
 
         max_increment = 0
         for item in Item.select(Item.code).where(

@@ -25,7 +25,7 @@ class ItemSheet(ModelWithUser):
     Attributes:
         name: ItemSheet name (required, indexed)
         code: Unique 4-char [A-Z0-9] identifier, immutable; the prefix for item
-            codes (e.g. ETHA-2026-0007).
+            codes (e.g. ETHA-0007).
         description: Optional description text
         default_supplier: Optional reference to supplier (FK to gws_eln_suppliers)
         is_consumable: Whether the item sheet is consumable (affects quantity behavior)

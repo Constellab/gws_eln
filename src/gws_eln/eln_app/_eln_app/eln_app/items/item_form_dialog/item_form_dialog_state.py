@@ -86,10 +86,10 @@ class ItemFormDialogState(FormDialogState, rx.State):
         """Best-effort preview of the auto-generated code (informative only).
 
         The authoritative code is assigned by the backend at creation.
-        This preview shows the sheet prefix + current year pattern.
+        This preview shows the sheet prefix + increment pattern.
         """
         if self._item_sheet:
-            return f"{self._item_sheet.code}-{date.today().year}-XXXX"
+            return f"{self._item_sheet.code}-XXXX"
         return ""
 
     async def prepare_create_form(self, item_sheet_id: str):
@@ -257,7 +257,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         str,
         str | None,
         date | None,
-        str | None,
+        str,
         str | None,
         str | None,
     ]:
@@ -276,7 +276,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
         quantity = self._parse_quantity(self.form_quantity.strip())
         concentration = self._parse_concentration(self.form_concentration.strip())
         expiry_date = self._parse_expiry_date()
-        label = form_data.get("label", "").strip() or None
+        label = form_data.get("label", "").strip()
+        if not label:
+            raise ReflexAppException("Label is required")
         storage_conditions = form_data.get("storage_conditions", "").strip() or None
         notes = form_data.get("notes", "").strip() or None
 
@@ -436,7 +438,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
             Reflex events (rx.toast)
         """
         # Shared fields (one value applied to every created unit)
-        label = form_data.get("label", "").strip() or None
+        label = form_data.get("label", "").strip()
+        if not label:
+            raise ReflexAppException("Label is required")
         storage_conditions = form_data.get("storage_conditions", "").strip() or None
         notes = form_data.get("notes", "").strip() or None
         expiry_date = self._parse_expiry_date()

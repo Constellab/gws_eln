@@ -35,7 +35,7 @@ class Item(ModelWithUser):
     Attributes:
         item_sheet: Reference to the item sheet catalog entry (required)
         code: Structured, unique, immutable code (backend-generated)
-        label: Custom human-readable label (free text, optional)
+        label: Custom human-readable label (free text, required; not unique)
         expiry_date: Expiration date
         quantity: Amount in base units (DECIMAL for precision)
         unit_type: Type of unit for quantity
@@ -52,12 +52,11 @@ class Item(ModelWithUser):
     supplier = NullableForeignKeyField(Supplier, backref="items", on_delete="SET NULL", index=True)
 
     # Item identification
-    # Structured, unique, immutable code: "{item_sheet.code}-{year}-{increment}"
-    # (e.g. "ETHA-2026-0007"). Backend-generated at creation.
+    # Structured, unique, immutable code: "{item_sheet.code}-{increment}"
+    # (e.g. "ETHA-0007"). Backend-generated at creation.
     code = TypedCharField(max_length=50, unique=True, index=True)
-    label = NullableCharField(
-        max_length=255,
-    )
+    # Required human-readable label (free text). Not unique: duplicates allowed.
+    label = TypedCharField(max_length=255)
 
     # Serial number for non-consumable serialized units. Unique lab-wide; the
     # unique index allows multiple NULLs - uniqueness applies only to non-null values.

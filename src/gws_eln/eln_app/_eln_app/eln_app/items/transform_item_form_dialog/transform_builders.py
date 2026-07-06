@@ -124,6 +124,17 @@ def _instrument_ids(inputs: list[TransformInputRow]) -> list[str]:
     return [row.item_id for row in inputs if not row.is_consumable]
 
 
+def _require_label(output: TransformOutputRow) -> str:
+    """Return the output's stripped label, which is mandatory.
+
+    :raises ReflexAppException: if the output has no label.
+    """
+    label = (output.label or "").strip()
+    if not label:
+        raise ReflexAppException("Each output item needs a label")
+    return label
+
+
 def build_split(
     inputs: list[TransformInputRow],
     outputs: list[TransformOutputRow],
@@ -144,7 +155,7 @@ def build_split(
             quantity=Decimal(row.qty),
             unit=row.unit,
             location_id=row.location_id or None,
-            label=row.label or None,
+            label=_require_label(row),
         )
         for row in outputs
     ]
@@ -186,7 +197,7 @@ def build_combine(
         output_unit=output.unit,
         instrument_item_ids=_instrument_ids(inputs),
         output_location_id=output.location_id or None,
-        output_label=output.label or None,
+        output_label=_require_label(output),
         output_concentration=Decimal(output.conc) if output.conc else None,
         output_concentration_unit=output.conc_unit or None,
         notes=notes,
@@ -231,7 +242,7 @@ def build_concentrate(
         ),
         instrument_item_ids=_instrument_ids(inputs),
         output_location_id=output.location_id or None,
-        output_label=output.label or None,
+        output_label=_require_label(output),
         notes=notes,
         note_id=note_id,
     )
@@ -288,7 +299,7 @@ def build_dilute(
         dilution_factor=Decimal(output.dilution_factor) if output.dilution_factor else None,
         instrument_item_ids=_instrument_ids(inputs),
         output_location_id=output.location_id or None,
-        output_label=output.label or None,
+        output_label=_require_label(output),
         notes=notes,
         note_id=note_id,
     )
@@ -319,7 +330,7 @@ def build_custom(
             quantity=Decimal(row.qty),
             unit=row.unit,
             location_id=row.location_id or None,
-            label=row.label,
+            label=_require_label(row),
             concentration=Decimal(row.conc) if row.conc else None,
             concentration_unit=row.conc_unit or None,
         )

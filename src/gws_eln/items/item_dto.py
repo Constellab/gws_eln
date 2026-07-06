@@ -35,7 +35,7 @@ class CreateItemDTO(BaseModelDTO):
     location_id: str | None = None  # Default to "labo" if None
     supplier_id: str | None = None
     expiry_date: date | None = None
-    label: str | None = None
+    label: str  # Required human-readable label (not unique)
     serial_number: str | None = None  # Non-consumable serialized units only; unique lab-wide
     storage_conditions: str | None = None  # If None, inherits the item sheet's default
     notes: str | None = None
@@ -58,7 +58,7 @@ class CreateItemsBulkDTO(BaseModelDTO):
     location_id: str | None = None  # Default to "labo" if None
     supplier_id: str | None = None
     expiry_date: date | None = None
-    label: str | None = None  # Shared label applied to every created unit
+    label: str  # Required label, shared by every created unit (not unique)
     storage_conditions: str | None = None  # If None, inherits the item sheet's default
     notes: str | None = None
     note_id: str | None = None  # Link to Constellab Note
@@ -154,7 +154,7 @@ class SplitOutputDTO(BaseModelDTO):
     quantity: Decimal
     unit: str  # Exact unit (e.g., 'mL', 'g') - validated against the source's unit type
     location_id: str | None = None  # Defaults to the source item's location if None
-    label: str | None = None
+    label: str  # Required human-readable label (not unique)
     expiry_date: date | None = None  # Defaults to the source item's expiry_date if None
     notes: str | None = None
 
@@ -204,7 +204,7 @@ class CombineItemDTO(BaseModelDTO):
     output_unit: str  # Validated against the output item sheet's default unit type
     instrument_item_ids: list[str] = []  # Optional instrument inputs (non-consumable)
     output_location_id: str | None = None  # Default to "labo" if None
-    output_label: str | None = None
+    output_label: str  # Required human-readable label (not unique)
     output_expiry_date: date | None = None
     output_concentration: Decimal | None = None
     output_concentration_unit: str | None = None
@@ -231,7 +231,7 @@ class ConcentrateItemDTO(BaseModelDTO):
     concentration_method: ConcentrationMethod | None = None  # Store-only audit, optional
     instrument_item_ids: list[str] = []  # Optional instrument inputs (non-consumable)
     output_location_id: str | None = None  # Defaults to the source's location if None
-    output_label: str | None = None
+    output_label: str  # Required human-readable label (not unique)
     output_expiry_date: date | None = None  # Defaults to the source's expiry_date if None
     notes: str | None = None
     note_id: str | None = None  # Link to Constellab Note
@@ -267,7 +267,7 @@ class DiluteItemDTO(BaseModelDTO):
     dilution_factor: Decimal | None = None  # Store-only audit
     instrument_item_ids: list[str] = []  # Optional instrument inputs (non-consumable)
     output_location_id: str | None = None  # Defaults to the target's location if None
-    output_label: str | None = None
+    output_label: str  # Required human-readable label (not unique)
     output_expiry_date: date | None = None  # Defaults to the target's expiry_date if None
     notes: str | None = None
     note_id: str | None = None  # Link to Constellab Note
@@ -299,7 +299,7 @@ class TransformOutputDTO(BaseModelDTO):
     quantity: Decimal
     unit: str  # Validated against the output item sheet's default unit type
     location_id: str | None = None  # Default to "labo" if None
-    label: str | None = None
+    label: str  # Required human-readable label (not unique)
     concentration: Decimal | None = None
     concentration_unit: str | None = None
     expiry_date: date | None = None
@@ -331,8 +331,8 @@ class ItemSimpleDTO(BaseModelDTO):
     """Simple DTO for item with minimal fields."""
 
     id: str
-    code: str  # Structured "{sheet.code}-{year}-{incr}", unique, immutable.
-    label: str | None
+    code: str  # Structured "{sheet.code}-{incr}", unique, immutable.
+    label: str
 
 
 class ItemDTO(ItemSimpleDTO):

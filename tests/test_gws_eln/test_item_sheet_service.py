@@ -36,7 +36,7 @@ class TestItemSheetService(BaseTestCase):
     def _add_item(self, sheet) -> None:
         """Create one item referencing the sheet (COUNT 'units', quantity 1)."""
         ItemService().create_item(
-            CreateItemDTO(item_sheet_id=sheet.id, quantity=Decimal(1), unit="units")
+            CreateItemDTO(item_sheet_id=sheet.id, quantity=Decimal(1), unit="units", label="Test item")
         )
 
     # ------------------------------------------------------------------- create

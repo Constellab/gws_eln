@@ -132,13 +132,14 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
             spacing="3",
             align="start",
         ),
-        # Label field (human-readable name for the item)
+        # Label field (human-readable name for the item, required)
         rx.vstack(
-            rx.text("Label", size="2", weight="bold"),
+            rx.text("Label*", size="2", weight="bold"),
             rx.input(
-                placeholder="Enter a label to name this item (optional)",
+                placeholder="Enter a label to name this item",
                 name="label",
                 width="100%",
+                required=True,
                 default_value=ItemFormDialogState.form_label,
             ),
             width="100%",

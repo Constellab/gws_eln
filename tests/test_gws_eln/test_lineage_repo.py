@@ -54,13 +54,14 @@ class TestLineageRepo(BaseTestCase):
                 item_sheet_id=self._sheet(code).id,
                 quantity=Decimal(quantity),
                 unit="units",
+                label="Test item",
             )
         ).item
 
     def _instrument(self, code: str) -> Item:
         sheet = self._sheet(code, is_consumable=False)
         return ItemService().create_items_bulk(
-            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=[f"{code}-1"])
+            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=[f"{code}-1"], label="Test item")
         )[0]
 
     def _combine(self, item_a, item_b, out_code: str, instrument_ids=None, draw: int = 4) -> Item:
@@ -74,6 +75,7 @@ class TestLineageRepo(BaseTestCase):
                 output_item_sheet_id=out_sheet.id,
                 output_quantity=Decimal(2 * draw),
                 output_unit="units",
+                output_label="Combined output",
                 instrument_item_ids=instrument_ids or [],
             )
         )
@@ -85,7 +87,7 @@ class TestLineageRepo(BaseTestCase):
             SplitItemDTO(
                 quantity_contributed=Decimal(len(out_codes)),
                 unit="units",
-                outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units") for _ in out_codes],
+                outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units", label="Output") for _ in out_codes],
             ),
         )
         return result.outputs

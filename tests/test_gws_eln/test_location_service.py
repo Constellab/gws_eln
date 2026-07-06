@@ -358,6 +358,7 @@ class TestLocationService(BaseTestCase):
                 quantity=Decimal(1),
                 unit="units",
                 location_id=location.id,
+                label="Test item",
             )
         )
 

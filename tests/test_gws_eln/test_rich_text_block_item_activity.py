@@ -34,7 +34,7 @@ class TestRichTextBlockItemActivity(BaseTestCase):
             CreateItemSheetDTO(name=f"Sheet {code}", code=code, unit_type=unit_type)
         )
         return ItemService().create_item(
-            CreateItemDTO(item_sheet_id=sheet.id, quantity=Decimal(quantity), unit=unit)
+            CreateItemDTO(item_sheet_id=sheet.id, quantity=Decimal(quantity), unit=unit, label="Test item")
         ).item
 
     # ------------------------------------------------------ serialization
@@ -83,7 +83,8 @@ class TestRichTextBlockItemActivity(BaseTestCase):
         )
         item = ItemService().create_item(
             CreateItemDTO(
-                item_sheet_id=sheet.id, quantity=Decimal(5), unit="units", location_id=loc_a.id
+                item_sheet_id=sheet.id, quantity=Decimal(5), unit="units", location_id=loc_a.id,
+                label="Test item"
             )
         ).item
         activity = ItemService().move_item(item.id, MoveItemDTO(to_location_id=loc_b.id)).activity

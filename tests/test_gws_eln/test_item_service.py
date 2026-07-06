@@ -1,6 +1,6 @@
 """Test suite for ItemService.
 
-Covers the Item user story: structured code generation (format, per-(sheet,year)
+Covers the Item user story: structured code generation (format, per-sheet
 increment, width-4 padding, >9999 overflow, concurrency retry), status recompute
 (ACTIVE / EXHAUSTED / DISCARDED), serial-number uniqueness, bulk creation,
 consumable/non-consumable guards, and field-coupling validation.
@@ -9,7 +9,7 @@ consumable/non-consumable guards, and field-coupling validation.
 from decimal import Decimal
 from unittest.mock import patch
 
-from gws_core import BadRequestException, BaseTestCase, DateHelper
+from gws_core import BadRequestException, BaseTestCase
 from gws_eln.activities.activity_input_role import ActivityInputRole
 from gws_eln.core.concentration_method import ConcentrationMethod
 from gws_eln.core.unit_type import UnitType
@@ -52,10 +52,6 @@ class TestItemService(BaseTestCase):
 
     # ------------------------------------------------------------------ helpers
 
-    @property
-    def _year(self) -> int:
-        return DateHelper.now_utc().year
-
     def _sheet(self, code: str, *, is_consumable: bool = True, unit_type: UnitType = UnitType.VOLUME):
         """Create an item sheet (consumable VOLUME by default)."""
         return ItemSheetService().create_item_sheet(
@@ -69,6 +65,7 @@ class TestItemService(BaseTestCase):
 
     def _create_consumable(self, sheet, quantity: str = "10", unit: str = "mL", **kwargs) -> Item:
         """Create a single consumable item and return it."""
+        kwargs.setdefault("label", "Test item")
         return ItemService().create_item(
             CreateItemDTO(
                 item_sheet_id=sheet.id, quantity=Decimal(quantity), unit=unit, **kwargs
@@ -86,6 +83,7 @@ class TestItemService(BaseTestCase):
         item = Item()
         item.item_sheet = sheet
         item.code = code
+        item.label = "Raw item"
         item.quantity = Decimal(1)
         item.unit_type = sheet.unit_type
         item.location = LocationService().get_default_location()
@@ -98,8 +96,8 @@ class TestItemService(BaseTestCase):
         sheet = self._sheet("CGN1")
         first = self._create_consumable(sheet)
         second = self._create_consumable(sheet)
-        self.assertEqual(first.code, f"CGN1-{self._year}-0001")
-        self.assertEqual(second.code, f"CGN1-{self._year}-0002")
+        self.assertEqual(first.code, "CGN1-0001")
+        self.assertEqual(second.code, "CGN1-0002")
 
     def test_code_increment_scoped_per_sheet(self):
         sheet_a = self._sheet("CGN2")
@@ -107,14 +105,14 @@ class TestItemService(BaseTestCase):
         item_a = self._create_consumable(sheet_a)
         item_b = self._create_consumable(sheet_b)
         # Independent counters per sheet
-        self.assertEqual(item_a.code, f"CGN2-{self._year}-0001")
-        self.assertEqual(item_b.code, f"CGN3-{self._year}-0001")
+        self.assertEqual(item_a.code, "CGN2-0001")
+        self.assertEqual(item_b.code, "CGN3-0001")
 
     def test_code_overflow_past_9999(self):
         sheet = self._sheet("COVF")
-        self._save_raw_item(sheet, code=f"COVF-{self._year}-9999")
+        self._save_raw_item(sheet, code="COVF-9999")
         nxt = self._create_consumable(sheet)
-        self.assertEqual(nxt.code, f"COVF-{self._year}-10000")
+        self.assertEqual(nxt.code, "COVF-10000")
 
     def test_is_duplicate_code_error_discriminates(self):
         service = ItemService()
@@ -131,16 +129,16 @@ class TestItemService(BaseTestCase):
 
     def test_code_collision_is_retried(self):
         sheet = self._sheet("CRTY")
-        first = self._create_consumable(sheet)  # CRTY-year-0001
+        first = self._create_consumable(sheet)  # CRTY-0001
 
         service = ItemService()
         # First generation returns an already-used code (collision), then a free one.
-        codes = iter([first.code, f"{sheet.code}-{self._year}-0002"])
+        codes = iter([first.code, f"{sheet.code}-0002"])
         with patch.object(service, "_generate_item_code", side_effect=lambda *_a, **_k: next(codes)):
             item = service.create_item(
-                CreateItemDTO(item_sheet_id=sheet.id, quantity=Decimal(5), unit="mL")
+                CreateItemDTO(item_sheet_id=sheet.id, quantity=Decimal(5), unit="mL", label="Test item")
             ).item
-        self.assertEqual(item.code, f"{sheet.code}-{self._year}-0002")
+        self.assertEqual(item.code, f"{sheet.code}-0002")
 
     # ------------------------------------------------------------- status recompute
 
@@ -167,7 +165,7 @@ class TestItemService(BaseTestCase):
     def test_non_consumable_never_exhausted(self):
         sheet = self._sheet("STA5", is_consumable=False, unit_type=UnitType.COUNT)
         items = ItemService().create_items_bulk(
-            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["NX1"])
+            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["NX1"], label="Test item")
         )
         self.assertEqual(items[0].status, ItemStatus.ACTIVE)
 
@@ -176,25 +174,27 @@ class TestItemService(BaseTestCase):
     def test_serial_unique_lab_wide(self):
         sheet = self._sheet("SER1", is_consumable=False, unit_type=UnitType.COUNT)
         ItemService().create_items_bulk(
-            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["UNIQ-1"])
+            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["UNIQ-1"], label="Test item")
         )
         with self.assertRaises(BadRequestException):
             ItemService().create_items_bulk(
-                CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["UNIQ-1"])
+                CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["UNIQ-1"], label="Test item")
             )
 
     def test_serial_set_and_duplicate_via_create_item(self):
         sheet = self._sheet("SER2", is_consumable=False, unit_type=UnitType.COUNT)
         item = ItemService().create_item(
             CreateItemDTO(
-                item_sheet_id=sheet.id, quantity=Decimal(1), unit="units", serial_number="SVC-1"
+                item_sheet_id=sheet.id, quantity=Decimal(1), unit="units", serial_number="SVC-1",
+                label="Test item"
             )
         ).item
         self.assertEqual(item.serial_number, "SVC-1")
         with self.assertRaises(BadRequestException):
             ItemService().create_item(
                 CreateItemDTO(
-                    item_sheet_id=sheet.id, quantity=Decimal(1), unit="units", serial_number="SVC-1"
+                    item_sheet_id=sheet.id, quantity=Decimal(1), unit="units", serial_number="SVC-1",
+                    label="Test item"
                 )
             )
 
@@ -203,12 +203,12 @@ class TestItemService(BaseTestCase):
     def test_bulk_creates_sequential_items(self):
         sheet = self._sheet("BLK1", is_consumable=False, unit_type=UnitType.COUNT)
         items = ItemService().create_items_bulk(
-            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["A1", "A2", "A3"])
+            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["A1", "A2", "A3"], label="Test item")
         )
         self.assertEqual(len(items), 3)
         self.assertEqual(
             sorted(i.code for i in items),
-            [f"BLK1-{self._year}-000{n}" for n in (1, 2, 3)],
+            [f"BLK1-000{n}" for n in (1, 2, 3)],
         )
         self.assertTrue(all(i.quantity == Decimal(1) for i in items))
         self.assertEqual({i.serial_number for i in items}, {"A1", "A2", "A3"})
@@ -217,20 +217,20 @@ class TestItemService(BaseTestCase):
         sheet = self._sheet("BLK2")  # consumable
         with self.assertRaises(BadRequestException):
             ItemService().create_items_bulk(
-                CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["X1"])
+                CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["X1"], label="Test item")
             )
 
     def test_bulk_rejects_duplicate_serial_in_batch(self):
         sheet = self._sheet("BLK3", is_consumable=False, unit_type=UnitType.COUNT)
         with self.assertRaises(BadRequestException):
             ItemService().create_items_bulk(
-                CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["DUP", "DUP"])
+                CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["DUP", "DUP"], label="Test item")
             )
 
     def test_bulk_allows_null_serials(self):
         sheet = self._sheet("BLK4", is_consumable=False, unit_type=UnitType.COUNT)
         items = ItemService().create_items_bulk(
-            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=[None, None])
+            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=[None, None], label="Test item")
         )
         self.assertEqual(len(items), 2)
         self.assertTrue(all(i.serial_number is None for i in items))
@@ -240,7 +240,7 @@ class TestItemService(BaseTestCase):
     def test_consume_non_consumable_raises(self):
         sheet = self._sheet("GRD1", is_consumable=False, unit_type=UnitType.COUNT)
         item = ItemService().create_items_bulk(
-            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["G1"])
+            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["G1"], label="Test item")
         )[0]
         with self.assertRaises(BadRequestException):
             ItemService().consume_quantity(
@@ -255,10 +255,29 @@ class TestItemService(BaseTestCase):
     def test_use_non_consumable_ok(self):
         sheet = self._sheet("GRD3", is_consumable=False, unit_type=UnitType.COUNT)
         item = ItemService().create_items_bulk(
-            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["G3"])
+            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["G3"], label="Test item")
         )[0]
         result = ItemService().use_item(item.id, UseItemDTO())
         self.assertIsNotNone(result.activity)
+
+    # ------------------------------------------------------------- label required
+
+    def test_create_item_requires_label(self):
+        """A blank label is rejected by the service."""
+        sheet = self._sheet("LBL1")
+        with self.assertRaises(BadRequestException):
+            ItemService().create_item(
+                CreateItemDTO(item_sheet_id=sheet.id, quantity=Decimal(5), unit="mL", label="   ")
+            )
+
+    def test_create_item_allows_duplicate_labels(self):
+        """Two items on the same sheet may share the same label."""
+        sheet = self._sheet("LBL2")
+        first = self._create_consumable(sheet, label="Shared label")
+        second = self._create_consumable(sheet, label="Shared label")
+        self.assertEqual(first.label, "Shared label")
+        self.assertEqual(second.label, "Shared label")
+        self.assertNotEqual(first.id, second.id)
 
     # ------------------------------------------------------------- field coupling
 
@@ -267,7 +286,8 @@ class TestItemService(BaseTestCase):
         with self.assertRaises(BadRequestException):
             ItemService().create_item(
                 CreateItemDTO(
-                    item_sheet_id=sheet.id, quantity=Decimal(5), unit="mL", serial_number="NOPE"
+                    item_sheet_id=sheet.id, quantity=Decimal(5), unit="mL", serial_number="NOPE",
+                    label="Test item"
                 )
             )
 
@@ -275,7 +295,7 @@ class TestItemService(BaseTestCase):
         sheet = self._sheet("CPL2", is_consumable=False, unit_type=UnitType.COUNT)
         with self.assertRaises(BadRequestException):
             ItemService().create_item(
-                CreateItemDTO(item_sheet_id=sheet.id, quantity=Decimal(5), unit="units")
+                CreateItemDTO(item_sheet_id=sheet.id, quantity=Decimal(5), unit="units", label="Test item")
             )
 
     # ------------------------------------------------------------------- split
@@ -291,8 +311,8 @@ class TestItemService(BaseTestCase):
                 quantity_contributed=Decimal(7),
                 unit="units",
                 outputs=[
-                    SplitOutputDTO(quantity=Decimal(3), unit="units"),
-                    SplitOutputDTO(quantity=Decimal(4), unit="units"),
+                    SplitOutputDTO(quantity=Decimal(3), unit="units", label="Output A"),
+                    SplitOutputDTO(quantity=Decimal(4), unit="units", label="Output B"),
                 ],
             ),
         )
@@ -312,8 +332,8 @@ class TestItemService(BaseTestCase):
                 quantity_contributed=Decimal(8),
                 unit="units",
                 outputs=[
-                    SplitOutputDTO(quantity=Decimal(3), unit="units"),
-                    SplitOutputDTO(quantity=Decimal(4), unit="units"),
+                    SplitOutputDTO(quantity=Decimal(3), unit="units", label="Output A"),
+                    SplitOutputDTO(quantity=Decimal(4), unit="units", label="Output B"),
                 ],
             ),
         )
@@ -331,8 +351,8 @@ class TestItemService(BaseTestCase):
                     quantity_contributed=Decimal(5),
                     unit="units",
                     outputs=[
-                        SplitOutputDTO(quantity=Decimal(3), unit="units"),
-                        SplitOutputDTO(quantity=Decimal(4), unit="units"),
+                        SplitOutputDTO(quantity=Decimal(3), unit="units", label="Output A"),
+                        SplitOutputDTO(quantity=Decimal(4), unit="units", label="Output B"),
                     ],
                 ),
             )
@@ -345,7 +365,7 @@ class TestItemService(BaseTestCase):
             SplitItemDTO(
                 quantity_contributed=Decimal(5),
                 unit="mL",
-                outputs=[SplitOutputDTO(quantity=Decimal(5), unit="mL")],
+                outputs=[SplitOutputDTO(quantity=Decimal(5), unit="mL", label="Output")],
             ),
         )
         self.assertEqual(ItemService().get_item(source.id).status, ItemStatus.EXHAUSTED)
@@ -359,14 +379,14 @@ class TestItemService(BaseTestCase):
                 SplitItemDTO(
                     quantity_contributed=Decimal(5),
                     unit="mL",
-                    outputs=[SplitOutputDTO(quantity=Decimal(5), unit="mL")],
+                    outputs=[SplitOutputDTO(quantity=Decimal(5), unit="mL", label="Output")],
                 ),
             )
 
     def test_split_non_consumable_fails(self):
         sheet = self._sheet("SPL4", is_consumable=False, unit_type=UnitType.COUNT)
         item = ItemService().create_items_bulk(
-            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["S4"])
+            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["S4"], label="Test item")
         )[0]
         with self.assertRaises(BadRequestException):
             ItemService().split_item(
@@ -374,7 +394,7 @@ class TestItemService(BaseTestCase):
                 SplitItemDTO(
                     quantity_contributed=Decimal(1),
                     unit="units",
-                    outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units")],
+                    outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units", label="Output")],
                 ),
             )
 
@@ -393,6 +413,7 @@ class TestItemService(BaseTestCase):
                 output_item_sheet_id=out_sheet.id,
                 output_quantity=Decimal(10),
                 output_unit="units",
+                output_label="Combined output",
             )
         )
         self.assertEqual(len(result.outputs), 1)
@@ -411,6 +432,7 @@ class TestItemService(BaseTestCase):
                     output_item_sheet_id=out_sheet.id,
                     output_quantity=Decimal(1),
                     output_unit="units",
+                    output_label="Combined output",
                 )
             )
 
@@ -425,6 +447,7 @@ class TestItemService(BaseTestCase):
                 unit="units",
                 output_quantity=Decimal(4),
                 output_unit="units",
+                output_label="Concentrated output",
             ),
         )
         self.assertEqual(len(result.outputs), 1)
@@ -444,6 +467,7 @@ class TestItemService(BaseTestCase):
                 output_quantity=Decimal(4),
                 output_unit="units",
                 concentration_method=ConcentrationMethod.LYOPHILIZATION,
+                output_label="Concentrated output",
             ),
         )
         self.assertEqual(
@@ -453,7 +477,7 @@ class TestItemService(BaseTestCase):
     def test_concentrate_non_consumable_fails(self):
         sheet = self._sheet("CON2", is_consumable=False, unit_type=UnitType.COUNT)
         item = ItemService().create_items_bulk(
-            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["C2"])
+            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=["C2"], label="Test item")
         )[0]
         with self.assertRaises(BadRequestException):
             ItemService().concentrate_item(
@@ -463,6 +487,7 @@ class TestItemService(BaseTestCase):
                     unit="units",
                     output_quantity=Decimal(1),
                     output_unit="units",
+                    output_label="Concentrated output",
                 ),
             )
 
@@ -483,6 +508,7 @@ class TestItemService(BaseTestCase):
                 ],
                 output_quantity=Decimal(10),
                 output_unit="units",
+                output_label="Diluted output",
             ),
         )
         self.assertEqual(len(result.outputs), 1)
@@ -506,6 +532,7 @@ class TestItemService(BaseTestCase):
                 ],
                 output_quantity=Decimal(9),
                 output_unit="units",
+                output_label="Diluted output",
             ),
         )
         self.assertEqual(len(result.outputs), 1)
@@ -527,6 +554,7 @@ class TestItemService(BaseTestCase):
                     diluents=[],
                     output_quantity=Decimal(5),
                     output_unit="units",
+                    output_label="Diluted output",
                 ),
             )
 
@@ -536,7 +564,7 @@ class TestItemService(BaseTestCase):
         """Create a non-consumable item usable as an INSTRUMENT input."""
         sheet = self._sheet(code, is_consumable=False, unit_type=UnitType.COUNT)
         return ItemService().create_items_bulk(
-            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=[serial])
+            CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=[serial], label="Test item")
         )[0]
 
     def _instrument_input_ids(self, activity) -> set[str]:
@@ -567,7 +595,7 @@ class TestItemService(BaseTestCase):
             SplitItemDTO(
                 quantity_contributed=Decimal(3),
                 unit="units",
-                outputs=[SplitOutputDTO(quantity=Decimal(3), unit="units")],
+                outputs=[SplitOutputDTO(quantity=Decimal(3), unit="units", label="Output")],
                 instrument_item_ids=[pipette.id],
             ),
         )
@@ -587,6 +615,7 @@ class TestItemService(BaseTestCase):
                 output_item_sheet_id=out_sheet.id,
                 output_quantity=Decimal(10),
                 output_unit="units",
+                output_label="Combined output",
                 instrument_item_ids=[centrifuge.id],
             )
         )
@@ -602,6 +631,7 @@ class TestItemService(BaseTestCase):
                 unit="units",
                 output_quantity=Decimal(4),
                 output_unit="units",
+                output_label="Concentrated output",
                 instrument_item_ids=[rotovap.id],
             ),
         )
@@ -623,6 +653,7 @@ class TestItemService(BaseTestCase):
                 ],
                 output_quantity=Decimal(10),
                 output_unit="units",
+                output_label="Diluted output",
                 instrument_item_ids=[vortex.id],
             ),
         )
@@ -638,7 +669,7 @@ class TestItemService(BaseTestCase):
                 SplitItemDTO(
                     quantity_contributed=Decimal(1),
                     unit="units",
-                    outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units")],
+                    outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units", label="Output")],
                     instrument_item_ids=[consumable.id],
                 ),
             )
@@ -653,7 +684,7 @@ class TestItemService(BaseTestCase):
                 SplitItemDTO(
                     quantity_contributed=Decimal(1),
                     unit="units",
-                    outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units")],
+                    outputs=[SplitOutputDTO(quantity=Decimal(1), unit="units", label="Output")],
                     instrument_item_ids=[instrument.id],
                 ),
             )
