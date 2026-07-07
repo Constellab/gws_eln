@@ -69,7 +69,11 @@ def _consumable_quantity_section(
 
 
 def _bulk_units_section() -> rx.Component:
-    """Number of units + one serial input per unit (non-consumable, qty 1 each)."""
+    """Number of units + one serial input per unit.
+
+    Serialized units become distinct items (qty 1); units left without a serial
+    are indistinguishable and are stacked into a single item.
+    """
     return rx.vstack(
         rx.vstack(
             rx.text("Number of units", size="2", weight="bold"),
@@ -83,7 +87,18 @@ def _bulk_units_section() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        rx.text("Serial numbers", size="2", weight="bold"),
+        rx.hstack(
+            rx.text("Serial numbers", size="2", weight="bold"),
+            rx.tooltip(
+                rx.icon("info", size=14, color="gray"),
+                content=(
+                    "Units left without a serial number are indistinguishable and "
+                    "grouped into a single stacked item."
+                ),
+            ),
+            align="center",
+            spacing="1",
+        ),
         rx.foreach(
             ItemFormDialogState.form_serials,
             lambda serial, index: rx.input(

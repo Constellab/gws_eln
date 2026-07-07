@@ -199,11 +199,14 @@ class ItemService:
 
     @ElnDbManager.transaction()
     def create_items_bulk(self, dto: CreateItemsBulkDTO) -> list[Item]:
-        """Create several serialized non-consumable items in one atomic action.
+        """Create non-consumable items in one atomic action, stacking indistinguishable units.
 
-        One Item is created per entry in ``dto.serial_numbers`` (quantity 1 each,
-        unit type from the sheet), with sequential codes (MAX+1, MAX+2, ...). Each
-        unit gets its own RECEIVE activity so it has an independent history.
+        Each unit given a serial number is a distinct (dissociable) physical unit
+        and becomes its own Item with quantity 1. Units left without a serial are
+        indistinguishable and collapse into a single stacked Item whose quantity
+        is their count. Example: 4 units with 1 serial -> two items, one serialized
+        (qty 1) and one stacked (qty 3). Codes are sequential (MAX+1, MAX+2, ...)
+        and each created item gets its own RECEIVE activity.
 
         :param dto: Shared fields + one serial number per unit (None/empty allowed)
         :type dto: CreateItemsBulkDTO
@@ -247,11 +250,21 @@ class ItemService:
         notes = dto.notes.strip() if dto.notes else None
         unit_type = item_sheet.unit_type
 
+        # Each serialized unit stays dissociable: its own item with quantity 1.
+        # All serial-less units are indistinguishable, so they collapse into a
+        # single stacked item whose quantity is their count.
+        units: list[tuple[str | None, Decimal]] = [
+            (serial, Decimal(1)) for serial in serials if serial
+        ]
+        unserialized_count = sum(1 for serial in serials if not serial)
+        if unserialized_count > 0:
+            units.append((None, Decimal(unserialized_count)))
+
         created: list[Item] = []
-        for serial in serials:
+        for serial, quantity in units:
             item = Item()
             item.item_sheet = item_sheet
-            item.quantity = Decimal(1)
+            item.quantity = quantity
             item.unit_type = unit_type
             item.concentration = dto.concentration
             item.concentration_unit = dto.concentration_unit or None
@@ -264,20 +277,20 @@ class ItemService:
             item.supplier = supplier
             self._save_with_unique_code(item, item_sheet)
 
-            # One RECEIVE activity per unit (0 inputs, 1 output) so each unit has
-            # its own history.
+            # One RECEIVE activity per created item (0 inputs, 1 output) so each
+            # entry has its own history.
             self._activity_service.log_activity(
                 CreateActivityDTO(
                     activity_type=ActivityType.RECEIVE,
                     item_id=item.id,
-                    quantity=Decimal(1),
+                    quantity=quantity,
                     unit_type=unit_type,
                     notes=dto.notes,
                     note_id=dto.note_id,
                     outputs=[
                         CreateActivityOutputDTO(
                             item_id=item.id,
-                            quantity=Decimal(1),
+                            quantity=quantity,
                             unit_type=unit_type,
                         )
                     ],

@@ -43,12 +43,12 @@ class CreateItemDTO(BaseModelDTO):
 
 
 class CreateItemsBulkDTO(BaseModelDTO):
-    """DTO for creating several serialized non-consumable items in one action.
+    """DTO for creating non-consumable items in one action, stacking indistinguishable units.
 
-    One Item is created per entry in ``serial_numbers`` (one physical unit each,
-    quantity 1, unit type from the item sheet). Entries may be None/empty for
-    units received without a serial yet. All other fields are shared by every
-    created item.
+    Each entry in ``serial_numbers`` is one physical unit. Serialized entries
+    become their own Item (quantity 1, dissociable); entries left None/empty are
+    indistinguishable and collapse into a single stacked Item whose quantity is
+    their count. All other fields are shared by every created item.
     """
 
     item_sheet_id: str
