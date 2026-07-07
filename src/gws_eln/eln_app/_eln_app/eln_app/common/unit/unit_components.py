@@ -65,6 +65,7 @@ def quantity_unit_input(
     volume_units = UnitConverter.get_units_for_select(UnitType.VOLUME)
     mass_units = UnitConverter.get_units_for_select(UnitType.MASS)
     length_units = UnitConverter.get_units_for_select(UnitType.LENGTH)
+    mole_units = UnitConverter.get_units_for_select(UnitType.MOLE)
     count_units = UnitConverter.get_units_for_select(UnitType.COUNT)
 
     unit_select = rx.select.root(
@@ -88,6 +89,12 @@ def quantity_unit_input(
                     UnitType.LENGTH.value,
                     rx.fragment(
                         *[rx.select.item(label, value=symbol) for symbol, label in length_units]
+                    ),
+                ),
+                (
+                    UnitType.MOLE.value,
+                    rx.fragment(
+                        *[rx.select.item(label, value=symbol) for symbol, label in mole_units]
                     ),
                 ),
                 (

@@ -17,13 +17,15 @@ class UnitConverter:
     - Volume: L (liters)
     - Mass: g (grams)
     - Length: m (meters)
+    - Mole: mol (amount of substance)
     - Count: units (discrete count)
 
     Supported user units:
-    - Volume: L, mL, µL (uL)
-    - Mass: kg, g, mg, µg (ug)
-    - Length: m, cm, mm
-    - Count: units
+    - Volume: L, mL, µL (uL), nL
+    - Mass: kg, g, mg, µg (ug), ng
+    - Length: m, cm, mm, µm (um)
+    - Mole: mol, mmol, µmol (umol), nmol, pmol
+    - Count: pcs, cells, copies, CFU
     """
 
     # Conversion factors to base units
@@ -34,6 +36,7 @@ class UnitConverter:
             "mL": Decimal("0.001"),
             "µL": Decimal("0.000001"),
             "uL": Decimal("0.000001"),  # Alternative notation for µL
+            "nL": Decimal("0.000000001"),
         },
         UnitType.MASS: {
             "kg": Decimal("1000"),
@@ -41,14 +44,31 @@ class UnitConverter:
             "mg": Decimal("0.001"),
             "µg": Decimal("0.000001"),
             "ug": Decimal("0.000001"),  # Alternative notation for µg
+            "ng": Decimal("0.000000001"),
         },
         UnitType.LENGTH: {
             "m": Decimal("1"),
             "cm": Decimal("0.01"),
             "mm": Decimal("0.001"),
+            "µm": Decimal("0.000001"),
+            "um": Decimal("0.000001"),  # Alternative notation for µm
+        },
+        UnitType.MOLE: {
+            "mol": Decimal("1"),
+            "mmol": Decimal("0.001"),
+            "µmol": Decimal("0.000001"),
+            "umol": Decimal("0.000001"),  # Alternative notation for µmol
+            "nmol": Decimal("0.000000001"),
+            "pmol": Decimal("0.000000000001"),
         },
         UnitType.COUNT: {
+            # "units" is kept as the (hidden) factor-1 base for backward
+            # compatibility; every selectable count unit is discrete (factor 1).
             "units": Decimal("1"),
+            "pcs": Decimal("1"),
+            "cells": Decimal("1"),
+            "copies": Decimal("1"),
+            "CFU": Decimal("1"),
         },
     }
 
@@ -57,6 +77,7 @@ class UnitConverter:
         UnitType.VOLUME: "L",
         UnitType.MASS: "g",
         UnitType.LENGTH: "m",
+        UnitType.MOLE: "mol",
         UnitType.COUNT: "units",
     }
 
@@ -71,15 +92,29 @@ class UnitConverter:
         "mL": "mL (milliliters)",
         "µL": "µL (microliters)",
         "uL": "µL (microliters)",
+        "nL": "nL (nanoliters)",
         "kg": "kg (kilograms)",
         "g": "g (grams)",
         "mg": "mg (milligrams)",
         "µg": "µg (micrograms)",
         "ug": "µg (micrograms)",
+        "ng": "ng (nanograms)",
         "m": "m (meters)",
         "cm": "cm (centimeters)",
         "mm": "mm (millimeters)",
+        "µm": "µm (micrometers)",
+        "um": "µm (micrometers)",
+        "mol": "mol (moles)",
+        "mmol": "mmol (millimoles)",
+        "µmol": "µmol (micromoles)",
+        "umol": "µmol (micromoles)",
+        "nmol": "nmol (nanomoles)",
+        "pmol": "pmol (picomoles)",
         "units": "units",
+        "pcs": "pcs (pieces)",
+        "cells": "cells",
+        "copies": "copies",
+        "CFU": "CFU (colony-forming units)",
     }
 
     # Default units to preselect for each unit type
@@ -87,15 +122,17 @@ class UnitConverter:
         UnitType.VOLUME: "mL",
         UnitType.MASS: "g",
         UnitType.LENGTH: "cm",
-        UnitType.COUNT: "units",
+        UnitType.MOLE: "mmol",
+        UnitType.COUNT: "pcs",
     }
 
     # Display order of units for each type (excluding aliases)
     UNIT_ORDER: dict[UnitType, list[str]] = {
-        UnitType.VOLUME: ["L", "mL", "µL"],
-        UnitType.MASS: ["kg", "g", "mg", "µg"],
-        UnitType.LENGTH: ["m", "cm", "mm"],
-        UnitType.COUNT: ["units"],
+        UnitType.VOLUME: ["L", "mL", "µL", "nL"],
+        UnitType.MASS: ["kg", "g", "mg", "µg", "ng"],
+        UnitType.LENGTH: ["m", "cm", "mm", "µm"],
+        UnitType.MOLE: ["mol", "mmol", "µmol", "nmol", "pmol"],
+        UnitType.COUNT: ["pcs", "cells", "copies", "CFU"],
     }
 
     @staticmethod

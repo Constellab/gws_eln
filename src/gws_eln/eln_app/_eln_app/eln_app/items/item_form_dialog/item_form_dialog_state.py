@@ -316,7 +316,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         sheets create N serialized units in one action (the bulk path).
         """
         if not self._item_sheet:
-            raise ReflexAppException("ItemSheet is required")
+            raise ReflexAppException("Item sheet is required")
 
         # Collect mode: hand the spec to the caller, do not persist.
         if self._collect_callback is not None:
@@ -426,7 +426,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
             item = item_service.create_item(dto)
 
         # Show success toast
-        yield rx.toast.success("ItemSheet item created successfully")
+        yield rx.toast.success("Item sheet item created successfully")
 
         if self._callback_after_close:
             await self._callback_after_close(item.to_dto())

@@ -64,7 +64,7 @@ def _details_sidebar() -> rx.Component:
     return rx.vstack(
         # Heading with close button
         rx.hstack(
-            _sidebar_section_label("ItemSheet details"),
+            _sidebar_section_label("Item sheet details"),
             rx.spacer(),
             right_sidebar_close_button(),
             width="100%",
@@ -238,7 +238,7 @@ def item_sheet_detail_page() -> rx.Component:
                                 rx.vstack(
                                     rx.icon("package-x", size=48, color="gray"),
                                     rx.text(
-                                        "ItemSheet not found",
+                                        "Item sheet not found",
                                         size="4",
                                         color="gray",
                                         margin_top="1rem",

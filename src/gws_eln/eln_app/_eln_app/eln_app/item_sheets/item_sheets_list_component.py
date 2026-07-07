@@ -24,7 +24,7 @@ def _filter_bar() -> rx.Component:
     return rx.hstack(
         # Search input
         rx.input(
-            placeholder="Search item_sheets...",
+            placeholder="Search item sheets...",
             value=ItemSheetsListState.search_text,
             on_change=ItemSheetsListState.handle_search_change,
             width="200px",
@@ -79,7 +79,7 @@ def _create_item_sheet_button() -> rx.Component:
     return rx.fragment(
         rx.button(
             rx.icon("plus", size=18),
-            "Create New ItemSheet",
+            "Create new item sheet",
             size="3",
             on_click=ItemSheetsListState.open_create_dialog,
         ),
@@ -185,7 +185,7 @@ def item_sheets_list_page() -> rx.Component:
                             rx.vstack(
                                 rx.icon("package", size=48, color="gray"),
                                 rx.text(
-                                    "No item_sheets found",
+                                    "No item sheets found",
                                     size="4",
                                     color="gray",
                                     margin_top="1rem",
@@ -202,7 +202,7 @@ def item_sheets_list_page() -> rx.Component:
                 spacing="4",
             ),
             header_content=rx.hstack(
-                rx.heading("ItemSheets", size="6"),
+                rx.heading("Item sheets", size="6"),
                 _create_item_sheet_button(),
                 justify="between",
                 align="center",

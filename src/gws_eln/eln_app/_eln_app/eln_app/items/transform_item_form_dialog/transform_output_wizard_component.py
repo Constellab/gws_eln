@@ -59,7 +59,7 @@ def _step_pill(number: str, label: str, active: rx.Var) -> rx.Component:
 
 def _step_indicator() -> rx.Component:
     return rx.hstack(
-        _step_pill("1", "ItemSheet", _S.output_step1_active),
+        _step_pill("1", "Item sheet", _S.output_step1_active),
         rx.divider(width="24px"),
         _step_pill("2", "Item", _S.output_step2_active),
         align="center",
@@ -103,14 +103,14 @@ def _step1_select() -> rx.Component:
                 selected_item=None,
                 item_selected=_S.select_output_sheet,
                 search_trigger=_OSS.search,
-                placeholder="Search a consumable ItemSheet…",
+                placeholder="Search a consumable item sheet…",
                 min_input_search_length=0,
                 init_search_on_focus=True,
             ),
             _or_divider(),
             rx.button(
                 rx.icon("plus", size=16),
-                "Create a new ItemSheet",
+                "Create a new item sheet",
                 type="button",
                 variant="outline",
                 width="100%",

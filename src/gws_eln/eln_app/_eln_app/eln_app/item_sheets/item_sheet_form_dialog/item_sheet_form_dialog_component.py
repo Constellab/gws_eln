@@ -23,10 +23,10 @@ def _form_content() -> rx.Component:
         # In update mode the code is hidden, so the name fills the row.
         rx.hstack(
             rx.vstack(
-                rx.text("ItemSheet Name*", size="2", weight="bold"),
+                rx.text("Item sheet name*", size="2", weight="bold"),
                 rx.debounce_input(
                     rx.input(
-                        placeholder="Enter item_sheet name",
+                        placeholder="Enter item sheet name",
                         name="name",
                         required=True,
                         width="100%",
@@ -65,44 +65,13 @@ def _form_content() -> rx.Component:
             spacing="3",
             align="end",
         ),
-        # Description field
-        rx.vstack(
-            rx.text("Description", size="2", weight="bold"),
-            rx.text_area(
-                placeholder="Enter item_sheet description (optional)",
-                name="description",
-                width="100%",
-                default_value=ItemSheetFormDialogState.form_description,
-                rows="3",
-            ),
-            width="100%",
-            spacing="1",
-        ),
         # Default Supplier (50%) + Unit type (50%) on one line.
         rx.hstack(
-            rx.vstack(
-                rx.text("Default Supplier", size="2", weight="bold"),
-                rx.select.root(
-                    rx.select.trigger(placeholder="Select a supplier (optional)", width="100%"),
-                    rx.select.content(
-                        rx.select.item("No supplier", value="__none__"),
-                        rx.foreach(
-                            ItemSheetFormDialogState.available_suppliers, _supplier_option
-                        ),
-                    ),
-                    value=ItemSheetFormDialogState.form_supplier_id,
-                    on_change=ItemSheetFormDialogState.set_supplier_id,
-                    width="100%",
-                ),
-                flex="1",
-                min_width="0",
-                spacing="1",
-            ),
             # Unit Type (immutable once the sheet has at least an item)
             rx.vstack(
-                rx.text("Unit type to use for quantity", size="2", weight="bold"),
+                rx.text("Unit type to use for quantity*", size="2", weight="bold"),
                 rx.select.root(
-                    rx.select.trigger(placeholder="Select unit type", width="100%"),
+                    rx.select.trigger(placeholder="Select a unit type", width="100%"),
                     rx.select.content(
                         rx.foreach(
                             ItemSheetFormDialogState.unit_type_options,
@@ -126,9 +95,38 @@ def _form_content() -> rx.Component:
                 min_width="0",
                 spacing="1",
             ),
+            rx.vstack(
+                rx.text("Default Supplier", size="2", weight="bold"),
+                rx.select.root(
+                    rx.select.trigger(placeholder="Select a supplier (optional)", width="100%"),
+                    rx.select.content(
+                        rx.select.item("No supplier", value="__none__"),
+                        rx.foreach(ItemSheetFormDialogState.available_suppliers, _supplier_option),
+                    ),
+                    value=ItemSheetFormDialogState.form_supplier_id,
+                    on_change=ItemSheetFormDialogState.set_supplier_id,
+                    width="100%",
+                ),
+                flex="1",
+                min_width="0",
+                spacing="1",
+            ),
             width="100%",
             spacing="3",
             align="start",
+        ),
+        # Description field
+        rx.vstack(
+            rx.text("Description", size="2", weight="bold"),
+            rx.text_area(
+                placeholder="Enter item sheet description (optional)",
+                name="description",
+                width="100%",
+                default_value=ItemSheetFormDialogState.form_description,
+                rows="3",
+            ),
+            width="100%",
+            spacing="1",
         ),
         # Storage conditions field (default for items of this sheet)
         rx.vstack(
@@ -157,10 +155,10 @@ def _form_content() -> rx.Component:
                     on_change=ItemSheetFormDialogState.set_is_consumable,
                     disabled=ItemSheetFormDialogState.consumable_locked,
                 ),
-                rx.text("Consumable item_sheet", size="2"),
+                rx.text("Consumable item sheet", size="2"),
                 rx.tooltip(
                     rx.icon("info", size=14, color="gray"),
-                    content="Consumable item_sheets (chemicals, reagents) have quantity that decreases with use. Non-consumables (instruments, equipment) are tracked by reference only.",
+                    content="Consumable item sheets (chemicals, reagents) have quantity that decreases with use. Non-consumables (instruments, equipment) are tracked by reference only.",
                 ),
                 spacing="2",
                 align="center",
@@ -182,12 +180,12 @@ def _dialog() -> rx.Component:
     return form_dialog_component(
         state=ItemSheetFormDialogState,
         title=rx.cond(
-            ItemSheetFormDialogState.is_update_mode, "Update ItemSheet", "Create New ItemSheet"
+            ItemSheetFormDialogState.is_update_mode, "Update item sheet", "Create new item sheet"
         ),
         description=rx.cond(
             ItemSheetFormDialogState.is_update_mode,
-            "Update the item_sheet details below.",
-            "Fill in the details below to create a new item_sheet.",
+            "Update the item sheet details below.",
+            "Fill in the details below to create a new item sheet.",
         ),
         form_content=_form_content(),
         max_width="500px",

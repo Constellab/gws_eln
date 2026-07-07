@@ -29,7 +29,8 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
     form_description: str = ""
     form_supplier_id: str = "__none__"
     form_is_consumable: bool = True
-    form_unit_type: str = UnitType.COUNT.value
+    # No default: the user must explicitly pick a unit type (empty = sentinel).
+    form_unit_type: str = ""
     form_storage_conditions: str = ""
 
     # True once the user types in the code field: stops the live name->code
@@ -53,10 +54,14 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
     def unit_type_options(self) -> list[dict[str, str]]:
         """Get unit type options for the select dropdown."""
         return [
-            {"value": UnitType.COUNT.value, "label": "Count (units)"},
-            {"value": UnitType.MASS.value, "label": "Mass (g, kg, mg)"},
-            {"value": UnitType.VOLUME.value, "label": "Volume (L, mL, uL)"},
-            {"value": UnitType.LENGTH.value, "label": "Length (m, cm, mm)"},
+            {"value": UnitType.COUNT.value, "label": "Count (pcs, cells, copies, CFU)"},
+            {"value": UnitType.MASS.value, "label": "Mass (kg, g, mg, µg, ng)"},
+            {"value": UnitType.VOLUME.value, "label": "Volume (L, mL, µL, nL)"},
+            {"value": UnitType.LENGTH.value, "label": "Length (m, cm, mm, µm)"},
+            {
+                "value": UnitType.MOLE.value,
+                "label": "Amount of substance (mol, mmol, µmol, nmol, pmol)",
+            },
         ]
 
     async def _load_suppliers(self):
@@ -89,7 +94,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         self.form_description = ""
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_is_consumable = True
-        self.form_unit_type = UnitType.COUNT.value
+        self.form_unit_type = ""
         self.form_storage_conditions = ""
         self.unit_type_locked = False
         self.code_manually_edited = False
@@ -218,11 +223,13 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
             else None
         )
         is_consumable = self.form_is_consumable
-        unit_type = UnitType(self.form_unit_type)
 
         # Validate required fields
         if not name:
-            raise ReflexAppException("ItemSheet name is required")
+            raise ReflexAppException("Item sheet name is required")
+        if not self.form_unit_type:
+            raise ReflexAppException("Unit type is required")
+        unit_type = UnitType(self.form_unit_type)
 
         return name, description, supplier_id, is_consumable, unit_type, storage_conditions
 
@@ -260,7 +267,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
             item_sheet = item_sheet_service.create_item_sheet(dto)
 
         # Show success toast
-        yield rx.toast.success("ItemSheet created successfully")
+        yield rx.toast.success("Item sheet created successfully")
 
         if self._callback_after_close:
             await self._callback_after_close(item_sheet.to_dto())
@@ -297,7 +304,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
             item_sheet = item_sheet_service.update_item_sheet(self._editing_item_sheet.id, dto)
 
         # Show success toast
-        yield rx.toast.success("ItemSheet updated successfully")
+        yield rx.toast.success("Item sheet updated successfully")
 
         if self._callback_after_close:
             await self._callback_after_close(item_sheet.to_dto())
@@ -310,7 +317,7 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
         self.form_description = ""
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_is_consumable = True
-        self.form_unit_type = UnitType.COUNT.value
+        self.form_unit_type = ""
         self.form_storage_conditions = ""
         self.unit_type_locked = False
         self.is_update_mode = False

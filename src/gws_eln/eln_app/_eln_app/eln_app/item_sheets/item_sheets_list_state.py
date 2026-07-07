@@ -52,7 +52,7 @@ class ItemSheetsListState(rx.State):
         """
         main_state = await self.get_state(ReflexMainState)
         if not await main_state.check_authentication():
-            self.error_message = "You must be authenticated to view item_sheets"
+            self.error_message = "You must be authenticated to view item sheets"
             return
 
         self.is_loading = True
@@ -174,8 +174,8 @@ class ItemSheetsListState(rx.State):
         delete_dialog_state = await self.get_state(ConfirmDialogState)
 
         delete_dialog_state.open_dialog(
-            title="Delete ItemSheet",
-            content=f"Are you sure you want to delete the item_sheet '{item_sheet.name}'?",
+            title="Delete item sheet",
+            content=f"Are you sure you want to delete the item sheet '{item_sheet.name}'?",
             action=lambda: self._delete_action(item_sheet.id),
         )
 
@@ -190,7 +190,7 @@ class ItemSheetsListState(rx.State):
             item_sheet_service = ItemSheetService()
             item_sheet_service.delete_item_sheet(item_sheet_id)
 
-        yield rx.toast.success("ItemSheet deleted successfully")
+        yield rx.toast.success("Item sheet deleted successfully")
 
         await self.load_item_sheets()
 

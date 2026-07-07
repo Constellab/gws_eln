@@ -23,7 +23,7 @@ def _form_content() -> rx.Component:
                 spacing="1",
             ),
             rx.vstack(
-                rx.text("ItemSheet", size="2", weight="bold"),
+                rx.text("Item sheet", size="2", weight="bold"),
                 rx.text(
                     UpdateItemFormDialogState.item_sheet_name,
                     size="2",

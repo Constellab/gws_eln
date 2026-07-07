@@ -17,8 +17,11 @@ class UnitTypeSelectState(rx.State):
     def unit_types(self) -> list[UnitTypeSelectDTO]:
         """Get all unit types for the select dropdown."""
         return [
-            UnitTypeSelectDTO(value=UnitType.COUNT.value, label="Count (units)"),
-            UnitTypeSelectDTO(value=UnitType.MASS.value, label="Mass (g, kg, mg)"),
-            UnitTypeSelectDTO(value=UnitType.VOLUME.value, label="Volume (L, mL, uL)"),
-            UnitTypeSelectDTO(value=UnitType.LENGTH.value, label="Length (m, cm, mm)"),
+            UnitTypeSelectDTO(value=UnitType.COUNT.value, label="Count (pcs, cells, copies, CFU)"),
+            UnitTypeSelectDTO(value=UnitType.MASS.value, label="Mass (kg, g, mg, µg, ng)"),
+            UnitTypeSelectDTO(value=UnitType.VOLUME.value, label="Volume (L, mL, µL, nL)"),
+            UnitTypeSelectDTO(value=UnitType.LENGTH.value, label="Length (m, cm, mm, µm)"),
+            UnitTypeSelectDTO(
+                value=UnitType.MOLE.value, label="Amount of substance (mol, mmol, µmol, nmol, pmol)"
+            ),
         ]

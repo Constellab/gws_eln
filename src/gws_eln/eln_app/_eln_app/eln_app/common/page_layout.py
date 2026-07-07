@@ -23,7 +23,7 @@ def sidebar_content() -> rx.Component:
             ),
             menu_item_component(
                 "package",
-                "ItemSheets",
+                "Item sheets",
                 "/item_sheets",
                 additional_active_route_prefixes=["/item_sheets", "/items"],
             ),

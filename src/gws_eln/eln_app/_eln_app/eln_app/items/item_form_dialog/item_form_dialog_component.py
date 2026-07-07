@@ -112,7 +112,7 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
         # ItemSheet + Code (read-only, side by side, equal width)
         rx.hstack(
             rx.vstack(
-                rx.text("ItemSheet", size="2", weight="bold"),
+                rx.text("Item sheet", size="2", weight="bold"),
                 rx.text(
                     ItemFormDialogState.item_sheet_name,
                     size="2",
@@ -248,7 +248,7 @@ def _dialog() -> rx.Component:
     return form_dialog_component(
         state=ItemFormDialogState,
         title="Create New Item",
-        description="Fill in the details below to create a new item_sheet item.",
+        description="Fill in the details below to create a new item sheet item.",
         form_content=_form_content(),
         max_width="550px",
         dismissable=False,

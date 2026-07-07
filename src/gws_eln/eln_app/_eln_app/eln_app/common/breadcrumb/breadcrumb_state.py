@@ -44,7 +44,7 @@ class BreadcrumbState(rx.State):
         :rtype: list[BreadcrumbItem]
         """
         # Start with base breadcrumb - ItemSheets list
-        items = [BreadcrumbItem(label="ItemSheets", url=ElnAppRouter.get_item_sheet_list_url())]
+        items = [BreadcrumbItem(label="Item sheets", url=ElnAppRouter.get_item_sheet_list_url())]
 
         # Check if we're on a item_sheet detail page
         item_sheet_id = self.item_sheet_id

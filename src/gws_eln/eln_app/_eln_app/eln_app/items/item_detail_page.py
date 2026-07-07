@@ -115,7 +115,7 @@ def _details_sidebar() -> rx.Component:
                 ),
             ),
             # ItemSheet
-            rx.text("ItemSheet", size="2", color="gray", weight="medium"),
+            rx.text("Item sheet", size="2", color="gray", weight="medium"),
             inline_item_sheet_link(ItemDetailState.item.item_sheet),
             # Location
             rx.text("Location", size="2", color="gray", weight="medium"),

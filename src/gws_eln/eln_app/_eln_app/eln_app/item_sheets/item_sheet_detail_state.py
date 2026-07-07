@@ -28,7 +28,7 @@ class ItemSheetDetailState(rx.State):
         """
         main_state = await self.get_state(ReflexMainState)
         if not await main_state.check_authentication():
-            self.error_message = "You must be authenticated to view this item_sheet"
+            self.error_message = "You must be authenticated to view this item sheet"
             return
 
         self.is_loading = True
@@ -43,11 +43,11 @@ class ItemSheetDetailState(rx.State):
             if item_sheet:
                 self.item_sheet = item_sheet.to_dto()
             else:
-                self.error_message = "ItemSheet not found"
+                self.error_message = "Item sheet not found"
                 self.item_sheet = None
 
         except Exception as e:
-            self.error_message = f"Error loading item_sheet: {str(e)}"
+            self.error_message = f"Error loading item sheet: {str(e)}"
             self.item_sheet = None
         finally:
             self.is_loading = False
@@ -60,7 +60,7 @@ class ItemSheetDetailState(rx.State):
         if item_sheet_id:
             await self.load_item_sheet(item_sheet_id)
         else:
-            self.error_message = "No item_sheet ID provided"
+            self.error_message = "No item sheet ID provided"
 
     @rx.event
     async def open_update_dialog(self):
@@ -83,8 +83,8 @@ class ItemSheetDetailState(rx.State):
 
         delete_dialog_state = await self.get_state(ConfirmDialogState)
         delete_dialog_state.open_dialog(
-            title="Delete ItemSheet",
-            content=f"Are you sure you want to delete the item_sheet '{self.item_sheet.name}'?",
+            title="Delete item sheet",
+            content=f"Are you sure you want to delete the item sheet '{self.item_sheet.name}'?",
             action=lambda: self._delete_action(self.item_sheet.id),
         )
 
@@ -99,5 +99,5 @@ class ItemSheetDetailState(rx.State):
             item_sheet_service = ItemSheetService()
             item_sheet_service.delete_item_sheet(item_sheet_id)
 
-        yield rx.toast.success("ItemSheet deleted successfully")
+        yield rx.toast.success("Item sheet deleted successfully")
         yield rx.redirect(ElnAppRouter.get_item_sheet_list_url())

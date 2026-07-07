@@ -12,7 +12,7 @@ def _form_content() -> rx.Component:
     return rx.vstack(
         # ItemSheet Name (read-only display)
         rx.vstack(
-            rx.text("ItemSheet", size="2", weight="bold"),
+            rx.text("Item sheet", size="2", weight="bold"),
             rx.text(
                 RelabelItemFormDialogState.item_sheet_name,
                 size="2",
