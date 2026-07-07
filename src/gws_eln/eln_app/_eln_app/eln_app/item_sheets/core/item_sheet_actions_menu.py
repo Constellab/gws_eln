@@ -6,7 +6,7 @@ import reflex as rx
 def item_sheet_actions_menu(
     on_update: rx.EventHandler | Callable,
     on_delete: rx.EventHandler | Callable,
-    on_create_item: rx.EventHandler | Callable,
+    on_create_item: rx.EventHandler | Callable | None = None,
     stop_propagation: bool = False,
 ) -> rx.Component:
     """Create the actions menu for a item_sheet.
@@ -15,8 +15,9 @@ def item_sheet_actions_menu(
     :type on_update: rx.EventHandler | Callable
     :param on_delete: Event handler for the delete action
     :type on_delete: rx.EventHandler | Callable
-    :param on_create_item: Event handler to create an item for this sheet.
-    :type on_create_item: rx.EventHandler | Callable
+    :param on_create_item: Optional event handler to create an item for this sheet.
+        When provided, a "Create item" entry is added at the top of the menu.
+    :type on_create_item: rx.EventHandler | Callable | None
     :param stop_propagation: Whether to stop event propagation (useful in table rows)
     :type stop_propagation: bool
     :return: The actions menu component
@@ -25,6 +26,17 @@ def item_sheet_actions_menu(
 
     def _click(handler: rx.EventHandler | Callable):
         return [rx.stop_propagation, handler] if stop_propagation else handler
+
+    create_item_entries = []
+    if on_create_item is not None:
+        create_item_entries = [
+            rx.menu.item(
+                rx.icon("plus", size=16),
+                "Create item",
+                on_click=_click(on_create_item),
+            ),
+            rx.menu.separator(),
+        ]
 
     return rx.menu.root(
         rx.menu.trigger(
@@ -35,12 +47,7 @@ def item_sheet_actions_menu(
             )
         ),
         rx.menu.content(
-            rx.menu.item(
-                rx.icon("plus", size=16),
-                "Create item",
-                on_click=_click(on_create_item),
-            ),
-            rx.menu.separator(),
+            *create_item_entries,
             rx.menu.item(
                 rx.icon("pencil", size=16),
                 "Update",

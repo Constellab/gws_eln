@@ -194,7 +194,6 @@ def _header() -> rx.Component:
         item_sheet_actions_menu(
             on_update=ItemSheetDetailState.open_update_dialog,
             on_delete=ItemSheetDetailState.open_delete_dialog,
-            on_create_item=ItemsListState.open_create_dialog
         ),
         item_sheet_update_dialog(),
         width="100%",
