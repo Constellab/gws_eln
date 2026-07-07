@@ -19,7 +19,6 @@ from gws_eln.activities.activity_service import ActivityService
 from gws_eln.activities.activity_type import ActivityType
 from gws_eln.core.concentration_unit import CONCENTRATION_UNITS, is_valid_concentration_unit
 from gws_eln.core.eln_db_manager import ElnDbManager
-from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item import Item
 from gws_eln.items.item_activity_dto import ItemActivityResult, TransformResult
 from gws_eln.items.item_dto import (
@@ -1069,7 +1068,7 @@ class ItemService:
                     f"Cannot use discarded item '{diluent.code}' as a diluent"
                 )
             diluent.assert_can_consume()
-            if diluent.unit_type != UnitType.VOLUME:
+            if not diluent.unit_type.is_volume():
                 raise BadRequestException(
                     f"Diluent '{diluent.code}' must be expressed in volume "
                     f"(its quantity is in {diluent.unit_type.value}). Only volume "

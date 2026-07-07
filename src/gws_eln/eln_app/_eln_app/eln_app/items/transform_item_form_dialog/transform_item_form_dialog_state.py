@@ -96,7 +96,7 @@ class TransformItemFormDialogState(
         Dilute and concentrate only make sense for solutions with a volume unit,
         so those two activities are hidden in the chooser for any other unit type.
         """
-        return self._launch_unit_type == UnitType.VOLUME.value
+        return UnitType(self._launch_unit_type).is_volume()
 
     @rx.var
     def dilute_target_inputs(self) -> list[TransformInputRow]:

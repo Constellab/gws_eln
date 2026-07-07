@@ -17,3 +17,12 @@ class UnitType(Enum):
     LENGTH = "length"
     MOLE = "mole"
     COUNT = "count"
+
+    def is_volume(self) -> bool:
+        """Whether this unit type expresses a volume.
+
+        Volume items are exactly those that can carry a concentration (an amount
+        per volume) and the only ones usable for dilute/concentrate, so this is
+        the single source of truth for all of those rules.
+        """
+        return self is UnitType.VOLUME

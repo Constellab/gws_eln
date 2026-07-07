@@ -28,35 +28,39 @@ def _consumable_quantity_section(
             on_quantity_change=ItemFormDialogState.set_quantity,
             on_unit_change=ItemFormDialogState.set_unit,
         ),
-        # Concentration value + unit (optional, recorded verbatim)
-        rx.hstack(
-            rx.vstack(
-                rx.text("Concentration", size="2", weight="bold"),
-                rx.input(
-                    placeholder="Enter concentration (optional)",
-                    name="concentration",
-                    type="number",
-                    min="0",
-                    step="any",
-                    width="100%",
-                    value=ItemFormDialogState.form_concentration,
-                    on_change=ItemFormDialogState.set_concentration,
+        # Concentration value + unit (optional, recorded verbatim).
+        # Only meaningful for volume items (amount per volume), hidden otherwise.
+        rx.cond(
+            ItemFormDialogState.is_volume,
+            rx.hstack(
+                rx.vstack(
+                    rx.text("Concentration", size="2", weight="bold"),
+                    rx.input(
+                        placeholder="Enter concentration (optional)",
+                        name="concentration",
+                        type="number",
+                        min="0",
+                        step="any",
+                        width="100%",
+                        value=ItemFormDialogState.form_concentration,
+                        on_change=ItemFormDialogState.set_concentration,
+                    ),
+                    width="60%",
+                    spacing="1",
                 ),
-                width="60%",
-                spacing="1",
-            ),
-            rx.vstack(
-                rx.text("Unit", size="2", weight="bold"),
-                concentration_unit_select(
-                    name="concentration_unit",
-                    value=ItemFormDialogState.form_concentration_unit,
-                    on_change=ItemFormDialogState.set_concentration_unit,
+                rx.vstack(
+                    rx.text("Unit", size="2", weight="bold"),
+                    concentration_unit_select(
+                        name="concentration_unit",
+                        value=ItemFormDialogState.form_concentration_unit,
+                        on_change=ItemFormDialogState.set_concentration_unit,
+                    ),
+                    width="40%",
+                    spacing="1",
                 ),
-                width="40%",
-                spacing="1",
+                width="100%",
+                spacing="3",
             ),
-            width="100%",
-            spacing="3",
         ),
         *([extra_content] if extra_content is not None else []),
         width="100%",
