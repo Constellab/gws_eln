@@ -120,6 +120,18 @@ class TransformItemFormDialogState(
         }.get(self.transform_kind, "Transform")
 
     @rx.var
+    def kind_subtitle(self) -> str:
+        """One-line description of the chosen kind, shown as the dialog subtitle
+        (same text as the chooser cards)."""
+        return {
+            TransformKind.SPLIT.value: "One source item → several new items.",
+            TransformKind.COMBINE.value: "Several items → one new item.",
+            TransformKind.DILUTE.value: "Target + diluent → one diluted item.",
+            TransformKind.CONCENTRATE.value: "One item → one more concentrated item.",
+            TransformKind.CUSTOM.value: "Any number of inputs → any number of outputs.",
+        }.get(self.transform_kind, "")
+
+    @rx.var
     def can_add_consumable_input(self) -> bool:
         """Whether another consumable input may be added for the current kind.
 

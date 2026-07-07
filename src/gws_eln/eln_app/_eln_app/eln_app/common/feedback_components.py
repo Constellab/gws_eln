@@ -15,7 +15,7 @@ def compact_warning(message) -> rx.Component:
     return rx.hstack(
         rx.icon("triangle-alert", size=13, color="var(--amber-11)", flex_shrink="0"),
         rx.text(message, size="1", color="var(--amber-11)"),
-        spacing="1",
+        spacing="2",
         align="center",
         width="100%",
         background="var(--amber-3)",

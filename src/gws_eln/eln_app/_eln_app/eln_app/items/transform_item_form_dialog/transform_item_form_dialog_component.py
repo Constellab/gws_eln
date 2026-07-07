@@ -44,6 +44,16 @@ def _section_label(text: str, count: rx.Var) -> rx.Component:
     )
 
 
+def _description_hint(description: str, hint: str | None = None) -> rx.Component:
+    """Gray section description with an optional info tooltip to its right."""
+    return rx.hstack(
+        rx.text(description, size="1", color="gray"),
+        *([rx.tooltip(rx.icon("info", size=14, color="gray"), content=hint)] if hint else []),
+        align="center",
+        spacing="1",
+    )
+
+
 # On hover, expose the full text as the native browser tooltip only when the
 # text is actually truncated (overflowing its box); clear it otherwise.
 _TRUNCATION_TITLE_JS = rx.Var(
@@ -242,19 +252,21 @@ def _input_group(
     on_create,
     editable: bool,
     can_create=True,
+    hint: str | None = None,
 ) -> rx.Component:
     """A persistent input sub-section: (optional subtitle), helper text, its rows,
     a create button.
 
     The subtitle is omitted when ``title`` is None (e.g. when the enclosing box
     already carries a section header). The helper text is shown only while the
-    sub-section has no row yet. Rows are clickable to edit when ``editable`` is
-    True (consumables only). The create button is hidden when ``can_create`` is
-    falsy (e.g. split allows one source).
+    sub-section has no row yet, with ``hint`` (when given) as an info tooltip to
+    its right. Rows are clickable to edit when ``editable`` is True (consumables
+    only). The create button is hidden when ``can_create`` is falsy (e.g. split
+    allows one source).
     """
     return rx.vstack(
         rx.text(title, size="2", weight="medium") if title is not None else rx.fragment(),
-        rx.cond(rows.length() == 0, rx.text(description, size="1", color="gray")),
+        rx.cond(rows.length() == 0, _description_hint(description, hint)),
         rx.foreach(rows, lambda row: _input_row(row, editable)),
         rx.cond(can_create, _create_button(button_label, on_create)),
         spacing="2",
@@ -306,18 +318,19 @@ def _section_box(*children: rx.Component) -> rx.Component:
 def _consumable_inputs_section() -> rx.Component:
     """Consumable inputs, in their own panel with a dedicated counter."""
     return _section_box(
-        _section_label("CONSUMABLE INPUTS", _S.consumable_inputs.length()),
+        _section_label("INPUTS", _S.consumable_inputs.length()),
         rx.cond(
             _S.kind_is_dilute,
             _dilute_consumable_groups(),
             _input_group(
                 None,
-                "Items consumed by the transform — a quantity is deducted from their stock.",
+                "Items consumed by the transform.",
                 _S.consumable_inputs,
-                "Create consumable input",
+                "Add input",
                 _S.open_consumable_input_dialog,
                 editable=True,
                 can_create=_S.can_add_consumable_input,
+                hint="A quantity is deducted from their stock.",
             ),
         ),
     )
@@ -329,11 +342,12 @@ def _instrument_inputs_section() -> rx.Component:
         _section_label("INSTRUMENTS", _S.instrument_inputs.length()),
         _input_group(
             None,
-            "Non-consumable items used during the transform — no quantity change.",
+            "Non-consumable items used during the transform.",
             _S.instrument_inputs,
-            "Create instrument input",
+            "Add instrument",
             _S.open_instrument_input_dialog,
             editable=False,
+            hint="No quantity change.",
         ),
     )
 
@@ -355,10 +369,9 @@ def _outputs_section() -> rx.Component:
         _section_label("OUTPUTS", _S.output_count),
         rx.cond(
             _S.outputs_empty_hint,
-            rx.text(
-                "New items produced by the transform — created when you save.",
-                size="1",
-                color="gray",
+            _description_hint(
+                "New items produced by the transform.",
+                "Created when you save.",
             ),
         ),
         rx.foreach(_S.outputs, lambda row, i: _output_row(row, i)),
@@ -372,7 +385,7 @@ def _outputs_section() -> rx.Component:
         ),
         rx.cond(
             _S.can_add_output,
-            _create_button("Create output", _S.open_output_wizard),
+            _create_button("Add output", _S.open_output_wizard),
         ),
         spacing="3",
         flex="1",
@@ -536,17 +549,14 @@ def _chooser() -> rx.Component:
 def _builder() -> rx.Component:
     """Wizard step 2: build the inputs/outputs for the chosen transformation."""
     return rx.vstack(
-        dialog_header(_S.kind_title, close=_S.close_dialog),
-        rx.dialog.description(
-            "Consume input items or instruments to produce new output items.",
-            size="2",
-            margin_bottom="1rem",
-        ),
+        dialog_header(_S.kind_title, _S.kind_subtitle, close=_S.close_dialog),
         rx.form(
             rx.box(
                 _form_content(),
                 overflow_y="auto",
-                flex="1",
+                # basis auto (not 0) so the content height counts toward the dialog's
+                # auto height: the box only scrolls once the dialog hits max height.
+                flex="1 1 auto",
                 min_height="0",
                 width="100%",
                 padding_right="0.5rem",
@@ -583,12 +593,12 @@ def _builder() -> rx.Component:
             on_submit=_S.submit_form,
             display="flex",
             flex_direction="column",
-            flex="1",
+            flex="1 1 auto",
             min_height="0",
             width="100%",
         ),
         width="100%",
-        flex="1",
+        flex="1 1 auto",
         min_height="0",
     )
 

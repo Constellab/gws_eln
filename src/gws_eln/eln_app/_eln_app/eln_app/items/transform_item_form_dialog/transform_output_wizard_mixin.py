@@ -8,8 +8,6 @@ the composing state's ``outputs`` list — all resolved at runtime on the merged
 leaf state.
 """
 
-from datetime import date
-
 import reflex as rx
 from gws_eln.items.item_dto import CreateItemDTO
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
@@ -258,7 +256,7 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
             if dto.concentration is not None
             else "",
             conc_unit=dto.concentration_unit or "",
-            code_preview=f"{self.out_sheet_code}-{date.today().year}-XXXX",
+            code_preview=f"{self.out_sheet_code}-XXXX",
             produced=f"{UnitConverter.format_number(dto.quantity)} {dto.unit}",
             dilution_factor=self._pending_dilution_factor,
             concentration_method=(
