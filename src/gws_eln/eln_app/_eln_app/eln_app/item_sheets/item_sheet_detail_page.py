@@ -86,7 +86,9 @@ def _details_sidebar() -> rx.Component:
             ),
             # Type
             rx.text("Type", size="2", color="gray", weight="medium"),
-            rx.box(consumable_badge(ItemSheetDetailState.item_sheet.is_consumable), width="fit-content"),
+            rx.box(
+                consumable_badge(ItemSheetDetailState.item_sheet.is_consumable), width="fit-content"
+            ),
             # Unit Type
             rx.text("Unit Type", size="2", color="gray", weight="medium"),
             rx.text(
@@ -132,14 +134,18 @@ def _details_sidebar() -> rx.Component:
             _sidebar_metadata_row(
                 "Created at",
                 rx.text(
-                    rx.moment(ItemSheetDetailState.item_sheet.created_at, format="MMM D, YYYY HH:mm"),
+                    rx.moment(
+                        ItemSheetDetailState.item_sheet.created_at, format="MMM D, YYYY HH:mm"
+                    ),
                     size="1",
                     weight="medium",
                 ),
             ),
             _sidebar_metadata_row(
                 "Last modified by",
-                user_inline_component(ItemSheetDetailState.item_sheet.last_modified_by, size="small"),
+                user_inline_component(
+                    ItemSheetDetailState.item_sheet.last_modified_by, size="small"
+                ),
             ),
             _sidebar_metadata_row(
                 "Last modified at",
@@ -188,6 +194,7 @@ def _header() -> rx.Component:
         item_sheet_actions_menu(
             on_update=ItemSheetDetailState.open_update_dialog,
             on_delete=ItemSheetDetailState.open_delete_dialog,
+            on_create_item=ItemsListState.open_create_dialog
         ),
         item_sheet_update_dialog(),
         width="100%",

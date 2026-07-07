@@ -8,6 +8,7 @@ from ..common.eln_app_router import ElnAppRouter
 from ..common.page_layout import page_layout
 from ..common.unit.unit_type_select_component import unit_type_select_component
 from ..items.core.item_components import consumable_badge
+from ..items.item_form_dialog.item_form_dialog_component import create_item_dialog
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from ..suppliers.core.supplier_select_component import supplier_select_component
 from .core.item_sheet_actions_menu import item_sheet_actions_menu
@@ -84,6 +85,8 @@ def _create_item_sheet_button() -> rx.Component:
             on_click=ItemSheetsListState.open_create_dialog,
         ),
         item_sheet_update_dialog(),
+        # Controlled dialog (no trigger) for creating an item from a row's actions menu.
+        create_item_dialog(),
     )
 
 
@@ -119,6 +122,7 @@ def _row(item_sheet: ItemSheetDTO) -> rx.Component:
                 item_sheet_actions_menu(
                     on_update=lambda: ItemSheetsListState.open_update_dialog(item_sheet),
                     on_delete=lambda: ItemSheetsListState.open_delete_dialog(item_sheet),
+                    on_create_item=lambda: ItemSheetsListState.open_create_item_dialog(item_sheet),
                     stop_propagation=True,
                 ),
                 display="flex",

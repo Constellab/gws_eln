@@ -9,6 +9,7 @@ from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
+from ..items.item_form_dialog.item_form_dialog_state import ItemFormDialogState
 from ..items.items_list_state import ItemsListState
 from .item_sheet_detail_state import ItemSheetDetailState
 from .item_sheet_form_dialog.item_sheet_form_dialog_state import ItemSheetFormDialogState
@@ -147,6 +148,18 @@ class ItemSheetsListState(rx.State):
         form_state = await self.get_state(ItemSheetFormDialogState)
         form_state.set_callback_after_close(self.on_dialog_close)
         await form_state.open_create_dialog()
+
+    @rx.event
+    async def open_create_item_dialog(self, item_sheet: ItemSheetDTO):
+        """Open the dialog to create a new item for the given item_sheet.
+
+        :param item_sheet: The item_sheet to create an item for
+        :type item_sheet: ItemSheetDTO
+        """
+        item_form_state = await self.get_state(ItemFormDialogState)
+        await item_form_state.open_create_dialog(item_sheet.id)
+        # No list refresh needed: the item_sheets list does not display items.
+        item_form_state.set_callback_after_close(None)
 
     @rx.event
     async def open_update_dialog(self, item_sheet: ItemSheetDTO):
