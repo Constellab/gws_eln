@@ -342,7 +342,7 @@ def _instrument_inputs_section() -> rx.Component:
         _section_label("INSTRUMENTS", _S.instrument_inputs.length()),
         _input_group(
             None,
-            "Non-consumable items used during the transform.",
+            "Instruments used during the transform.",
             _S.instrument_inputs,
             "Add instrument",
             _S.open_instrument_input_dialog,
@@ -441,14 +441,6 @@ def _form_content() -> rx.Component:
             _S.has_any,
             rx.hstack(
                 rx.text(_S.summary_str, size="2", color="gray"),
-                rx.button(
-                    "Clear all",
-                    type="button",
-                    variant="ghost",
-                    color_scheme="gray",
-                    size="1",
-                    on_click=_S.clear_all,
-                ),
                 align="center",
                 spacing="3",
             ),
