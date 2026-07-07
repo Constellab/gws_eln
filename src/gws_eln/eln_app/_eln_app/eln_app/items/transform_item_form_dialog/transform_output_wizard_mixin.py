@@ -170,6 +170,19 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         """Back from step 2 to step 1 (sheet selection)."""
         self.output_step = OutputStep.SHEET
 
+    def _suggest_output_label(self) -> str:
+        """Suggest the output label from an input sharing the output's sheet.
+
+        When a transform consumes and produces the same item sheet (e.g.
+        concentrate), reuse the source item's label so the produced item stays
+        easy to relate. Returns "" when no input matches the output sheet.
+        """
+        source = self._fixed_output_source()
+        if source is not None and source.sheet_id == self.out_sheet_id:
+            return source.label
+        match = next((row for row in self.inputs if row.sheet_id == self.out_sheet_id), None)
+        return match.label if match else ""
+
     async def _advance_to_item_step(self):
         """Prepare the item form (collect mode) for the chosen sheet and go to step 2.
 
@@ -178,6 +191,11 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         """
         item_state = await self.get_state(ItemFormDialogState)
         await item_state.prepare_create_form(self.out_sheet_id)
+        # Prefill the label from an input on the same sheet (e.g. concentrate),
+        # as a suggestion the user can still edit.
+        suggested_label = self._suggest_output_label()
+        if suggested_label:
+            item_state.form_label = suggested_label
         item_state.set_collect_callback(self._on_output_item_collected)
         self.output_create_sheet_mode = False
         self.output_step = OutputStep.ITEM
