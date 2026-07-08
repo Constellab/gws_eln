@@ -22,7 +22,7 @@ from ...item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_state import (
     ItemSheetFormDialogState,
 )
 from ..item_form_dialog.item_form_dialog_state import ItemFormDialogState
-from .transform_models import OutputStep, TransformOutputRow
+from .transform_models import OutputStep, TransformInputRow, TransformOutputRow
 
 
 class TransformOutputWizardMixin(rx.State, mixin=True):
@@ -168,18 +168,17 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         """Back from step 2 to step 1 (sheet selection)."""
         self.output_step = OutputStep.SHEET
 
-    def _suggest_output_label(self) -> str:
-        """Suggest the output label from an input sharing the output's sheet.
+    def _output_source_input(self) -> TransformInputRow | None:
+        """The committed input whose sheet the output shares (fixed source first).
 
-        When a transform consumes and produces the same item sheet (e.g.
-        concentrate), reuse the source item's label so the produced item stays
-        easy to relate. Returns "" when no input matches the output sheet.
+        Used to suggest the output's label and unit when a transform consumes and
+        produces the same item sheet (e.g. split, concentrate). Returns None when
+        no input matches the output sheet.
         """
         source = self._fixed_output_source()
         if source is not None and source.sheet_id == self.out_sheet_id:
-            return source.label
-        match = next((row for row in self.inputs if row.sheet_id == self.out_sheet_id), None)
-        return match.label if match else ""
+            return source
+        return next((row for row in self.inputs if row.sheet_id == self.out_sheet_id), None)
 
     async def _advance_to_item_step(self):
         """Prepare the item form (collect mode) for the chosen sheet and go to step 2.
@@ -189,11 +188,12 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         """
         item_state = await self.get_state(ItemFormDialogState)
         await item_state.prepare_create_form(self.out_sheet_id)
-        # Prefill the label from an input on the same sheet (e.g. concentrate),
-        # as a suggestion the user can still edit.
-        suggested_label = self._suggest_output_label()
-        if suggested_label:
-            item_state.form_label = suggested_label
+        # When the output shares an input's sheet (e.g. split, concentrate), prefill
+        # the label and unit from that input as editable suggestions.
+        source_input = self._output_source_input()
+        if source_input is not None:
+            item_state.form_label = source_input.label
+            item_state.form_unit = source_input.unit
         item_state.set_collect_callback(self._on_output_item_collected)
         self.output_create_sheet_mode = False
         self.output_step = OutputStep.ITEM
