@@ -38,11 +38,19 @@ class LineageState(rx.State):
 
     _item_id: str | None = None
     _has_graph: bool = False
+    # Bumped on every (re)load. Used as the React Flow ``key`` so the uncontrolled
+    # canvas remounts and picks up fresh nodes/edges after a live refresh.
+    _version: int = 0
 
     _nodes: list[dict] = []
     _edges: list[dict] = []
     is_loading: bool = False
     error_message: str = ""
+
+    @rx.var
+    def graph_key(self) -> str:
+        """React Flow key: changes on every reload so the canvas remounts fresh."""
+        return f"{self._item_id or ''}:{self._version}"
 
     @rx.var
     def has_graph(self) -> bool:
@@ -144,9 +152,11 @@ class LineageState(rx.State):
         :type item_id: str
         """
         async with self:
-            # Already loaded for this item: keep it (re-fetch happens on remount).
-            already_loaded = self._item_id == item_id and self._has_graph
-        if already_loaded:
+            # Reload on every mount (like the activities list) so a graph shown
+            # again after an activity is always fresh; skip only while a load for
+            # this same item is already in flight.
+            loading_same = self._item_id == item_id and self.is_loading
+        if loading_same:
             return
         await self._load_graph(item_id)
 
@@ -190,6 +200,7 @@ class LineageState(rx.State):
                 self._nodes = self._build_rf_nodes(graph)
                 self._edges = self._build_rf_edges(graph)
                 self._has_graph = len(graph.nodes) > 0
+                self._version += 1
                 self.is_loading = False
         except Exception as e:
             Logger.error(f"Error loading lineage for item {item_id}: {e}")

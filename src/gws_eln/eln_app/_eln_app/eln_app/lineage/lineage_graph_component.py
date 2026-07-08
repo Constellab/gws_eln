@@ -24,6 +24,9 @@ def _graph_canvas() -> rx.Component:
             nodes_draggable=True,
             nodes_connectable=False,
             on_node_click=LineageState.node_click,
+            # Remount the uncontrolled canvas when the graph reloads (new version)
+            # so fresh nodes/edges are picked up without leaving the page.
+            key=LineageState.graph_key,
         ),
         width="100%",
         height="70vh",
