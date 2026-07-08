@@ -29,9 +29,16 @@ class MoveItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State
 
     @rx.var
     def code(self) -> str:
-        """Get the item number for display."""
+        """Get the item code for display."""
         if self._item:
             return self._item.code
+        return ""
+
+    @rx.var
+    def label(self) -> str:
+        """Get the item label (human-readable name) for display."""
+        if self._item:
+            return self._item.label
         return ""
 
     @rx.var

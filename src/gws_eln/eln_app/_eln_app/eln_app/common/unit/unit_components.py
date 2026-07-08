@@ -18,6 +18,7 @@ def quantity_unit_input(
     quantity_placeholder: str = "Enter quantity",
     quantity_label: rx.Var[str] | str = "Quantity",
     unit_label: rx.Var[str] | str = "Unit",
+    unit_hint: str | None = None,
     quantity_required: bool = True,
     disabled: bool = False,
     quantity_width: str = "60%",
@@ -42,6 +43,7 @@ def quantity_unit_input(
         quantity_placeholder: Placeholder text for quantity input
         quantity_label: Label text for quantity field
         unit_label: Label text for unit field
+        unit_hint: Optional help text shown as an info tooltip next to the unit label
         quantity_required: Whether quantity is required (controls the "*" marker
             only; validation is enforced server-side and surfaced as a toast)
         disabled: Whether both fields are disabled
@@ -142,13 +144,21 @@ def quantity_unit_input(
         quantity_label_component = rx.hstack(
             quantity_label_component,
             rx.text("*", size="2", weight="bold"),
-            spacing="2",
+            spacing="0",
             align="center",
         )
         unit_label_component = rx.hstack(
             unit_label_component,
             rx.text("*", size="2", weight="bold"),
-            spacing="2",
+            spacing="0",
+            align="center",
+        )
+
+    if unit_hint:
+        unit_label_component = rx.hstack(
+            unit_label_component,
+            rx.tooltip(rx.icon("info", size=14, color="gray"), content=unit_hint),
+            spacing="1",
             align="center",
         )
 

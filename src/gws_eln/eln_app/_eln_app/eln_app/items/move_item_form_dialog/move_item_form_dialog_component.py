@@ -8,16 +8,42 @@ from .move_item_form_dialog_state import MoveItemFormDialogState
 def _form_content() -> rx.Component:
     """Form content for moving a item to a new location."""
     return rx.vstack(
-        # Item Number (read-only display)
-        rx.vstack(
-            rx.text("Item", size="2", weight="bold"),
-            rx.text(
-                MoveItemFormDialogState.code,
-                size="2",
-                color="gray",
+        # Item info (read-only display): name and code side by side
+        rx.hstack(
+            rx.vstack(
+                rx.text("Item name", size="2", weight="bold"),
+                rx.text(
+                    MoveItemFormDialogState.label,
+                    size="2",
+                    color="gray",
+                ),
+                width="50%",
+                spacing="1",
+            ),
+            rx.vstack(
+                rx.hstack(
+                    rx.text("Item code", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Auto-generated identifier: the sheet's code followed by an "
+                            "incrementing number."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
+                rx.text(
+                    MoveItemFormDialogState.code,
+                    size="2",
+                    color="gray",
+                ),
+                width="50%",
+                spacing="1",
             ),
             width="100%",
-            spacing="1",
+            spacing="3",
+            align="start",
         ),
         # Current Location (read-only display)
         rx.vstack(
@@ -51,7 +77,7 @@ def _dialog() -> rx.Component:
     return form_dialog_component(
         state=MoveItemFormDialogState,
         title="Move Item",
-        description="Select the destination location to move this item.",
+        subtitle="Select the destination location to move this item.",
         form_content=_form_content(),
         max_width="450px",
     )

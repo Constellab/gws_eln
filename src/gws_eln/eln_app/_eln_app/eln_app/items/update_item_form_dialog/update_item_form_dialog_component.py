@@ -10,12 +10,12 @@ from .update_item_form_dialog_state import UpdateItemFormDialogState
 def _form_content() -> rx.Component:
     """Form content for updating item metadata."""
     return rx.vstack(
-        # Item + ItemSheet (read-only, side by side, equal width)
+        # Item info (read-only display): name and code side by side
         rx.hstack(
             rx.vstack(
-                rx.text("Item", size="2", weight="bold"),
+                rx.text("Item name", size="2", weight="bold"),
                 rx.text(
-                    UpdateItemFormDialogState.code,
+                    UpdateItemFormDialogState.label,
                     size="2",
                     color="gray",
                 ),
@@ -23,9 +23,20 @@ def _form_content() -> rx.Component:
                 spacing="1",
             ),
             rx.vstack(
-                rx.text("Item sheet", size="2", weight="bold"),
+                rx.hstack(
+                    rx.text("Item code", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Auto-generated identifier: the sheet's code followed by an "
+                            "incrementing number."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
                 rx.text(
-                    UpdateItemFormDialogState.item_sheet_name,
+                    UpdateItemFormDialogState.code,
                     size="2",
                     color="gray",
                 ),
@@ -38,7 +49,18 @@ def _form_content() -> rx.Component:
         ),
         # Supplier field
         rx.vstack(
-            rx.text("Supplier", size="2", weight="bold"),
+            rx.hstack(
+                rx.text("Supplier", size="2", weight="bold"),
+                rx.tooltip(
+                    rx.icon("info", size=14, color="gray"),
+                    content=(
+                        "Who supplied this item (optional); prefilled from the sheet's "
+                        "default supplier when it has one."
+                    ),
+                ),
+                align="center",
+                spacing="1",
+            ),
             supplier_select_component(
                 placeholder="Select a supplier (optional)",
                 additional_option=("No supplier", "__none__"),
@@ -64,7 +86,18 @@ def _form_content() -> rx.Component:
                 spacing="1",
             ),
             rx.vstack(
-                rx.text("Storage conditions", size="2", weight="bold"),
+                rx.hstack(
+                    rx.text("Storage conditions", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Storage conditions are prefilled from the item sheet's "
+                            "default; edit to override for this item."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
                 rx.input(
                     placeholder="e.g. -20°C (optional)",
                     name="storage_conditions",
@@ -105,7 +138,7 @@ def _dialog() -> rx.Component:
     return form_dialog_component(
         state=UpdateItemFormDialogState,
         title="Update Item",
-        description="Update item metadata.",
+        subtitle="Update item metadata.",
         form_content=_form_content(),
         max_width="450px",
     )

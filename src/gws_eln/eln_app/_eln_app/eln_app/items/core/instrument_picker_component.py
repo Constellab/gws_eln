@@ -33,6 +33,7 @@ def instrument_picker_component(
     state,
     label: str = "Instruments (optional)",
     placeholder: str = "Search an instrument...",
+    hint: str | None = None,
 ) -> rx.Component:
     """Render the optional multi-instrument picker for a transform dialog.
 
@@ -40,9 +41,19 @@ def instrument_picker_component(
         state: The host dialog state class (must mix in InstrumentPickerMixin)
         label: Section label shown above the picker
         placeholder: Placeholder for the search input
+        hint: Optional help text shown as an info tooltip next to the label
     """
+    label_component = rx.text(label, size="2", weight="bold")
+    if hint:
+        label_component = rx.hstack(
+            label_component,
+            rx.tooltip(rx.icon("info", size=14, color="gray"), content=hint),
+            align="center",
+            spacing="1",
+        )
+
     return rx.vstack(
-        rx.text(label, size="2", weight="bold"),
+        label_component,
         instrument_select_component(
             placeholder=placeholder,
             item_selected=state.add_instrument,

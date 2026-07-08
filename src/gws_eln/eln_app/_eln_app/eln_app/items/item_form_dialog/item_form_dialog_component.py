@@ -27,6 +27,10 @@ def _consumable_quantity_section(
             unit_value=ItemFormDialogState.form_unit,
             on_quantity_change=ItemFormDialogState.set_quantity,
             on_unit_change=ItemFormDialogState.set_unit,
+            unit_hint=(
+                "Measurement unit for the quantity, limited to the sheet's unit type "
+                "(e.g. for a volume: L, mL, µL, nL)."
+            ),
         ),
         # Concentration value + unit (optional, recorded verbatim).
         # Only meaningful for volume items (amount per volume), hidden otherwise.
@@ -141,7 +145,18 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
                 spacing="1",
             ),
             rx.vstack(
-                rx.text("Code", size="2", weight="bold"),
+                rx.hstack(
+                    rx.text("Code", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Auto-generated at creation: the sheet's code followed by an "
+                            "incrementing number (the preview shown here is indicative)."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
                 rx.code(ItemFormDialogState.code_preview, size="2"),
                 width="50%",
                 spacing="1",
@@ -153,7 +168,18 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
         ),
         # Label field (human-readable name for the item, required)
         rx.vstack(
-            rx.text("Label*", size="2", weight="bold"),
+            rx.hstack(
+                rx.text("Label*", size="2", weight="bold"),
+                rx.tooltip(
+                    rx.icon("info", size=14, color="gray"),
+                    content=(
+                        "Human-readable name for this item, used to identify it alongside "
+                        "its auto-generated code."
+                    ),
+                ),
+                align="center",
+                spacing="1",
+            ),
             rx.input(
                 placeholder="Enter a label to name this item",
                 name="label",
@@ -174,7 +200,15 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
         # Location + Supplier (side by side, equal width)
         rx.hstack(
             rx.vstack(
-                rx.text("Location*", size="2", weight="bold"),
+                rx.hstack(
+                    rx.text("Location*", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content="Physical storage location where this item is kept.",
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
                 location_select_component(
                     placeholder="Select a location",
                     value=ItemFormDialogState.form_location_id,
@@ -184,7 +218,18 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
                 spacing="1",
             ),
             rx.vstack(
-                rx.text("Supplier", size="2", weight="bold"),
+                rx.hstack(
+                    rx.text("Supplier", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Who supplied this item (optional); prefilled from the sheet's "
+                            "default supplier when it has one."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
                 supplier_select_component(
                     placeholder="Select a supplier (optional)",
                     additional_option=("No supplier", "__none__"),
@@ -267,7 +312,7 @@ def _dialog() -> rx.Component:
     return form_dialog_component(
         state=ItemFormDialogState,
         title="Create New Item",
-        description="Fill in the details below to create a new item sheet item.",
+        subtitle="Fill in the details below to create a new item sheet item.",
         form_content=_form_content(),
         max_width="550px",
         dismissable=False,

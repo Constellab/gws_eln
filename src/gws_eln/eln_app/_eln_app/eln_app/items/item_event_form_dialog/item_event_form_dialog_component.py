@@ -11,27 +11,54 @@ from .item_event_form_dialog_state import ItemEventFormDialogState
 def _form_content() -> rx.Component:
     """Form content for entering item event details."""
     return rx.vstack(
-        # Item info (read-only display)
-        rx.vstack(
-            rx.text("Item", size="2", weight="bold"),
-            rx.text(
-                ItemEventFormDialogState.code,
-                size="2",
-                color="gray",
+        # Item info (read-only display): name and code side by side
+        rx.hstack(
+            rx.vstack(
+                rx.text("Item name", size="2", weight="bold"),
+                rx.text(
+                    ItemEventFormDialogState.label,
+                    size="2",
+                    color="gray",
+                ),
+                width="50%",
+                spacing="1",
+            ),
+            rx.vstack(
+                rx.hstack(
+                    rx.text("Item code", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Auto-generated identifier: the sheet's code followed by an "
+                            "incrementing number."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
+                rx.text(
+                    ItemEventFormDialogState.code,
+                    size="2",
+                    color="gray",
+                ),
+                width="50%",
+                spacing="1",
             ),
             width="100%",
-            spacing="1",
+            spacing="3",
+            align="start",
         ),
         # Current quantity display
         rx.vstack(
             rx.text("Current Quantity", size="2", weight="bold"),
-            rx.text(
+            rx.badge(
                 ItemEventFormDialogState.current_quantity,
+                color_scheme="green",
                 size="2",
-                color="gray",
             ),
             width="100%",
             spacing="1",
+            align="start",
         ),
         # Reusable receive/consume form section
         receive_consume_form_section(
@@ -44,7 +71,14 @@ def _form_content() -> rx.Component:
         # Optional instruments used (consume only - receive is a 0-input activity)
         rx.cond(
             ItemEventFormDialogState.is_consume,
-            instrument_picker_component(ItemEventFormDialogState),
+            instrument_picker_component(
+                ItemEventFormDialogState,
+                label="Instruments",
+                hint=(
+                    "Instruments used during this consumption (optional); "
+                    "recorded to trace which equipment was involved."
+                ),
+            ),
         ),
         width="100%",
         spacing="3",
@@ -62,7 +96,7 @@ def _dialog() -> rx.Component:
     return form_dialog_component(
         state=ItemEventFormDialogState,
         title=ItemEventFormDialogState.dialog_title,
-        description=ItemEventFormDialogState.dialog_description,
+        subtitle=ItemEventFormDialogState.dialog_description,
         form_content=_form_content(),
         max_width="450px",
     )

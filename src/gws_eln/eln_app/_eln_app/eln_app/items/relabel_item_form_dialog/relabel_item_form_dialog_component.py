@@ -10,40 +10,43 @@ from .relabel_item_form_dialog_state import RelabelItemFormDialogState
 def _form_content() -> rx.Component:
     """Form content for relabeling a item."""
     return rx.vstack(
-        # ItemSheet Name (read-only display)
-        rx.vstack(
-            rx.text("Item sheet", size="2", weight="bold"),
-            rx.text(
-                RelabelItemFormDialogState.item_sheet_name,
-                size="2",
-                color="gray",
+        # Item info (read-only display): current name and code side by side
+        rx.hstack(
+            rx.vstack(
+                rx.text("Current name", size="2", weight="bold"),
+                rx.text(
+                    RelabelItemFormDialogState.current_label,
+                    size="2",
+                    color="gray",
+                ),
+                width="50%",
+                spacing="1",
+            ),
+            rx.vstack(
+                rx.hstack(
+                    rx.text("Item code", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Auto-generated identifier: the sheet's code followed by an "
+                            "incrementing number."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
+                rx.text(
+                    RelabelItemFormDialogState.current_code,
+                    size="2",
+                    color="gray",
+                ),
+                width="50%",
+                spacing="1",
             ),
             width="100%",
-            spacing="1",
-        ),
-        # Current Code (read-only display)
-        rx.vstack(
-            rx.text("Code", size="2", weight="bold"),
-            rx.code(
-                RelabelItemFormDialogState.current_code,
-                size="2",
-            ),
-            width="100%",
-            spacing="1",
+            spacing="3",
             align="start",
         ),
-        # Current Label (read-only display)
-        rx.vstack(
-            rx.text("Current Label", size="2", weight="bold"),
-            rx.text(
-                RelabelItemFormDialogState.current_label,
-                size="2",
-                color="gray",
-            ),
-            width="100%",
-            spacing="1",
-        ),
-        rx.divider(margin_y="0.5rem"),
         # Reusable relabel form section
         relabel_form_section(
             form_label=RelabelItemFormDialogState.form_label,
@@ -62,7 +65,7 @@ def _dialog() -> rx.Component:
     return form_dialog_component(
         state=RelabelItemFormDialogState,
         title="Relabel Item",
-        description="Change the item's label. This action will be logged in the activity history.",
+        subtitle="Change the item's label. This action will be logged in the activity history.",
         form_content=_form_content(),
         max_width="450px",
     )

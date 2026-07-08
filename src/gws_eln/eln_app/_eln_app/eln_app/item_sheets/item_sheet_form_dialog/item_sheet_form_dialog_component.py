@@ -23,10 +23,21 @@ def _form_content() -> rx.Component:
         # In update mode the code is hidden, so the name fills the row.
         rx.hstack(
             rx.vstack(
-                rx.text("Item sheet name*", size="2", weight="bold"),
+                rx.hstack(
+                    rx.text("Item sheet name*", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Human-readable name of the product or substance this sheet "
+                            "describes."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
                 rx.debounce_input(
                     rx.input(
-                        placeholder="Enter item sheet name",
+                        placeholder="e.g. Ethanol",
                         name="name",
                         required=True,
                         width="100%",
@@ -46,7 +57,18 @@ def _form_content() -> rx.Component:
                 ItemSheetFormDialogState.is_update_mode,
                 rx.fragment(),
                 rx.vstack(
-                    rx.text("Code*", size="2", weight="bold"),
+                    rx.hstack(
+                        rx.text("Code*", size="2", weight="bold"),
+                        rx.tooltip(
+                            rx.icon("info", size=14, color="gray"),
+                            content=(
+                                "Short prefix (max 4 characters) used to auto-generate the "
+                                "code of every item on this sheet, e.g. ETHA → ETHA-0001."
+                            ),
+                        ),
+                        align="center",
+                        spacing="1",
+                    ),
                     rx.input(
                         placeholder="e.g. ETHA",
                         name="code",
@@ -69,7 +91,19 @@ def _form_content() -> rx.Component:
         rx.hstack(
             # Unit Type (immutable once the sheet has at least an item)
             rx.vstack(
-                rx.text("Unit type to use for quantity*", size="2", weight="bold"),
+                rx.hstack(
+                    rx.text("Unit type*", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Physical dimension every item on this sheet is measured in. "
+                            "Once set to e.g. volume, items can only be expressed in volume "
+                            "units (L, mL, µL…). Fixed once the sheet has items."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
                 rx.select.root(
                     rx.select.trigger(placeholder="Select a unit type", width="100%"),
                     rx.select.content(
@@ -96,7 +130,18 @@ def _form_content() -> rx.Component:
                 spacing="1",
             ),
             rx.vstack(
-                rx.text("Default Supplier", size="2", weight="bold"),
+                rx.hstack(
+                    rx.text("Default Supplier", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Supplier prefilled by default when creating an item on this "
+                            "sheet (optional, overridable per item)."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
                 rx.select.root(
                     rx.select.trigger(placeholder="Select a supplier (optional)", width="100%"),
                     rx.select.content(
@@ -130,17 +175,23 @@ def _form_content() -> rx.Component:
         ),
         # Storage conditions field (default for items of this sheet)
         rx.vstack(
-            rx.text("Storage conditions", size="2", weight="bold"),
+            rx.hstack(
+                rx.text("Storage conditions", size="2", weight="bold"),
+                rx.tooltip(
+                    rx.icon("info", size=14, color="gray"),
+                    content=(
+                        "Default storage condition for items of this sheet "
+                        "(overridable per item)."
+                    ),
+                ),
+                align="center",
+                spacing="1",
+            ),
             rx.input(
                 placeholder="e.g. -20°C (optional)",
                 name="storage_conditions",
                 width="100%",
                 default_value=ItemSheetFormDialogState.form_storage_conditions,
-            ),
-            rx.text(
-                "Default storage condition for items of this sheet (overridable per item).",
-                size="1",
-                color="gray",
             ),
             width="100%",
             spacing="1",
@@ -182,7 +233,7 @@ def _dialog() -> rx.Component:
         title=rx.cond(
             ItemSheetFormDialogState.is_update_mode, "Update item sheet", "Create new item sheet"
         ),
-        description=rx.cond(
+        subtitle=rx.cond(
             ItemSheetFormDialogState.is_update_mode,
             "Update the item sheet details below.",
             "Fill in the details below to create a new item sheet.",
