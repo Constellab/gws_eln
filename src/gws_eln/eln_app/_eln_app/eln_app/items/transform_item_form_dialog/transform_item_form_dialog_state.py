@@ -90,6 +90,10 @@ class TransformItemFormDialogState(
         return self.transform_kind == TransformKind.CONCENTRATE.value
 
     @rx.var
+    def kind_is_combine(self) -> bool:
+        return self.transform_kind == TransformKind.COMBINE.value
+
+    @rx.var
     def seed_is_volume(self) -> bool:
         """Whether the launching item is measured in a volume unit.
 
