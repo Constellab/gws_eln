@@ -230,6 +230,17 @@ def build_concentrate(
         kind_label="Concentrate",
     )
 
+    # Concentrate must physically reduce the volume (that is what raises the
+    # concentration): the output volume must be strictly lower than the drawn one.
+    unit_type = UnitType(source.unit_type)
+    source_volume = UnitConverter.to_base_unit(Decimal(source.qty), source.unit, unit_type)
+    output_volume = UnitConverter.to_base_unit(Decimal(output.qty), output.unit, unit_type)
+    if output_volume >= source_volume:
+        raise ReflexAppException(
+            "Concentrate must reduce the volume "
+            "(the output volume must be lower than the source's)"
+        )
+
     dto = ConcentrateItemDTO(
         quantity_contributed=Decimal(source.qty),
         unit=source.unit,
