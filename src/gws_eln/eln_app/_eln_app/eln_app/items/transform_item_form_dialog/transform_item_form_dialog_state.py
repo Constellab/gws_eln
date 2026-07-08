@@ -363,6 +363,13 @@ class TransformItemFormDialogState(
         """
         async with self:
             over_quantity = bool(self.quantity_warning)
+            # A split may not produce more total quantity than its source: hard block
+            # (other kinds only warn and let the user confirm).
+            if over_quantity and self.transform_kind == TransformKind.SPLIT.value:
+                raise ReflexAppException(
+                    "A split cannot produce more total quantity than its source. "
+                    "Reduce the output quantities."
+                )
             if over_quantity:
                 confirm_state = await self.get_state(ConfirmDialogState)
                 confirm_state.open_dialog(
