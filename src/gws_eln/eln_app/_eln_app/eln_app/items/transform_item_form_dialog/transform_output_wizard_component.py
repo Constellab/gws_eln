@@ -167,11 +167,23 @@ def _step1_body() -> rx.Component:
 
 
 def _dilution_factor_field() -> rx.Component:
-    """Dilution-factor audit input (concentrate/dilute); store-only, optional."""
+    """Factor audit input (store-only, optional).
+
+    Labelled "Concentration factor" for a concentrate and "Dilution factor" for a
+    dilute; the form field name stays ``dilution_factor`` (shared backend audit).
+    """
     return rx.vstack(
-        rx.text("Dilution factor", size="2", weight="bold"),
+        rx.text(
+            rx.cond(_S.kind_is_concentrate, "Concentration factor", "Dilution factor"),
+            size="2",
+            weight="bold",
+        ),
         rx.input(
-            placeholder="Enter dilution factor (optional, audit only)",
+            placeholder=rx.cond(
+                _S.kind_is_concentrate,
+                "Enter concentration factor (optional, audit only)",
+                "Enter dilution factor (optional, audit only)",
+            ),
             name="dilution_factor",
             type="number",
             min="0",
