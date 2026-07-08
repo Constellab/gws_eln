@@ -22,9 +22,9 @@ from ..common.react_flow import react_flow_handle
 class ItemNodeData(TypedDict):
     """Data payload for an item node.
 
-    The visual is carried as plain string fields. ``code`` and ``label`` are
-    rendered on two separate lines; ``quantity`` is a muted suffix on the code
-    line and ``concentration`` a muted suffix on the label line (both optional).
+    The visual is carried as plain string fields. ``label`` is the primary line
+    and ``code`` the secondary line below; ``quantity`` is a muted suffix on the
+    primary line and ``concentration`` on the secondary line (both optional).
     ``has_input`` / ``has_output`` gate the top / bottom handles.
     """
 
@@ -49,12 +49,13 @@ class ActivityNodeData(TypedDict):
 
 @rx.memo
 def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
-    """Custom node for a physical item: code on line 1, label on line 2."""
+    """Custom node for a physical item: label on line 1, code on line 2."""
     return rx.box(
         rx.cond(data["has_input"], react_flow_handle(type="target", position="top")),
         rx.grid(
+            # Primary line: the label (always set); code on the secondary line below.
             rx.text(
-                data["code"],
+                data["label"],
                 size="1",
                 weight="bold",
                 style={"white-space": "nowrap"},
@@ -71,16 +72,12 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
                 ),
                 rx.box(),
             ),
-            rx.cond(
-                data["label"] != "",
-                rx.text(
-                    data["label"],
-                    size="1",
-                    weight="regular",
-                    style={"white-space": "nowrap", "opacity": "0.8"},
-                    text_align="right",
-                ),
-                rx.box(),
+            rx.text(
+                data["code"],
+                size="1",
+                weight="regular",
+                style={"white-space": "nowrap", "opacity": "0.8"},
+                text_align="right",
             ),
             rx.cond(
                 data["concentration"] != "",

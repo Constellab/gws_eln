@@ -113,9 +113,8 @@ def status_badge(status: ItemStatus) -> rx.Component:
 def item_inline(item: ItemSimpleDTO) -> rx.Component:
     """Create an inline component displaying the item label and code.
 
-    The label is the human-readable name when present; the auto-generated
-    code is always shown as a monospace badge so it stays visible even for
-    items without a label.
+    The label (the human-readable name) is the primary line and the
+    auto-generated code is shown as a monospace badge below it.
 
     :param item: The item DTO to display
     :type item: ItemSimpleDTO
@@ -123,8 +122,8 @@ def item_inline(item: ItemSimpleDTO) -> rx.Component:
     :rtype: rx.Component
     """
     return rx.vstack(
+        rx.text(item.label, weight="medium"),
         rx.code(item.code, size="1"),
-        rx.cond(item.label, rx.text(f"{item.label}", weight="medium")),
         spacing="1",
         align="start",
     )
