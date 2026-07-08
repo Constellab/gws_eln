@@ -103,29 +103,6 @@ class ItemEventFormDialogState(
         }
         return labels.get(self._event_type, "Quantity")
 
-    def _get_best_unit_for_quantity(self, quantity: Decimal, unit_type: UnitType) -> str:
-        """Determine the best unit based on the current quantity.
-
-        Selects a unit that gives a readable value (between 1 and 1000 when possible).
-
-        :param quantity: The quantity in base units
-        :param unit_type: The unit type
-        :return: The best unit symbol
-        """
-        if quantity == 0:
-            return UnitConverter.get_default_unit(unit_type)
-
-        unit_order = UnitConverter.UNIT_ORDER.get(unit_type, ["units"])
-
-        for unit in unit_order:
-            converted = UnitConverter.from_base_unit(quantity, unit, unit_type)
-            abs_converted = abs(converted)
-            if Decimal("1") <= abs_converted < Decimal("1000"):
-                return unit
-
-        # If no unit gives a value in range, use the default
-        return UnitConverter.get_default_unit(unit_type)
-
     def open_dialog_for_event(self, item: ItemDTO, event_type: ItemEventType):
         """Open the dialog for a specific item event.
 
@@ -146,8 +123,8 @@ class ItemEventFormDialogState(
         # Set unit type from item
         self.form_unit_type = item.unit_type.value
 
-        # Determine the best unit based on current quantity
-        self.form_unit = self._get_best_unit_for_quantity(item.quantity, item.unit_type)
+        # Default to the unit the item is displayed with (its pretty quantity).
+        self.form_unit = UnitConverter.get_pretty_unit(item.quantity, item.unit_type)
 
         # Set to create mode (we're always creating an event, not updating)
         self.is_update_mode = False

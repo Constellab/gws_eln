@@ -118,7 +118,8 @@ class TransformInputDialogMixin(rx.State, mixin=True):
             loc=item.location.name,
             is_consumable=is_consumable,
             qty="",
-            unit=UnitConverter.get_default_unit(item.unit_type),
+            # Default to the unit the item is displayed with (its pretty quantity).
+            unit=UnitConverter.get_pretty_unit(item.quantity, item.unit_type),
             unit_type=item.unit_type.value,
             available=item.pretty_quantity,
             qty_base=str(item.quantity),
@@ -153,7 +154,8 @@ class TransformInputDialogMixin(rx.State, mixin=True):
         )
         self.in_item_conc_unit = item.concentration_unit or ""
         self.in_unit_type = item.unit_type.value
-        self.in_unit = UnitConverter.get_default_unit(item.unit_type)
+        # Default to the unit the item is displayed with (its pretty quantity), e.g. "kg".
+        self.in_unit = UnitConverter.get_pretty_unit(item.quantity, item.unit_type)
 
     # ------------------------------------------------------------------ events
 

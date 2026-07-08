@@ -415,6 +415,25 @@ class UnitConverter:
         return f"{formatted_value} {display_unit}"
 
     @staticmethod
+    def get_pretty_unit(value: Decimal | float | int | str, unit_type: UnitType) -> str:
+        """Return the unit used by the pretty (auto-formatted) display of ``value``.
+
+        This is the unit :meth:`format_value` picks when no unit is given, so a
+        quantity input can default to the same unit the item shows (e.g. "kg").
+
+        :param value: The quantity value in base units
+        :param unit_type: The type of unit (VOLUME, MASS, LENGTH, COUNT, MOLE)
+        :return: The auto-selected unit symbol (e.g. "kg")
+        """
+        if not isinstance(unit_type, UnitType):
+            raise BadRequestException(f"Invalid unit type: {unit_type}")
+        try:
+            decimal_value = Decimal(str(value))
+        except (InvalidOperation, ValueError) as e:
+            raise BadRequestException(f"Invalid numeric value: {value}") from e
+        return UnitConverter._select_best_unit(decimal_value, unit_type)[0]
+
+    @staticmethod
     def _select_best_unit(value: Decimal, unit_type: UnitType) -> tuple[str, Decimal]:
         """
         Select the most appropriate unit for a given value.
