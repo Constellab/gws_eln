@@ -12,6 +12,19 @@ def _form_content() -> rx.Component:
     """Form content for entering item event details."""
     return rx.vstack(
         # Item info (read-only display): name and code side by side
+        # Receive only: clarify the added stock inherits the item's characteristics.
+        rx.cond(
+            ~ItemEventFormDialogState.is_consume,
+            rx.callout(
+                "The received stock is added to this same item and keeps all its "
+                "characteristics (expiry date, storage conditions, supplier, "
+                "concentration…). To record stock with different characteristics, "
+                "create a new item instead.",
+                icon="info",
+                size="1",
+                color_scheme="blue",
+            ),
+        ),
         rx.hstack(
             rx.vstack(
                 rx.text("Item name", size="2", weight="bold"),

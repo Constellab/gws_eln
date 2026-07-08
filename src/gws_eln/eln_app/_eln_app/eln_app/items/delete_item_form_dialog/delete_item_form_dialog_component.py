@@ -17,38 +17,54 @@ def _form_content() -> rx.Component:
             icon="triangle_alert",
             color="red",
         ),
-        # Item Number (read-only display)
-        rx.vstack(
-            rx.text("Item", size="2", weight="bold"),
-            rx.text(
-                DeleteItemFormDialogState.code,
-                size="2",
-                color="gray",
+        # Item info (read-only display): name and code side by side
+        rx.hstack(
+            rx.vstack(
+                rx.text("Item name", size="2", weight="bold"),
+                rx.text(
+                    DeleteItemFormDialogState.label,
+                    size="2",
+                    color="gray",
+                ),
+                width="50%",
+                spacing="1",
+            ),
+            rx.vstack(
+                rx.hstack(
+                    rx.text("Item code", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Auto-generated identifier: the sheet's code followed by an "
+                            "incrementing number."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
+                rx.text(
+                    DeleteItemFormDialogState.code,
+                    size="2",
+                    color="gray",
+                ),
+                width="50%",
+                spacing="1",
             ),
             width="100%",
-            spacing="1",
-        ),
-        # ItemSheet Name (read-only display)
-        rx.vstack(
-            rx.text("Item sheet", size="2", weight="bold"),
-            rx.text(
-                DeleteItemFormDialogState.item_sheet_name,
-                size="2",
-                color="gray",
-            ),
-            width="100%",
-            spacing="1",
+            spacing="3",
+            align="start",
         ),
         # Current Quantity (read-only display)
         rx.vstack(
             rx.text("Current Quantity", size="2", weight="bold"),
-            rx.text(
+            rx.badge(
                 DeleteItemFormDialogState.current_quantity,
+                color_scheme="red",
                 size="2",
-                color="gray",
             ),
             width="100%",
             spacing="1",
+            align="start",
         ),
         # Reusable notes form section
         use_discard_form_section(
