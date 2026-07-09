@@ -105,7 +105,7 @@ def _details_sidebar() -> rx.Component:
         rx.grid(
             # Code
             rx.text("Code", size="2", color="gray", weight="medium"),
-            rx.code(ItemDetailState.item.code, size="2"),
+            rx.code(ItemDetailState.item.code, size="2", width="fit-content"),
             # Label
             rx.cond(
                 ItemDetailState.item.label,
@@ -133,7 +133,7 @@ def _details_sidebar() -> rx.Component:
                 ItemDetailState.item.serial_number,
                 rx.fragment(
                     rx.text("Serial number", size="2", color="gray", weight="medium"),
-                    rx.code(ItemDetailState.item.serial_number, size="2"),
+                    rx.code(ItemDetailState.item.serial_number, size="2", width="fit-content"),
                 ),
             ),
             # Quantity
@@ -289,7 +289,7 @@ def _header() -> rx.Component:
             # With a label: label is the title, code shown as a badge below
             rx.vstack(
                 rx.heading(ItemDetailState.item.label, size="6"),
-                rx.code(ItemDetailState.item.code, size="2"),
+                rx.code(ItemDetailState.item.code, size="2", width="fit-content"),
                 spacing="1",
                 align="start",
             ),
