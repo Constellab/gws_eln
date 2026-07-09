@@ -162,6 +162,13 @@ class ItemFormDialogState(FormDialogState, rx.State):
         # Set to create mode
         self.is_update_mode = False
 
+        # Refresh the option lists so suppliers/locations created in their own tabs
+        # since the last load appear here (the select states cache after first load).
+        supplier_select_state = await self.get_state(SupplierSelectState)
+        await supplier_select_state.reload()
+        location_select_state = await self.get_state(LocationSelectState)
+        await location_select_state.reload()
+
     @rx.event
     async def open_create_dialog(self, item_sheet_id: str):
         """Open the dialog to create a item for the specified item_sheet.
