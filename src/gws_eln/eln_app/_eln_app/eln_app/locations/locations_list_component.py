@@ -5,7 +5,6 @@ from gws_eln.locations.location_dto import LocationDTO
 from gws_reflex_main import main_component, user_inline_component
 
 from ..common.page_layout import page_layout
-from .location_form_dialog.location_form_dialog_component import location_update_dialog
 from .locations_list_state import LocationsListState
 
 
@@ -40,14 +39,11 @@ def _create_location_button() -> rx.Component:
     :return: The create location button component
     :rtype: rx.Component
     """
-    return rx.fragment(
-        rx.button(
-            rx.icon("plus", size=18),
-            "Create New Location",
-            size="3",
-            on_click=LocationsListState.open_create_dialog,
-        ),
-        location_update_dialog(),
+    return rx.button(
+        rx.icon("plus", size=18),
+        "Create New Location",
+        size="3",
+        on_click=LocationsListState.open_create_dialog,
     )
 
 

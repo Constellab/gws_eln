@@ -5,7 +5,6 @@ from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_reflex_main import main_component, user_inline_component
 
 from ..common.page_layout import page_layout
-from .supplier_form_dialog.supplier_form_dialog_component import supplier_update_dialog
 from .suppliers_list_state import SuppliersListState
 
 
@@ -40,14 +39,11 @@ def _create_supplier_button() -> rx.Component:
     :return: The create supplier button component
     :rtype: rx.Component
     """
-    return rx.fragment(
-        rx.button(
-            rx.icon("plus", size=18),
-            "Create New Supplier",
-            size="3",
-            on_click=SuppliersListState.open_create_dialog,
-        ),
-        supplier_update_dialog(),
+    return rx.button(
+        rx.icon("plus", size=18),
+        "Create New Supplier",
+        size="3",
+        on_click=SuppliersListState.open_create_dialog,
     )
 
 

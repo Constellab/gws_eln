@@ -1,14 +1,17 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
+from ...common.select_with_create_component import select_with_create
 from ...common.unit.concentration_unit_components import concentration_unit_select
 from ...common.unit.unit_components import quantity_unit_input
 from ...locations.core.location_select_component import (
     location_select_component,
 )
+from ...locations.location_form_dialog.location_form_dialog_component import location_update_dialog
 from ...suppliers.core.supplier_select_component import (
     supplier_select_component,
 )
+from ...suppliers.supplier_form_dialog.supplier_form_dialog_component import supplier_update_dialog
 from .item_form_dialog_state import ItemFormDialogState
 
 
@@ -209,10 +212,15 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
                     align="center",
                     spacing="1",
                 ),
-                location_select_component(
-                    placeholder="Select a location",
-                    value=ItemFormDialogState.form_location_id,
-                    on_change=ItemFormDialogState.set_location_id,
+                select_with_create(
+                    location_select_component(
+                        placeholder="Select a location",
+                        value=ItemFormDialogState.form_location_id,
+                        on_change=ItemFormDialogState.set_location_id,
+                        key=ItemFormDialogState.location_select_key.to_string(),
+                    ),
+                    on_create=ItemFormDialogState.open_create_location_dialog,
+                    tooltip="Create a new location",
                 ),
                 width="50%",
                 spacing="1",
@@ -230,11 +238,16 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
                     align="center",
                     spacing="1",
                 ),
-                supplier_select_component(
-                    placeholder="Select a supplier (optional)",
-                    additional_option=("No supplier", "__none__"),
-                    value=ItemFormDialogState.form_supplier_id,
-                    on_change=ItemFormDialogState.set_supplier_id,
+                select_with_create(
+                    supplier_select_component(
+                        placeholder="Select a supplier (optional)",
+                        additional_option=("No supplier", "__none__"),
+                        value=ItemFormDialogState.form_supplier_id,
+                        on_change=ItemFormDialogState.set_supplier_id,
+                        key=ItemFormDialogState.supplier_select_key.to_string(),
+                    ),
+                    on_create=ItemFormDialogState.open_create_supplier_dialog,
+                    tooltip="Create a new supplier",
                 ),
                 width="50%",
                 spacing="1",
@@ -328,7 +341,16 @@ def create_item_dialog() -> rx.Component:
     To open the dialog, call ItemFormDialogState.open_create_dialog(item_sheet)
     with the item_sheet for which to create a item.
 
+    The supplier/location create dialogs are mounted alongside so the form's
+    "+" buttons can spawn one on the fly. This component is present on every
+    page that shows an item or item-sheet form, so it is also the single mount
+    point those two shared dialogs need.
+
     :return: The create item_sheet item dialog component
     :rtype: rx.Component
     """
-    return _dialog()
+    return rx.fragment(
+        _dialog(),
+        supplier_update_dialog(),
+        location_update_dialog(),
+    )

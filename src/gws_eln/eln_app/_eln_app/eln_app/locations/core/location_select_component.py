@@ -61,5 +61,6 @@ def location_select_component(
         ),
         name=name,
         disabled=disabled,
+        on_mount=LocationSelectState.ensure_loaded,
         **kwargs,
     )

@@ -2,6 +2,7 @@ import reflex as rx
 from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_reflex_main import form_dialog_component
 
+from ...common.select_with_create_component import select_with_create
 from .item_sheet_form_dialog_state import ItemSheetFormDialogState
 
 
@@ -142,15 +143,24 @@ def _form_content() -> rx.Component:
                     align="center",
                     spacing="1",
                 ),
-                rx.select.root(
-                    rx.select.trigger(placeholder="Select a supplier (optional)", width="100%"),
-                    rx.select.content(
-                        rx.select.item("No supplier", value="__none__"),
-                        rx.foreach(ItemSheetFormDialogState.available_suppliers, _supplier_option),
+                select_with_create(
+                    rx.select.root(
+                        rx.select.trigger(
+                            placeholder="Select a supplier (optional)", width="100%"
+                        ),
+                        rx.select.content(
+                            rx.select.item("No supplier", value="__none__"),
+                            rx.foreach(
+                                ItemSheetFormDialogState.available_suppliers, _supplier_option
+                            ),
+                        ),
+                        value=ItemSheetFormDialogState.form_supplier_id,
+                        on_change=ItemSheetFormDialogState.set_supplier_id,
+                        width="100%",
+                        key=ItemSheetFormDialogState.supplier_select_key.to_string(),
                     ),
-                    value=ItemSheetFormDialogState.form_supplier_id,
-                    on_change=ItemSheetFormDialogState.set_supplier_id,
-                    width="100%",
+                    on_create=ItemSheetFormDialogState.open_create_supplier_dialog,
+                    tooltip="Create a new supplier",
                 ),
                 flex="1",
                 min_width="0",

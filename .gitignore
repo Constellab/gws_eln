@@ -224,3 +224,6 @@ bin/
 .idea
 
 test_doc.md
+
+# Reflex dev-server build artifact (generated bun.lock / package.json)
+reflex.lock/

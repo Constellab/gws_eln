@@ -65,5 +65,6 @@ def supplier_select_component(
         ),
         name=name,
         disabled=disabled,
+        on_mount=SupplierSelectState.ensure_loaded,
         **kwargs,
     )

@@ -10,9 +10,16 @@ from gws_eln.items.item_dto import CreateItemDTO, CreateItemsBulkDTO, ItemDTO
 from gws_eln.items.item_service import ItemService
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_eln.items.item_sheet_service import ItemSheetService
+from gws_eln.locations.location_dto import LocationDTO
+from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
+
+from ...locations.core.location_select_state import LocationSelectState
+from ...locations.location_form_dialog.location_form_dialog_state import LocationFormDialogState
+from ...suppliers.core.supplier_select_state import SupplierSelectState
+from ...suppliers.supplier_form_dialog.supplier_form_dialog_state import SupplierFormDialogState
 
 FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 
@@ -49,6 +56,11 @@ class ItemFormDialogState(FormDialogState, rx.State):
     # Non-consumable bulk creation: N units, one serial per unit.
     form_unit_count: int = 1
     form_serials: list[str] = [""]
+
+    # Bumped to remount the supplier/location selects after an on-the-fly create,
+    # so Radix picks up the freshly-added option as the selected value.
+    supplier_select_key: int = 0
+    location_select_key: int = 0
 
     _callback_after_close: FormDialogCloseCallback | None = None
 
@@ -171,6 +183,34 @@ class ItemFormDialogState(FormDialogState, rx.State):
     def set_supplier_id(self, value: str):
         """Handle supplier selection change."""
         self.form_supplier_id = value
+
+    @rx.event
+    async def open_create_supplier_dialog(self):
+        """Open the create-supplier dialog to add a supplier without leaving this form."""
+        dialog_state = await self.get_state(SupplierFormDialogState)
+        dialog_state.set_callback_after_close(self._on_supplier_created)
+        await dialog_state.open_create_dialog()
+
+    async def _on_supplier_created(self, supplier: SupplierDTO):
+        """Refresh the supplier options and select the just-created supplier."""
+        supplier_select_state = await self.get_state(SupplierSelectState)
+        await supplier_select_state.reload()
+        self.form_supplier_id = supplier.id
+        self.supplier_select_key += 1
+
+    @rx.event
+    async def open_create_location_dialog(self):
+        """Open the create-location dialog to add a location without leaving this form."""
+        dialog_state = await self.get_state(LocationFormDialogState)
+        dialog_state.set_callback_after_close(self._on_location_created)
+        await dialog_state.open_create_dialog()
+
+    async def _on_location_created(self, location: LocationDTO):
+        """Refresh the location options and select the just-created location."""
+        location_select_state = await self.get_state(LocationSelectState)
+        await location_select_state.reload()
+        self.form_location_id = location.id
+        self.location_select_key += 1
 
     @rx.event
     def set_unit(self, value: str):

@@ -11,6 +11,8 @@ from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
 from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
 
+from ...suppliers.supplier_form_dialog.supplier_form_dialog_state import SupplierFormDialogState
+
 FormDialogCloseCallback = Callable[[ItemSheetDTO], Coroutine[Any, Any, None]]
 
 
@@ -47,6 +49,10 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
 
     # Available suppliers for dropdown
     available_suppliers: list[SupplierDTO] = []
+
+    # Bumped to remount the supplier select after an on-the-fly create, so Radix
+    # picks up the freshly-added option as the selected value.
+    supplier_select_key: int = 0
 
     _callback_after_close: FormDialogCloseCallback | None = None
 
@@ -184,6 +190,19 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
     def set_supplier_id(self, value: str):
         """Handle supplier selection change."""
         self.form_supplier_id = value
+
+    @rx.event
+    async def open_create_supplier_dialog(self):
+        """Open the create-supplier dialog to add a supplier without leaving this form."""
+        dialog_state = await self.get_state(SupplierFormDialogState)
+        dialog_state.set_callback_after_close(self._on_supplier_created)
+        await dialog_state.open_create_dialog()
+
+    async def _on_supplier_created(self, supplier: SupplierDTO):
+        """Add the just-created supplier to the options and select it."""
+        self.available_suppliers = [*self.available_suppliers, supplier]
+        self.form_supplier_id = supplier.id
+        self.supplier_select_key += 1
 
     @rx.event
     def set_is_consumable(self, value: bool):
