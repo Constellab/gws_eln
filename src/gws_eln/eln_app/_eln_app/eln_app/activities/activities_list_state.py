@@ -57,15 +57,17 @@ class ActivitiesListState(rx.State):
         self.error_message = ""
 
         try:
-            search_builder = ActivitySearchBuilder()
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
+                search_builder = ActivitySearchBuilder()
 
-            search_builder.add_entity_filter(self._item_id)
+                search_builder.add_entity_filter(self._item_id)
 
-            if self.filter_activity_type and self.filter_activity_type != ALL_FILTER_VALUE:
-                activity_type = ActivityType(self.filter_activity_type)
-                search_builder.add_activity_type_filter(activity_type)
+                if self.filter_activity_type and self.filter_activity_type != ALL_FILTER_VALUE:
+                    activity_type = ActivityType(self.filter_activity_type)
+                    search_builder.add_activity_type_filter(activity_type)
 
-            activities = cast(list[Activity], search_builder.search_all())
+                activities = cast(list[Activity], search_builder.search_all())
 
             dtos = []
             for activity in activities:
@@ -142,12 +144,10 @@ class ActivitiesListState(rx.State):
             if item_changed:
                 self._activities = []
             self.is_loading = True
-            main_state = await self.get_state(ReflexMainState)
 
         try:
-            with await main_state.authenticate_user():
-                async with self:
-                    await self._load_activities()
+            async with self:
+                await self._load_activities()
         except Exception as e:
             Logger.error(f"Error loading activities for item {item_id}: {e}")
             Logger.log_exception_stack_trace(e)
@@ -174,6 +174,4 @@ class ActivitiesListState(rx.State):
 
     async def refresh_activities(self):
         """Refresh the activities list from the backend."""
-        main_state = await self.get_state(ReflexMainState)
-        with await main_state.authenticate_user():
-            await self._load_activities()
+        await self._load_activities()

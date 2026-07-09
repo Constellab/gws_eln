@@ -31,20 +31,21 @@ class NotesListState(rx.State):
         self.error_message = ""
 
         try:
-            note_search_builder = NoteSearchBuilder()
+            with await main_state.authenticate_user():
+                note_search_builder = NoteSearchBuilder()
 
-            # Apply the ELN note tag filter (same as ElnNoteService.get_eln_notes)
-            note_search_builder.add_tag_filter(
-                Tag(ElnNoteService.ELN_NOTE_TAG_KEY, ElnNoteService.ELN_NOTE_TAG_VALUE)
-            )
+                # Apply the ELN note tag filter (same as ElnNoteService.get_eln_notes)
+                note_search_builder.add_tag_filter(
+                    Tag(ElnNoteService.ELN_NOTE_TAG_KEY, ElnNoteService.ELN_NOTE_TAG_VALUE)
+                )
 
-            # Apply title search filter
-            if self.search_text:
-                note_search_builder.add_title_filter(self.search_text)
+                # Apply title search filter
+                if self.search_text:
+                    note_search_builder.add_title_filter(self.search_text)
 
-            notes = note_search_builder.search_all()
+                notes = note_search_builder.search_all()
 
-            self.notes = [note.to_dto() for note in notes]
+                self.notes = [note.to_dto() for note in notes]
 
         finally:
             self.is_loading = False

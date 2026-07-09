@@ -60,29 +60,30 @@ class ItemSheetsListState(rx.State):
         self.error_message = ""
 
         try:
-            search_builder = ItemSheetSearchBuilder()
+            with await main_state.authenticate_user():
+                search_builder = ItemSheetSearchBuilder()
 
-            # Apply text search filter
-            if self.search_text:
-                search_builder.add_name_filter(self.search_text)
+                # Apply text search filter
+                if self.search_text:
+                    search_builder.add_name_filter(self.search_text)
 
-            # Apply supplier filter
-            if self.filter_supplier_id and self.filter_supplier_id != ALL_FILTER_VALUE:
-                search_builder.add_supplier_filter(self.filter_supplier_id)
+                # Apply supplier filter
+                if self.filter_supplier_id and self.filter_supplier_id != ALL_FILTER_VALUE:
+                    search_builder.add_supplier_filter(self.filter_supplier_id)
 
-            # Apply consumable filter
-            if self.filter_is_consumable and self.filter_is_consumable != ALL_FILTER_VALUE:
-                is_consumable = self.filter_is_consumable == "true"
-                search_builder.add_is_consumable_filter(is_consumable)
+                # Apply consumable filter
+                if self.filter_is_consumable and self.filter_is_consumable != ALL_FILTER_VALUE:
+                    is_consumable = self.filter_is_consumable == "true"
+                    search_builder.add_is_consumable_filter(is_consumable)
 
-            # Apply unit type filter
-            if self.filter_unit_type and self.filter_unit_type != ALL_FILTER_VALUE:
-                unit_type = UnitType(self.filter_unit_type)
-                search_builder.add_unit_type_filter(unit_type)
+                # Apply unit type filter
+                if self.filter_unit_type and self.filter_unit_type != ALL_FILTER_VALUE:
+                    unit_type = UnitType(self.filter_unit_type)
+                    search_builder.add_unit_type_filter(unit_type)
 
-            item_sheets = search_builder.search_all()
+                item_sheets = search_builder.search_all()
 
-            self.item_sheets = [item_sheet.to_dto() for item_sheet in item_sheets]
+                self.item_sheets = [item_sheet.to_dto() for item_sheet in item_sheets]
 
         finally:
             self.is_loading = False

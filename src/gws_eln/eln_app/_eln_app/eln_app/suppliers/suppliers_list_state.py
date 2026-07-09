@@ -37,14 +37,15 @@ class SuppliersListState(rx.State):
         self.error_message = ""
 
         try:
-            search_builder = SupplierSearchBuilder()
+            with await main_state.authenticate_user():
+                search_builder = SupplierSearchBuilder()
 
-            if self.search_text:
-                search_builder.add_name_filter(self.search_text)
+                if self.search_text:
+                    search_builder.add_name_filter(self.search_text)
 
-            suppliers = search_builder.search_all()
+                suppliers = search_builder.search_all()
 
-            self.suppliers = [supplier.to_dto() for supplier in suppliers]
+                self.suppliers = [supplier.to_dto() for supplier in suppliers]
 
         finally:
             self.is_loading = False

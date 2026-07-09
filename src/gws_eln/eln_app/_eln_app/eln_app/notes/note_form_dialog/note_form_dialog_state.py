@@ -51,14 +51,12 @@ class NoteFormDialogState(FormDialogState, rx.State):
         if not title:
             raise ReflexAppException("Note title is required")
 
-        main_state: ReflexMainState
         async with self:
             main_state = await self.get_state(ReflexMainState)
-
-        with await main_state.authenticate_user():
-            eln_note_service = ElnNoteService()
-            dto = NoteSaveDTO(title=title)
-            eln_note_service.create_note(dto)
+            with await main_state.authenticate_user():
+                eln_note_service = ElnNoteService()
+                dto = NoteSaveDTO(title=title)
+                eln_note_service.create_note(dto)
 
         yield rx.toast.success("Note created successfully")
 

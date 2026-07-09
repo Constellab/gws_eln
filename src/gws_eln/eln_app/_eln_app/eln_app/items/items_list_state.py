@@ -92,7 +92,9 @@ class ItemsListState(rx.State):
     async def _load_items(self):
         """Load the list of items with applied filters.
 
-        Uses ItemSearchBuilder to apply filters.
+        Establishes the app auth context so every caller (mount, filter changes,
+        reloads) runs the DB search authenticated. A deployed app has no ambient
+        user, so the context must be set here.
         """
         if not self._item_sheet_id:
             return
@@ -106,15 +108,17 @@ class ItemsListState(rx.State):
                 return value if value and value != ALL_FILTER_VALUE else None
 
             status_value = _selected(self.filter_status)
-            search_builder = ItemSearchBuilder.build_filtered(
-                item_sheet_id=self._item_sheet_id,
-                search_text=self.search_text,
-                location_id=_selected(self.filter_location_id),
-                supplier_id=_selected(self.filter_supplier_id),
-                status=ItemStatus(status_value) if status_value else None,
-            )
+            main_state = await self.get_state(ReflexMainState)
+            with await main_state.authenticate_user():
+                search_builder = ItemSearchBuilder.build_filtered(
+                    item_sheet_id=self._item_sheet_id,
+                    search_text=self.search_text,
+                    location_id=_selected(self.filter_location_id),
+                    supplier_id=_selected(self.filter_supplier_id),
+                    status=ItemStatus(status_value) if status_value else None,
+                )
 
-            items = cast(list[Item], search_builder.search_all())
+                items = cast(list[Item], search_builder.search_all())
 
             self._items = [item.to_dto() for item in items]
 
@@ -139,12 +143,10 @@ class ItemsListState(rx.State):
             self._item_sheet_id = item_sheet_id
             self._items = []
             self.is_loading = True
-            main_state = await self.get_state(ReflexMainState)
 
         try:
-            with await main_state.authenticate_user():
-                async with self:
-                    await self._load_items()
+            async with self:
+                await self._load_items()
         except Exception as e:
             Logger.error(f"Error loading items: {str(e)}")
             Logger.log_exception_stack_trace(e)

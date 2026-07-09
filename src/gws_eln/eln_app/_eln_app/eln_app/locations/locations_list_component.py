@@ -5,6 +5,7 @@ from gws_eln.locations.location_dto import LocationDTO
 from gws_reflex_main import main_component, user_inline_component
 
 from ..common.page_layout import page_layout
+from .location_form_dialog.location_form_dialog_component import location_update_dialog
 from .locations_list_state import LocationsListState
 
 
@@ -163,6 +164,7 @@ def locations_list_page() -> rx.Component:
                         ),
                     ),
                 ),
+                location_update_dialog(),
                 width="100%",
                 spacing="4",
             ),

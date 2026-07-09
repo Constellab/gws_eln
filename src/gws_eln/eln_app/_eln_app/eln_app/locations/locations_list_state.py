@@ -37,14 +37,15 @@ class LocationsListState(rx.State):
         self.error_message = ""
 
         try:
-            search_builder = LocationSearchBuilder()
+            with await main_state.authenticate_user():
+                search_builder = LocationSearchBuilder()
 
-            if self.search_text:
-                search_builder.add_name_filter(self.search_text)
+                if self.search_text:
+                    search_builder.add_name_filter(self.search_text)
 
-            locations = search_builder.search_all()
+                locations = search_builder.search_all()
 
-            self.locations = [location.to_dto() for location in locations]
+                self.locations = [location.to_dto() for location in locations]
 
         finally:
             self.is_loading = False
