@@ -68,6 +68,19 @@ class ItemsListState(rx.State):
         return self._items
 
     @rx.var
+    def show_concentration_column(self) -> bool:
+        """Whether the concentration column should be displayed.
+
+        Hidden when the item sheet is not volume-based (concentration is
+        meaningless) or when no item in the list carries a concentration.
+        """
+        if not self._items:
+            return False
+        if not self._items[0].unit_type.is_volume():
+            return False
+        return any(item.concentration is not None for item in self._items)
+
+    @rx.var
     def current_item_sheet_id(self) -> str:
         """Return the current item_sheet ID.
 

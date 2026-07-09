@@ -118,11 +118,14 @@ def _row(item: ItemDTO) -> rx.Component:
         rx.table.cell(
             rx.text(item.pretty_quantity),
         ),
-        rx.table.cell(
-            rx.cond(
-                item.concentration,
-                rx.text(f"{item.concentration} {item.concentration_unit}"),
-                rx.text("—", color="gray"),
+        rx.cond(
+            ItemsListState.show_concentration_column,
+            rx.table.cell(
+                rx.cond(
+                    item.concentration,
+                    rx.text(f"{item.concentration} {item.concentration_unit}"),
+                    rx.text("—", color="gray"),
+                ),
             ),
         ),
         rx.table.cell(
@@ -208,7 +211,10 @@ def _items_table() -> rx.Component:
                             display=rx.breakpoints(initial="none", md="table-cell"),
                         ),
                         rx.table.column_header_cell("Quantity"),
-                        rx.table.column_header_cell("Concentration"),
+                        rx.cond(
+                            ItemsListState.show_concentration_column,
+                            rx.table.column_header_cell("Concentration"),
+                        ),
                         rx.table.column_header_cell("Expiry Date"),
                         rx.table.column_header_cell("Status"),
                         rx.table.column_header_cell("Actions"),
