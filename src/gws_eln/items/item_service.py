@@ -1496,17 +1496,20 @@ class ItemService:
     def _resolve_storage_conditions(value: str | None, item_sheet: ItemSheet) -> str | None:
         """Resolve an item's storage condition.
 
-        Uses the explicit per-item value when given, otherwise inherits the
-        item sheet's default.
+        None means "not provided": inherit the item sheet's default. An empty
+        string means the user explicitly cleared the field: no storage condition
+        (the sheet default is NOT re-applied).
 
-        :param value: The per-item storage condition override (may be None/empty)
+        :param value: The per-item storage condition (None = inherit, "" = cleared)
         :type value: str | None
         :param item_sheet: The item sheet to inherit the default from
         :type item_sheet: ItemSheet
         :return: The resolved storage condition
         :rtype: str | None
         """
-        return value.strip() if value else item_sheet.storage_conditions
+        if value is None:
+            return item_sheet.storage_conditions
+        return value.strip() or None
 
     @staticmethod
     def _normalize_required_label(label: str | None) -> str:

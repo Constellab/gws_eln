@@ -333,7 +333,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
         label = form_data.get("label", "").strip()
         if not label:
             raise ReflexAppException("Label is required")
-        storage_conditions = form_data.get("storage_conditions", "").strip() or None
+        # Keep "" (not None) when cleared: field is pre-filled with the sheet default,
+        # so empty means "no condition" and must not fall back to it. None = not provided.
+        storage_conditions = form_data.get("storage_conditions", "").strip()
         notes = form_data.get("notes", "").strip() or None
 
         # Values from state (select components)
@@ -495,7 +497,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
         label = form_data.get("label", "").strip()
         if not label:
             raise ReflexAppException("Label is required")
-        storage_conditions = form_data.get("storage_conditions", "").strip() or None
+        # Keep "" (not None) when cleared: field is pre-filled with the sheet default,
+        # so empty means "no condition" and must not fall back to it. None = not provided.
+        storage_conditions = form_data.get("storage_conditions", "").strip()
         notes = form_data.get("notes", "").strip() or None
         expiry_date = self._parse_expiry_date()
 
