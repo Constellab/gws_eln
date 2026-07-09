@@ -42,13 +42,6 @@ class DeleteItemFormDialogState(FormDialogState, rx.State):
         return ""
 
     @rx.var
-    def item_sheet_name(self) -> str:
-        """Get the item_sheet name for display."""
-        if self._item and self._item.item_sheet:
-            return self._item.item_sheet.name
-        return ""
-
-    @rx.var
     def current_quantity(self) -> str:
         """Get the current quantity for display."""
         if self._item:

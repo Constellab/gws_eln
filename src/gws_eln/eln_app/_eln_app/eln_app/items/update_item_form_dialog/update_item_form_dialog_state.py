@@ -46,13 +46,6 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
             return self._item.label
         return ""
 
-    @rx.var
-    def item_sheet_name(self) -> str:
-        """Get the item_sheet name for display."""
-        if self._item and self._item.item_sheet:
-            return self._item.item_sheet.name
-        return ""
-
     @rx.event
     async def open_update_dialog(self, item: ItemDTO):
         """Open the dialog to update the specified item.
