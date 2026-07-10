@@ -40,6 +40,7 @@ from gws_eln.items.item_dto import (
 )
 from gws_eln.items.item_sheet import ItemSheet
 from gws_eln.items.item_status import ItemStatus
+from gws_eln.lineage.lineage_service import LineageService
 from gws_eln.locations.location import Location
 from gws_eln.locations.location_service import LocationService
 from gws_eln.suppliers.supplier_service import SupplierService
@@ -75,6 +76,21 @@ class ItemService:
         """
         CurrentUserService.get_and_check_current_user()
         return Item.get_by_id_and_check(item_id)
+
+    def get_batch_numbers(self, item_id: str) -> list[str]:
+        """Return an item's batch/lot numbers (own + inherited from ancestors).
+
+        An origin item yields at most its single lot number; a derived item
+        yields the union of its ancestors' lot numbers (see LineageService).
+
+        :param item_id: The ID of the item
+        :type item_id: str
+        :return: Sorted, de-duplicated lot numbers
+        :rtype: list[str]
+        """
+        CurrentUserService.get_and_check_current_user()
+        Item.get_by_id_and_check(item_id)
+        return LineageService().get_batch_numbers(item_id)
 
     def list_items(
         self,
@@ -162,6 +178,7 @@ class ItemService:
         item.unit_type = unit_type
         item.concentration = dto.concentration
         item.concentration_unit = dto.concentration_unit or None
+        item.batch_number = dto.batch_number.strip() if dto.batch_number else None
         item.location = location
         item.expiry_date = dto.expiry_date
         item.label = self._normalize_required_label(dto.label)
@@ -248,6 +265,7 @@ class ItemService:
         label = self._normalize_required_label(dto.label)
         storage_conditions = self._resolve_storage_conditions(dto.storage_conditions, item_sheet)
         notes = dto.notes.strip() if dto.notes else None
+        batch_number = dto.batch_number.strip() if dto.batch_number else None
         unit_type = item_sheet.unit_type
 
         # Each serialized unit stays dissociable: its own item with quantity 1.
@@ -268,6 +286,7 @@ class ItemService:
             item.unit_type = unit_type
             item.concentration = dto.concentration
             item.concentration_unit = dto.concentration_unit or None
+            item.batch_number = batch_number
             item.location = location
             item.expiry_date = dto.expiry_date
             item.label = label

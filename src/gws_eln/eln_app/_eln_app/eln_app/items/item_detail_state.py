@@ -39,6 +39,9 @@ class ItemDetailState(rx.State):
     """
 
     item: ItemDTO | None = None
+    # Lot numbers attached to the item: its own single lot for an origin item, or
+    # the union of its ancestors' lots for a derived item (derived from the lineage).
+    batch_numbers: list[str] = []
     is_loading: bool = False
     error_message: str = ""
 
@@ -59,14 +62,19 @@ class ItemDetailState(rx.State):
         try:
             item_service = ItemService()
             item: Item
+            batch_numbers: list[str] = []
             with await main_state.authenticate_user():
                 item = item_service.get_item(item_id)
+                if item:
+                    batch_numbers = item_service.get_batch_numbers(item_id)
 
             if item:
                 self.item = item.to_dto()
+                self.batch_numbers = batch_numbers
             else:
                 self.error_message = "Item not found"
                 self.item = None
+                self.batch_numbers = []
 
         except Exception as e:
             self.error_message = f"Error loading item: {str(e)}"

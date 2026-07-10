@@ -74,6 +74,12 @@ class Item(ModelWithUser):
     concentration = NullableDecimalField(max_digits=20, decimal_places=12)
     concentration_unit = NullableCharField(max_length=20)
 
+    # Supplier batch/lot number. Set once at creation on an origin item (a
+    # single lot); identity-defining, never edited afterwards. Derived items
+    # carry none of their own - their lot numbers are the union of their
+    # ancestors', derived from the lineage (see LineageService.get_batch_numbers).
+    batch_number = NullableCharField(max_length=255, index=True)
+
     # Storage condition for the item (free text, e.g. "-20°C"). Inherited from the
     # item sheet's default at creation, can be overridden per item.
     storage_conditions = NullableCharField(max_length=255)
@@ -238,6 +244,7 @@ class Item(ModelWithUser):
             unit_type=self.unit_type,
             concentration=self.concentration,
             concentration_unit=self.concentration_unit,
+            batch_number=self.batch_number,
             storage_conditions=self.storage_conditions,
             notes=self.notes,
             status=self.status,

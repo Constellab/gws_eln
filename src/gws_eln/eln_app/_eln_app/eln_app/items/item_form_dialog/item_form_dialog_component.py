@@ -255,6 +255,33 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
             width="100%",
             spacing="3",
         ),
+        # Batch / lot number (origin items only; hidden for transform outputs,
+        # which inherit their lot numbers from their ancestors).
+        rx.cond(
+            ~ItemFormDialogState.collect_mode,
+            rx.vstack(
+                rx.hstack(
+                    rx.text("Batch / lot number", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Supplier lot number for this delivery (optional). Set once at "
+                            "creation; items derived from this one inherit its lot number."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
+                rx.input(
+                    placeholder="Enter the batch/lot number (optional)",
+                    name="batch_number",
+                    width="100%",
+                    default_value=ItemFormDialogState.form_batch_number,
+                ),
+                width="100%",
+                spacing="1",
+            ),
+        ),
         # Expiry Date + Storage conditions (side by side, equal width)
         rx.hstack(
             rx.vstack(

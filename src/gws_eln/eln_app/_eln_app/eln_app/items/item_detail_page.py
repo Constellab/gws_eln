@@ -150,6 +150,22 @@ def _details_sidebar() -> rx.Component:
                     ),
                 ),
             ),
+            # Batch / lot number(s): one for an origin item, several when derived
+            # from parents carrying different lots (union over the lineage).
+            rx.cond(
+                ItemDetailState.batch_numbers,
+                rx.fragment(
+                    rx.text("Batch / lot number", size="2", color="gray", weight="medium"),
+                    rx.hstack(
+                        rx.foreach(
+                            ItemDetailState.batch_numbers,
+                            lambda batch: rx.code(batch, size="2", width="fit-content"),
+                        ),
+                        spacing="1",
+                        wrap="wrap",
+                    ),
+                ),
+            ),
             # Storage conditions (always shown; "—" when not set)
             rx.text("Storage conditions", size="2", color="gray", weight="medium"),
             rx.text(

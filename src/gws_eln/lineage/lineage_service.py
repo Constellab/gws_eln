@@ -120,6 +120,26 @@ class LineageService:
         node_ids.discard(item_id)
         return node_ids
 
+    def get_batch_numbers(self, item_id: str) -> list[str]:
+        """Return the batch/lot numbers attached to an item, sorted and de-duplicated.
+
+        A batch number is set once at creation on an origin item (a single lot).
+        A derived item carries none of its own; its batch numbers are the union
+        of all its ancestors' batch numbers, collected by walking the lineage up.
+        An origin item (no ancestors) yields at most its own single lot number.
+
+        :param item_id: The item whose lot numbers to resolve.
+        :type item_id: str
+        :return: Sorted, de-duplicated lot numbers (own + inherited from ancestors).
+        :rtype: list[str]
+        """
+        node_ids: set[str] = {item_id}
+        self._walk(LineageRepo(), item_id, "up", node_ids, {})
+        rows = Item.select(Item.batch_number).where(
+            Item.id.in_(list(node_ids)) & Item.batch_number.is_null(False)
+        )
+        return sorted({row.batch_number for row in rows})
+
     # ----------------------------------------------------------- traversal
 
     def _walk(

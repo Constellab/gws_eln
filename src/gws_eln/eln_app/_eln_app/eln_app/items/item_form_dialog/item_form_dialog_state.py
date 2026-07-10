@@ -46,6 +46,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
     form_quantity: str = ""
     form_concentration: str = ""
     form_concentration_unit: str = "__none__"
+    form_batch_number: str = ""
     form_location_id: str = ""
     form_supplier_id: str = "__none__"
     form_expiry_date: str = ""
@@ -140,6 +141,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         self.form_label = ""
         self.form_quantity = ""
         self.form_concentration = ""
+        self.form_batch_number = ""
         self.form_unit_count = 1
         self.form_serials = [""]
         # Prefill the storage condition with the sheet's default (editable override)
@@ -469,6 +471,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
             else None
         )
 
+        # Supplier lot number for this delivery (optional, single lot).
+        batch_number = form_data.get("batch_number", "").strip() or None
+
         # Create the item
         item: Item
         with await main_state.authenticate_user():
@@ -479,6 +484,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
                 unit=unit,
                 concentration=concentration,
                 concentration_unit=concentration_unit,
+                batch_number=batch_number,
                 location_id=location_id,
                 supplier_id=supplier_id,
                 expiry_date=expiry_date,
@@ -520,6 +526,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
             else None
         )
 
+        # Supplier lot number, shared by every created unit (optional, single lot).
+        batch_number = form_data.get("batch_number", "").strip() or None
+
         # One serial per unit (empty -> None for not-yet-serialized units)
         serial_numbers = [serial.strip() or None for serial in self.form_serials]
         if not serial_numbers:
@@ -534,6 +543,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
             dto = CreateItemsBulkDTO(
                 item_sheet_id=self._item_sheet.id,
                 serial_numbers=serial_numbers,
+                batch_number=batch_number,
                 location_id=location_id,
                 supplier_id=supplier_id,
                 expiry_date=expiry_date,
@@ -567,6 +577,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         self.form_quantity = ""
         self.form_concentration = ""
         self.form_concentration_unit = self.NO_CONCENTRATION_VALUE
+        self.form_batch_number = ""
         self.form_location_id = ""
         self.form_supplier_id = self.NO_SUPPLIER_VALUE
         self.form_expiry_date = ""

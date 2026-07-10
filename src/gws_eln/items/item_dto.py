@@ -32,6 +32,7 @@ class CreateItemDTO(BaseModelDTO):
     unit: str  # Exact unit (e.g., 'mL', 'g', 'kg') - converted to base unit for storage
     concentration: Decimal | None = None
     concentration_unit: str | None = None
+    batch_number: str | None = None  # Supplier lot number for this delivery (single lot)
     location_id: str | None = None  # Default to "labo" if None
     supplier_id: str | None = None
     expiry_date: date | None = None
@@ -55,6 +56,7 @@ class CreateItemsBulkDTO(BaseModelDTO):
     serial_numbers: list[str | None] = []  # One per unit; None/empty allowed
     concentration: Decimal | None = None
     concentration_unit: str | None = None
+    batch_number: str | None = None  # Supplier lot number shared by every created unit (single lot)
     location_id: str | None = None  # Default to "labo" if None
     supplier_id: str | None = None
     expiry_date: date | None = None
@@ -342,6 +344,7 @@ class ItemDTO(ItemSimpleDTO):
     pretty_quantity: str  # Pre-formatted quantity string for display
     concentration: Decimal | None
     concentration_unit: str | None
+    batch_number: str | None  # Own lot number (single); set at creation for origin items only
     storage_conditions: str | None
     item_sheet: ItemSheetDTO
     location: LocationDTO
