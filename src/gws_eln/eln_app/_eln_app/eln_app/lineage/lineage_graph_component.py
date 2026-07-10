@@ -8,8 +8,44 @@ from .lineage_nodes import activity_node, item_node
 from .lineage_state import LineageState
 
 
+def _batch_toggle_overlay() -> rx.Component:
+    """Lot-number toggle, overlaid as a card in the top-right of the graph."""
+    return rx.hstack(
+        rx.text(
+            "Batch / lot numbers",
+            size="2",
+            color="gray",
+            weight="medium",
+        ),
+        rx.tooltip(
+            rx.icon("info", size=14, color="gray"),
+            content=(
+                "Show each item's lot number(s) as colored chips. A lot keeps the same "
+                "color across the graph, so you can trace its descendance down the tree."
+            ),
+        ),
+        rx.switch(
+            checked=LineageState.show_batch_numbers,
+            on_change=LineageState.toggle_batch_numbers,
+        ),
+        spacing="2",
+        align="center",
+        style={
+            "position": "absolute",
+            "top": "12px",
+            "right": "12px",
+            "zIndex": "10",
+            "padding": "6px 12px",
+            "borderRadius": "8px",
+            "background": "var(--color-panel-solid)",
+            "border": "1px solid var(--gray-5)",
+            "boxShadow": "0 2px 8px rgba(0,0,0,0.12)",
+        },
+    )
+
+
 def _graph_canvas() -> rx.Component:
-    """The React Flow canvas wired to the lineage state."""
+    """The React Flow canvas wired to the lineage state, with the toggle overlay."""
     return rx.box(
         react_flow(
             react_flow_background(gap=16, size=1),
@@ -28,6 +64,8 @@ def _graph_canvas() -> rx.Component:
             # so fresh nodes/edges are picked up without leaving the page.
             key=LineageState.graph_key,
         ),
+        _batch_toggle_overlay(),
+        position="relative",
         width="100%",
         height="70vh",
         border="1px solid var(--gray-5)",

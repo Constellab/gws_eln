@@ -27,6 +27,39 @@ _STATUS_VISUAL = {
     ItemStatus.DISCARDED.value: ("#fef2f2", "1px solid #dc2626", "#991b1b"),
 }
 
+# Batch/lot chips use an HSL color generated from the lot number: only the hue
+# varies. Background is a soft pastel; text is a dark same-hue tone for contrast.
+_BATCH_SATURATION = 70
+_BATCH_LIGHTNESS = 86  # pastel background
+_BATCH_TEXT_SATURATION = 55
+_BATCH_TEXT_LIGHTNESS = 30  # dark, same-hue text readable on the pastel background
+# Golden-angle hue step (~137.5 deg) spreads consecutive/similar lots far apart
+# on the color wheel instead of clustering them.
+_GOLDEN_ANGLE = 137.508
+
+
+def _batch_hue(value: str) -> float:
+    """Deterministic, process-stable hue (0-360) derived from a lot number.
+
+    Same lot -> same hue across the whole graph, so a lot's descendance is
+    visually traceable. Uses a stable polynomial string hash (NOT Python's salted
+    ``hash()``); the golden-angle step spreads distinct lots around the wheel.
+    """
+    hashed = 0
+    for char in value:
+        hashed = (hashed * 31 + ord(char)) & 0xFFFFFFFF
+    return (hashed * _GOLDEN_ANGLE) % 360
+
+
+def _batch_color(value: str) -> str:
+    """Pastel background color for a lot chip."""
+    return f"hsl({_batch_hue(value):.0f}, {_BATCH_SATURATION}%, {_BATCH_LIGHTNESS}%)"
+
+
+def _batch_text_color(value: str) -> str:
+    """Dark same-hue text color for a lot chip (readable on its pastel background)."""
+    return f"hsl({_batch_hue(value):.0f}, {_BATCH_TEXT_SATURATION}%, {_BATCH_TEXT_LIGHTNESS}%)"
+
 
 class LineageState(rx.State):
     """Loads the bipartite lineage DAG and maps it to React Flow nodes/edges.
@@ -46,6 +79,9 @@ class LineageState(rx.State):
     _edges: list[dict] = []
     is_loading: bool = False
     error_message: str = ""
+    # When on, each item node shows its lot number(s) as colored chips so a lot's
+    # descendance can be traced down the graph.
+    show_batch_numbers: bool = False
 
     @rx.var
     def graph_key(self) -> str:
@@ -94,6 +130,15 @@ class LineageState(rx.State):
                             "color": color,
                             "has_input": node.id in with_input,
                             "has_output": node.id in with_output,
+                            "batches": [
+                                {
+                                    "value": batch,
+                                    "color": _batch_color(batch),
+                                    "text_color": _batch_text_color(batch),
+                                }
+                                for batch in node.batch_numbers
+                            ],
+                            "show_batch": self.show_batch_numbers,
                         },
                     }
                 )
@@ -211,6 +256,27 @@ class LineageState(rx.State):
                 self._has_graph = False
                 self.is_loading = False
                 self.error_message = "Failed to load lineage"
+
+    @rx.event
+    def toggle_batch_numbers(self, value: bool):
+        """Show/hide the lot-number chips on every item node.
+
+        The canvas is uncontrolled (``default_nodes``), so the item nodes are
+        rebuilt with the new ``show_batch`` flag and the version bumped to remount
+        it. Chips (and their colors) are already baked in the node data, so no
+        refetch is needed.
+
+        :param value: True to show the lot chips, False to hide them.
+        :type value: bool
+        """
+        self.show_batch_numbers = value
+        self._nodes = [
+            {**node, "data": {**node["data"], "show_batch": value}}
+            if node.get("type") == LineageNodeKind.ITEM.value
+            else node
+            for node in self._nodes
+        ]
+        self._version += 1
 
     @rx.event
     def node_click(self, node: dict[str, Any]):

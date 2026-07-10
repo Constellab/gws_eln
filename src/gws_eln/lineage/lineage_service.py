@@ -82,11 +82,17 @@ class LineageService:
 
         items = list(Item.select().where(Item.id.in_(list(node_ids))))
 
+        # Lot numbers per item (own + inherited from ancestors), reusing the same
+        # cache. Displayed on the graph when the "batch numbers" toggle is on.
+        batch_by_item = self._batch_numbers_by_item(repo, [item.id for item in items])
+
         # 2. Item layers (longest path), then items ordered/positioned by the
         # activity they belong to (siblings grouped to reduce edge crossings).
         item_layer = self._compute_item_layers(item_id, raw)
         activities = self._group_activities(raw)
-        item_nodes = self._build_item_nodes(items, item_layer, activities, focus_id=item_id)
+        item_nodes = self._build_item_nodes(
+            items, item_layer, activities, batch_by_item, focus_id=item_id
+        )
         position_by_id: dict[str, tuple[float, float]] = {
             node.id: (node.position_x, node.position_y) for node in item_nodes
         }
@@ -133,12 +139,40 @@ class LineageService:
         :return: Sorted, de-duplicated lot numbers (own + inherited from ancestors).
         :rtype: list[str]
         """
-        node_ids: set[str] = {item_id}
-        self._walk(LineageRepo(), item_id, "up", node_ids, {})
-        rows = Item.select(Item.batch_number).where(
-            Item.id.in_(list(node_ids)) & Item.batch_number.is_null(False)
-        )
-        return sorted({row.batch_number for row in rows})
+        return self._batch_numbers_by_item(LineageRepo(), [item_id])[item_id]
+
+    def _batch_numbers_by_item(
+        self, repo: LineageRepo, item_ids: list[str]
+    ) -> dict[str, list[str]]:
+        """Resolve the lot numbers of several items at once (own + inherited).
+
+        Each item's lots are the union of the own ``batch_number`` of itself and
+        all its ancestors. The ancestor walks share ``repo`` so their overlapping
+        adjacency/activity lookups are cached, and every own lot is resolved in a
+        single item query.
+
+        :param repo: Shared lineage cache (reused across the per-item up-walks).
+        :param item_ids: The items to resolve.
+        :return: ``{item_id: sorted, de-duplicated lot numbers}`` for each item.
+        """
+        closure_by_item: dict[str, set[str]] = {}
+        all_ids: set[str] = set()
+        for item_id in item_ids:
+            closure: set[str] = {item_id}
+            self._walk(repo, item_id, "up", closure, {})
+            closure_by_item[item_id] = closure
+            all_ids |= closure
+
+        own_batch: dict[str, str] = {
+            row.id: row.batch_number
+            for row in Item.select(Item.id, Item.batch_number).where(
+                Item.id.in_(list(all_ids)) & Item.batch_number.is_null(False)
+            )
+        }
+        return {
+            item_id: sorted({own_batch[a] for a in closure if a in own_batch})
+            for item_id, closure in closure_by_item.items()
+        }
 
     # ----------------------------------------------------------- traversal
 
@@ -317,6 +351,7 @@ class LineageService:
         items: list[Item],
         item_layer: dict[str, int],
         activities: dict[str, dict],
+        batch_by_item: dict[str, list[str]],
         focus_id: str,
     ) -> list[LineageNodeDTO]:
         """Build item nodes on even rows (y = layer * 2 * ROW_GAP).
@@ -352,6 +387,7 @@ class LineageService:
                         pretty_quantity=item.get_pretty_quantity(),
                         pretty_concentration=item.get_pretty_concentration(),
                         status=item.status,
+                        batch_numbers=batch_by_item.get(item.id, []),
                     )
                 )
         return nodes

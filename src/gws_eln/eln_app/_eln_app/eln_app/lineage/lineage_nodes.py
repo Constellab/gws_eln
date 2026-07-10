@@ -19,13 +19,22 @@ from ..activities.activity_type_component import activity_type_badge
 from ..common.react_flow import react_flow_handle
 
 
+class BatchChip(TypedDict):
+    """One lot-number chip: its value, pastel background and same-hue dark text."""
+
+    value: str
+    color: str
+    text_color: str
+
+
 class ItemNodeData(TypedDict):
     """Data payload for an item node.
 
     The visual is carried as plain string fields. ``label`` is the primary line
     and ``code`` the secondary line below; ``quantity`` is a muted suffix on the
     primary line and ``concentration`` on the secondary line (both optional).
-    ``has_input`` / ``has_output`` gate the top / bottom handles.
+    ``has_input`` / ``has_output`` gate the top / bottom handles. ``batches`` are
+    the item's lot chips, shown to the right of the node when ``show_batch`` is on.
     """
 
     code: str
@@ -37,6 +46,47 @@ class ItemNodeData(TypedDict):
     color: str
     has_input: bool
     has_output: bool
+    batches: list[BatchChip]
+    show_batch: bool
+
+
+def _batch_chips(data: rx.Var[ItemNodeData]) -> rx.Component:
+    """Colored lot-number chips floating to the right of an item node.
+
+    Absolutely positioned so they never affect the fixed node height nor collide
+    with the top/bottom edge handles. Same lot -> same color across the graph.
+    """
+    return rx.cond(
+        data["show_batch"] & (data["batches"].length() > 0),
+        rx.vstack(
+            rx.foreach(
+                data["batches"],
+                lambda chip: rx.box(
+                    chip["value"],
+                    background=chip["color"],
+                    color=chip["text_color"],
+                    style={
+                        "fontSize": "9px",
+                        "fontWeight": "600",
+                        "lineHeight": "1.4",
+                        "padding": "1px 7px",
+                        "borderRadius": "999px",
+                        "whiteSpace": "nowrap",
+                        "boxShadow": "0 1px 2px rgba(0,0,0,0.1)",
+                    },
+                ),
+            ),
+            spacing="1",
+            align="start",
+            style={
+                "position": "absolute",
+                "left": "calc(100% + 6px)",
+                "top": "0",
+                "maxHeight": f"{ITEM_NODE_HEIGHT}px",
+                "flexWrap": "wrap",
+            },
+        ),
+    )
 
 
 class ActivityNodeData(TypedDict):
@@ -95,6 +145,7 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
             justify="center",
         ),
         rx.cond(data["has_output"], react_flow_handle(type="source", position="bottom")),
+        _batch_chips(data),
         background=data["background"],
         border=data["border"],
         color=data["color"],
@@ -104,6 +155,7 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
         min_width="120px",
         height=f"{ITEM_NODE_HEIGHT}px",
         box_sizing="border-box",
+        position="relative",
         display="flex",
         flex_direction="column",
         align_items="center",
