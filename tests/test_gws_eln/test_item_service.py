@@ -78,6 +78,28 @@ class TestItemService(BaseTestCase):
             self._sheet(code, unit_type=UnitType.COUNT), quantity=quantity, unit="units"
         )
 
+    def _concentration_item(
+        self, code: str, quantity: str = "10", concentration: str = "2"
+    ) -> Item:
+        """Create a VOLUME consumable item with a concentration.
+
+        Dilute/concentrate require the source/target to already carry a
+        concentration. 'L' (base unit, factor 1) keeps the quantity maths whole.
+        """
+        return self._create_consumable(
+            self._sheet(code, unit_type=UnitType.VOLUME),
+            quantity=quantity,
+            unit="L",
+            concentration=Decimal(concentration),
+            concentration_unit="g/L",
+        )
+
+    def _volume_item(self, code: str, quantity: str = "10") -> Item:
+        """Create a plain VOLUME consumable item (no concentration), e.g. a diluent."""
+        return self._create_consumable(
+            self._sheet(code, unit_type=UnitType.VOLUME), quantity=quantity, unit="L"
+        )
+
     def _save_raw_item(self, sheet, code: str) -> Item:
         """Persist an item with a chosen code (to set up code-generation edge cases)."""
         item = Item()
@@ -228,12 +250,15 @@ class TestItemService(BaseTestCase):
             )
 
     def test_bulk_allows_null_serials(self):
+        # Serial-less units are indistinguishable: they collapse into a single
+        # stacked item whose quantity is their count.
         sheet = self._sheet("BLK4", is_consumable=False, unit_type=UnitType.COUNT)
         items = ItemService().create_items_bulk(
             CreateItemsBulkDTO(item_sheet_id=sheet.id, serial_numbers=[None, None], label="Test item")
         )
-        self.assertEqual(len(items), 2)
-        self.assertTrue(all(i.serial_number is None for i in items))
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].quantity, Decimal(2))
+        self.assertIsNone(items[0].serial_number)
 
     # ---------------------------------------------------- consumable/non-consumable guards
 
@@ -291,11 +316,16 @@ class TestItemService(BaseTestCase):
                 )
             )
 
-    def test_non_consumable_quantity_must_be_one(self):
+    def test_non_consumable_serialized_quantity_must_be_one(self):
+        # A serialized non-consumable unit is one physical thing: quantity must be 1.
+        # (Serial-less units may be stacked with quantity > 1.)
         sheet = self._sheet("CPL2", is_consumable=False, unit_type=UnitType.COUNT)
         with self.assertRaises(BadRequestException):
             ItemService().create_item(
-                CreateItemDTO(item_sheet_id=sheet.id, quantity=Decimal(5), unit="units", label="Test item")
+                CreateItemDTO(
+                    item_sheet_id=sheet.id, quantity=Decimal(5), unit="units",
+                    serial_number="SER-5", label="Test item"
+                )
             )
 
     # ------------------------------------------------------------------- split
@@ -439,14 +469,14 @@ class TestItemService(BaseTestCase):
     # ------------------------------------------------------------- concentrate
 
     def test_concentrate_reduces_source_and_creates_output(self):
-        source = self._count_item("CON1", "10")
+        source = self._concentration_item("CON1", "10")
         result = ItemService().concentrate_item(
             source.id,
             ConcentrateItemDTO(
                 quantity_contributed=Decimal(10),
-                unit="units",
+                unit="L",
                 output_quantity=Decimal(4),
-                output_unit="units",
+                output_unit="L",
                 output_label="Concentrated output",
             ),
         )
@@ -458,14 +488,14 @@ class TestItemService(BaseTestCase):
         self.assertEqual(source_after.status, ItemStatus.EXHAUSTED)
 
     def test_concentrate_persists_concentration_method(self):
-        source = self._count_item("CONM", "10")
+        source = self._concentration_item("CONM", "10")
         result = ItemService().concentrate_item(
             source.id,
             ConcentrateItemDTO(
                 quantity_contributed=Decimal(10),
-                unit="units",
+                unit="L",
                 output_quantity=Decimal(4),
-                output_unit="units",
+                output_unit="L",
                 concentration_method=ConcentrationMethod.LYOPHILIZATION,
                 output_label="Concentrated output",
             ),
@@ -494,20 +524,20 @@ class TestItemService(BaseTestCase):
     # ---------------------------------------------------------------- dilute
 
     def test_dilute_reduces_target_and_diluent(self):
-        target = self._count_item("DIL1", "10")
-        diluent = self._count_item("DIL2", "10")
+        target = self._concentration_item("DIL1", "10")
+        diluent = self._volume_item("DIL2", "10")
         result = ItemService().dilute_item(
             target.id,
             DiluteItemDTO(
                 quantity_contributed=Decimal(5),
-                unit="units",
+                unit="L",
                 diluents=[
                     DiluteDiluentDTO(
-                        item_id=diluent.id, quantity_contributed=Decimal(5), unit="units"
+                        item_id=diluent.id, quantity_contributed=Decimal(5), unit="L"
                     )
                 ],
                 output_quantity=Decimal(10),
-                output_unit="units",
+                output_unit="L",
                 output_label="Diluted output",
             ),
         )
@@ -518,20 +548,20 @@ class TestItemService(BaseTestCase):
         self.assertEqual(ItemService().get_item(diluent.id).quantity, Decimal(5))
 
     def test_dilute_reduces_every_diluent(self):
-        target = self._count_item("MDL1", "10")
-        diluent_a = self._count_item("MDL2", "10")
-        diluent_b = self._count_item("MDL3", "10")
+        target = self._concentration_item("MDL1", "10")
+        diluent_a = self._volume_item("MDL2", "10")
+        diluent_b = self._volume_item("MDL3", "10")
         result = ItemService().dilute_item(
             target.id,
             DiluteItemDTO(
                 quantity_contributed=Decimal(4),
-                unit="units",
+                unit="L",
                 diluents=[
-                    DiluteDiluentDTO(item_id=diluent_a.id, quantity_contributed=Decimal(3), unit="units"),
-                    DiluteDiluentDTO(item_id=diluent_b.id, quantity_contributed=Decimal(2), unit="units"),
+                    DiluteDiluentDTO(item_id=diluent_a.id, quantity_contributed=Decimal(3), unit="L"),
+                    DiluteDiluentDTO(item_id=diluent_b.id, quantity_contributed=Decimal(2), unit="L"),
                 ],
                 output_quantity=Decimal(9),
-                output_unit="units",
+                output_unit="L",
                 output_label="Diluted output",
             ),
         )
@@ -622,15 +652,15 @@ class TestItemService(BaseTestCase):
         self.assertEqual(self._instrument_input_ids(result.activity), {centrifuge.id})
 
     def test_concentrate_records_instruments(self):
-        source = self._count_item("INCC", "10")
+        source = self._concentration_item("INCC", "10")
         rotovap = self._instrument("INCR", "ROT-1")
         result = ItemService().concentrate_item(
             source.id,
             ConcentrateItemDTO(
                 quantity_contributed=Decimal(5),
-                unit="units",
+                unit="L",
                 output_quantity=Decimal(4),
-                output_unit="units",
+                output_unit="L",
                 output_label="Concentrated output",
                 instrument_item_ids=[rotovap.id],
             ),
@@ -638,21 +668,21 @@ class TestItemService(BaseTestCase):
         self.assertEqual(self._instrument_input_ids(result.activity), {rotovap.id})
 
     def test_dilute_records_instruments(self):
-        target = self._count_item("INDT", "10")
-        diluent = self._count_item("INDD", "10")
+        target = self._concentration_item("INDT", "10")
+        diluent = self._volume_item("INDD", "10")
         vortex = self._instrument("INDV", "VTX-1")
         result = ItemService().dilute_item(
             target.id,
             DiluteItemDTO(
                 quantity_contributed=Decimal(5),
-                unit="units",
+                unit="L",
                 diluents=[
                     DiluteDiluentDTO(
-                        item_id=diluent.id, quantity_contributed=Decimal(5), unit="units"
+                        item_id=diluent.id, quantity_contributed=Decimal(5), unit="L"
                     )
                 ],
                 output_quantity=Decimal(10),
-                output_unit="units",
+                output_unit="L",
                 output_label="Diluted output",
                 instrument_item_ids=[vortex.id],
             ),
@@ -716,3 +746,76 @@ class TestItemService(BaseTestCase):
         result = ItemService().delete_item(item.id, notes="no longer needed")
         self.assertEqual(result, DeleteItemResultDTO.DISCARDED)
         self.assertEqual(ItemService().get_item(item.id).status, ItemStatus.DISCARDED)
+
+    # ------------------------------------------------------------- batch / lot numbers
+
+    def _count_item_with_batch(self, code: str, batch_number: str, quantity: str = "10") -> Item:
+        """Create a COUNT origin item carrying a single lot number."""
+        return self._create_consumable(
+            self._sheet(code, unit_type=UnitType.COUNT),
+            quantity=quantity,
+            unit="units",
+            batch_number=batch_number,
+        )
+
+    def test_create_item_stores_single_batch_number(self):
+        item = self._create_consumable(self._sheet("BAT1"), batch_number="LOT-A")
+        self.assertEqual(item.batch_number, "LOT-A")
+        # An origin item's lots are just its own single lot.
+        self.assertEqual(ItemService().get_batch_numbers(item.id), ["LOT-A"])
+
+    def test_create_item_without_batch_number_has_no_lots(self):
+        item = self._create_consumable(self._sheet("BAT2"))
+        self.assertIsNone(item.batch_number)
+        self.assertEqual(ItemService().get_batch_numbers(item.id), [])
+
+    def test_create_items_bulk_shares_batch_number(self):
+        sheet = self._sheet("BAT3", is_consumable=False, unit_type=UnitType.COUNT)
+        items = ItemService().create_items_bulk(
+            CreateItemsBulkDTO(
+                item_sheet_id=sheet.id, serial_numbers=["S1", "S2"],
+                batch_number="LOT-B", label="Test item",
+            )
+        )
+        self.assertTrue(all(i.batch_number == "LOT-B" for i in items))
+
+    def test_derived_item_inherits_union_of_parents_batch_numbers(self):
+        # Combine two origins carrying different lots: the output carries no own
+        # lot, and its lots are the union of its ancestors' (derived from lineage).
+        item_a = self._count_item_with_batch("BAT4", "LOT-A")
+        item_b = self._count_item_with_batch("BAT5", "LOT-B")
+        out_sheet = self._sheet("BAT6", unit_type=UnitType.COUNT)
+        result = ItemService().combine_items(
+            CombineItemDTO(
+                inputs=[
+                    CombineInputDTO(item_id=item_a.id, quantity=Decimal(4), unit="units"),
+                    CombineInputDTO(item_id=item_b.id, quantity=Decimal(6), unit="units"),
+                ],
+                output_item_sheet_id=out_sheet.id,
+                output_quantity=Decimal(10),
+                output_unit="units",
+                output_label="Combined output",
+            )
+        )
+        output = result.outputs[0]
+        self.assertIsNone(output.batch_number)
+        self.assertEqual(ItemService().get_batch_numbers(output.id), ["LOT-A", "LOT-B"])
+
+    def test_derived_item_deduplicates_shared_batch_number(self):
+        # Two parents sharing the same lot yield that lot once (union, sorted).
+        item_a = self._count_item_with_batch("BAT7", "LOT-X")
+        item_b = self._count_item_with_batch("BAT8", "LOT-X")
+        out_sheet = self._sheet("BAT9", unit_type=UnitType.COUNT)
+        result = ItemService().combine_items(
+            CombineItemDTO(
+                inputs=[
+                    CombineInputDTO(item_id=item_a.id, quantity=Decimal(5), unit="units"),
+                    CombineInputDTO(item_id=item_b.id, quantity=Decimal(5), unit="units"),
+                ],
+                output_item_sheet_id=out_sheet.id,
+                output_quantity=Decimal(10),
+                output_unit="units",
+                output_label="Combined output",
+            )
+        )
+        self.assertEqual(ItemService().get_batch_numbers(result.outputs[0].id), ["LOT-X"])

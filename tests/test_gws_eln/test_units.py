@@ -589,9 +589,9 @@ class TestFormatValue(BaseTestCaseLight):
     # ==================== AUTO UNIT SELECTION - COUNT ====================
 
     def test_format_value_count_auto(self):
-        """Test count always uses units."""
+        """Count displays with the default 'pcs' unit."""
         result = UnitConverter.format_value(100, UnitType.COUNT)
-        self.assertEqual(result, "100 units")
+        self.assertEqual(result, "100 pcs")
 
     # ==================== EXPLICIT UNIT SPECIFICATION ====================
 
@@ -656,7 +656,7 @@ class TestFormatValue(BaseTestCaseLight):
         self.assertEqual(UnitConverter.format_value(0, UnitType.MASS), "0 g")
         self.assertEqual(UnitConverter.format_value(0, UnitType.VOLUME), "0 mL")
         self.assertEqual(UnitConverter.format_value(0, UnitType.LENGTH), "0 cm")
-        self.assertEqual(UnitConverter.format_value(0, UnitType.COUNT), "0 units")
+        self.assertEqual(UnitConverter.format_value(0, UnitType.COUNT), "0 pcs")
 
     def test_format_value_negative(self):
         """Test format_value with negative value."""

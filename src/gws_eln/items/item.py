@@ -167,8 +167,10 @@ class Item(ModelWithUser):
 
         - Consumable: must not carry a serial number (serials are for serialized
           non-consumable units).
-        - Non-consumable: exactly one physical unit per item (quantity == 1);
-          received in bulk as N separate items, never as a quantity.
+        - Non-consumable with a serial number: one physical serialized unit, so
+          quantity must be 1.
+        - Non-consumable without a serial number: indistinguishable units are
+          stacked into a single item whose quantity is the stack count (>= 1).
           (Never EXHAUSTED is enforced by recompute_status.)
 
         :raises BadRequestException: If the coupling is violated.
@@ -179,10 +181,10 @@ class Item(ModelWithUser):
                     f"Consumable item '{self.code}' cannot have a serial number "
                     "(serial numbers are for non-consumable serialized units)."
                 )
-        elif self.quantity != 1:
+        elif self.serial_number and self.quantity != 1:
             raise BadRequestException(
-                f"Non-consumable item '{self.code}' must have quantity 1 "
-                "(one item per physical unit); create several units instead of a quantity."
+                f"Serialized non-consumable item '{self.code}' must have quantity 1 "
+                "(one physical unit per serial number)."
             )
 
     def validate_sufficient_quantity(self, required_quantity) -> None:

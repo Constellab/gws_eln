@@ -57,6 +57,17 @@ class TestLineageService(BaseTestCase):
             )
         ).item
 
+    def _count_item_with_batch(self, code: str, batch_number: str, quantity: str = "10") -> Item:
+        return ItemService().create_item(
+            CreateItemDTO(
+                item_sheet_id=self._sheet(code).id,
+                quantity=Decimal(quantity),
+                unit="units",
+                batch_number=batch_number,
+                label="Test item",
+            )
+        ).item
+
     def _instrument(self, code: str) -> Item:
         sheet = self._sheet(code, is_consumable=False)
         return ItemService().create_items_bulk(
@@ -271,6 +282,19 @@ class TestLineageService(BaseTestCase):
         split = self._activity_node(graph, ActivityType.SPLIT)
         combine = self._activity_node(graph, ActivityType.COMBINE)
         self.assertGreaterEqual(abs(split.position_x - combine.position_x), _ACTIVITY_MIN_GAP - 1e-6)
+
+    def test_nodes_carry_derived_batch_numbers(self):
+        """Item nodes carry their lot numbers: own for origins, union for a descendant."""
+        item_a = self._count_item_with_batch("LNBA", "LOT-A")
+        item_b = self._count_item_with_batch("LNBB", "LOT-B")
+        d = self._combine(item_a, item_b, "LNBD")
+
+        by_id = self._by_id(LineageService().get_lineage_graph(d.id))
+
+        # Each origin carries its own single lot; the combined descendant carries both.
+        self.assertEqual(by_id[item_a.id].batch_numbers, ["LOT-A"])
+        self.assertEqual(by_id[item_b.id].batch_numbers, ["LOT-B"])
+        self.assertEqual(by_id[d.id].batch_numbers, ["LOT-A", "LOT-B"])
 
     def test_isolated_item_has_single_node_no_edges(self):
         """An item with no lineage yields just itself: 1 item node, no activity."""
