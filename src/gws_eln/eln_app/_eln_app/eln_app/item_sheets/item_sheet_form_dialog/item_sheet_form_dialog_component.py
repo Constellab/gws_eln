@@ -219,7 +219,7 @@ def _form_content() -> rx.Component:
                 rx.text("Consumable item sheet", size="2"),
                 rx.tooltip(
                     rx.icon("info", size=14, color="gray"),
-                    content="Consumable item sheets (chemicals, reagents) have quantity that decreases with use. Non-consumables (instruments, equipment) are tracked by reference only.",
+                    content="Consumable item sheets, such as chemicals and reagents, track quantities that decrease with use. Non-consumable items, such as instruments and equipment, are tracked by reference only.",
                 ),
                 spacing="2",
                 align="center",

@@ -187,11 +187,39 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
                 placeholder="Enter a label to name this item",
                 name="label",
                 width="100%",
-                required=True,
+                # Required is validated in the state, not via the native HTML
+                # attribute, which would steal focus and block submit.
                 default_value=ItemFormDialogState.form_label,
             ),
             width="100%",
             spacing="1",
+        ),
+        # Batch / lot number (origin items only; hidden for transform outputs,
+        # which inherit their lot numbers from their ancestors).
+        rx.cond(
+            ~ItemFormDialogState.collect_mode,
+            rx.vstack(
+                rx.hstack(
+                    rx.text("Batch / lot number", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Supplier lot number for this delivery (optional). Set once at "
+                            "creation; items derived from this one inherit its lot number."
+                        ),
+                    ),
+                    align="center",
+                    spacing="1",
+                ),
+                rx.input(
+                    placeholder="Enter the batch/lot number (optional)",
+                    name="batch_number",
+                    width="100%",
+                    default_value=ItemFormDialogState.form_batch_number,
+                ),
+                width="100%",
+                spacing="1",
+            ),
         ),
         # Consumable: quantity + concentration. Non-consumable: N units + serials.
         # In collect mode (Transform output) always use the single-item form.
@@ -255,42 +283,28 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
             width="100%",
             spacing="3",
         ),
-        # Batch / lot number (origin items only; hidden for transform outputs,
-        # which inherit their lot numbers from their ancestors).
-        rx.cond(
-            ~ItemFormDialogState.collect_mode,
-            rx.vstack(
-                rx.hstack(
-                    rx.text("Batch / lot number", size="2", weight="bold"),
-                    rx.tooltip(
-                        rx.icon("info", size=14, color="gray"),
-                        content=(
-                            "Supplier lot number for this delivery (optional). Set once at "
-                            "creation; items derived from this one inherit its lot number."
-                        ),
-                    ),
-                    align="center",
-                    spacing="1",
-                ),
-                rx.input(
-                    placeholder="Enter the batch/lot number (optional)",
-                    name="batch_number",
-                    width="100%",
-                    default_value=ItemFormDialogState.form_batch_number,
-                ),
-                width="100%",
-                spacing="1",
-            ),
-        ),
         # Expiry Date + Storage conditions (side by side, equal width)
         rx.hstack(
             rx.vstack(
-                rx.text("Expiry Date", size="2", weight="bold"),
+                # Non-consumables track a "Next due date" (calibration/maintenance)
+                # rather than an expiry date. Expiry date is required for
+                # consumables; the next due date stays optional.
+                rx.text(
+                    rx.cond(ItemFormDialogState.is_consumable, "Expiry Date*", "Next due date"),
+                    size="2",
+                    weight="bold",
+                ),
                 rx.input(
-                    placeholder="Select expiry date (optional)",
+                    placeholder=rx.cond(
+                        ItemFormDialogState.is_consumable,
+                        "Select expiry date",
+                        "Select next due date (optional)",
+                    ),
                     name="expiry_date",
                     type="date",
                     width="100%",
+                    # Required is validated in the state, not via the native HTML
+                    # attribute, which would steal focus and block submit.
                     default_value=ItemFormDialogState.form_expiry_date,
                     on_change=ItemFormDialogState.set_expiry_date,
                 ),

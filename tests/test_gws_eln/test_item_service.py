@@ -29,6 +29,9 @@ from gws_eln.items.item_dto import (
     ReceiveItemDTO,
     SplitItemDTO,
     SplitOutputDTO,
+    TransformInputDTO,
+    TransformItemsDTO,
+    TransformOutputDTO,
     UpdateItemDTO,
     UseItemDTO,
 )
@@ -718,6 +721,139 @@ class TestItemService(BaseTestCase):
                     instrument_item_ids=[instrument.id],
                 ),
             )
+
+    # -------------------------------------------- transform_items (generic N->M)
+
+    def _ingredient_input_ids(self, activity) -> set[str]:
+        """Return the item ids recorded as INGREDIENT inputs of an activity."""
+        return {
+            inp.item.id for inp in activity.inputs if inp.role == ActivityInputRole.INGREDIENT
+        }
+
+    def test_transform_reduces_consumables_records_instruments_and_creates_outputs(self):
+        # N inputs (one consumable ingredient + one instrument) -> M outputs.
+        consumable = self._count_item("TRF1", "10")
+        instrument = self._instrument("TRFI", "TRF-1")
+        out_sheet_a = self._sheet("TRFA", unit_type=UnitType.COUNT)
+        out_sheet_b = self._sheet("TRFB", unit_type=UnitType.COUNT)
+        result = ItemService().transform_items(
+            TransformItemsDTO(
+                inputs=[
+                    TransformInputDTO(item_id=consumable.id, quantity=Decimal(4), unit="units"),
+                    TransformInputDTO(item_id=instrument.id),
+                ],
+                outputs=[
+                    TransformOutputDTO(
+                        output_item_sheet_id=out_sheet_a.id, quantity=Decimal(3),
+                        unit="units", label="Out A",
+                    ),
+                    TransformOutputDTO(
+                        output_item_sheet_id=out_sheet_b.id, quantity=Decimal(7),
+                        unit="units", label="Out B",
+                    ),
+                ],
+            )
+        )
+        # Both outputs created with their own user-entered quantities.
+        self.assertEqual(len(result.outputs), 2)
+        self.assertEqual(sorted(o.quantity for o in result.outputs), [Decimal(3), Decimal(7)])
+        # Consumable reduced in place; the instrument is untouched.
+        self.assertEqual(ItemService().get_item(consumable.id).quantity, Decimal(6))
+        self.assertEqual(ItemService().get_item(instrument.id).quantity, Decimal(1))
+        # Roles: consumable -> INGREDIENT, non-consumable -> INSTRUMENT.
+        self.assertEqual(self._ingredient_input_ids(result.activity), {consumable.id})
+        self.assertEqual(self._instrument_input_ids(result.activity), {instrument.id})
+
+    def test_transform_requires_at_least_one_input(self):
+        out_sheet = self._sheet("TRNI", unit_type=UnitType.COUNT)
+        with self.assertRaises(BadRequestException):
+            ItemService().transform_items(
+                TransformItemsDTO(
+                    inputs=[],
+                    outputs=[
+                        TransformOutputDTO(
+                            output_item_sheet_id=out_sheet.id, quantity=Decimal(1),
+                            unit="units", label="Out",
+                        )
+                    ],
+                )
+            )
+
+    def test_transform_requires_at_least_one_output(self):
+        source = self._count_item("TRNO", "10")
+        with self.assertRaises(BadRequestException):
+            ItemService().transform_items(
+                TransformItemsDTO(
+                    inputs=[
+                        TransformInputDTO(item_id=source.id, quantity=Decimal(1), unit="units")
+                    ],
+                    outputs=[],
+                )
+            )
+
+    def test_transform_consumable_input_requires_quantity(self):
+        # A consumable input with no quantity/unit is rejected.
+        consumable = self._count_item("TRNQ", "10")
+        out_sheet = self._sheet("TRNR", unit_type=UnitType.COUNT)
+        with self.assertRaises(BadRequestException):
+            ItemService().transform_items(
+                TransformItemsDTO(
+                    inputs=[TransformInputDTO(item_id=consumable.id)],
+                    outputs=[
+                        TransformOutputDTO(
+                            output_item_sheet_id=out_sheet.id, quantity=Decimal(1),
+                            unit="units", label="Out",
+                        )
+                    ],
+                )
+            )
+
+    # ------------------------------------------------- concentration preconditions
+
+    def test_concentrate_requires_a_concentration(self):
+        # An item with no recorded concentration cannot be concentrated.
+        source = self._count_item("CONX", "10")
+        with self.assertRaises(BadRequestException):
+            ItemService().concentrate_item(
+                source.id,
+                ConcentrateItemDTO(
+                    quantity_contributed=Decimal(5), unit="units",
+                    output_quantity=Decimal(2), output_unit="units",
+                    output_label="Concentrated output",
+                ),
+            )
+
+    def test_dilute_requires_a_concentration(self):
+        # A target with no recorded concentration cannot be diluted.
+        target = self._count_item("DILX", "10")
+        diluent = self._volume_item("DILY", "10")
+        with self.assertRaises(BadRequestException):
+            ItemService().dilute_item(
+                target.id,
+                DiluteItemDTO(
+                    quantity_contributed=Decimal(5), unit="units",
+                    diluents=[
+                        DiluteDiluentDTO(item_id=diluent.id, quantity_contributed=Decimal(5), unit="L")
+                    ],
+                    output_quantity=Decimal(10), output_unit="units",
+                    output_label="Diluted output",
+                ),
+            )
+
+    def test_split_outputs_inherit_source_concentration(self):
+        # Concentration is intensive: split outputs inherit the source's unchanged.
+        source = self._concentration_item("SPLC", "10")
+        result = ItemService().split_item(
+            source.id,
+            SplitItemDTO(
+                quantity_contributed=Decimal(6),
+                unit="L",
+                outputs=[SplitOutputDTO(quantity=Decimal(3), unit="L", label="Out")],
+            ),
+        )
+        output = result.outputs[0]
+        self.assertEqual(output.concentration, source.concentration)
+        self.assertEqual(output.concentration_unit, source.concentration_unit)
 
     # -------------------------------------------------------------- move / update
 

@@ -321,15 +321,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
     ]:
         """Validate and parse form data for a single (consumable) item.
 
-        Args:
-            form_data: Dictionary containing form fields
-
-        Returns:
-            Tuple of (quantity, unit, concentration, location_id, supplier_id,
-                     expiry_date, label, storage_conditions, notes) if validation succeeds
-
-        Raises:
-            Exception: If validation fails
+        Returns the parsed (quantity, unit, concentration, location_id,
+        supplier_id, expiry_date, label, storage_conditions, notes). Raises a
+        ``ReflexAppException`` (surfaced as a toast) on the first invalid field.
         """
         quantity = self._parse_quantity(self.form_quantity.strip())
         # Concentration only applies to volume items (amount per volume).
@@ -459,6 +453,11 @@ class ItemFormDialogState(FormDialogState, rx.State):
             notes,
         ) = self._validate_form_data(form_data)
 
+        # Expiry date is mandatory for a consumable item (this path is only
+        # reached for consumable sheets).
+        if expiry_date is None:
+            raise ReflexAppException("Expiry date is required")
+
         main_state: ReflexMainState
         async with self:
             main_state = await self.get_state(ReflexMainState)
@@ -514,7 +513,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         # so empty means "no condition" and must not fall back to it. None = not provided.
         storage_conditions = form_data.get("storage_conditions", "").strip()
         notes = form_data.get("notes", "").strip() or None
-        expiry_date = self._parse_expiry_date()
+        expiry_date = self._parse_expiry_date()  # next due date: optional for non-consumables
 
         location_id = self.form_location_id
         if not location_id:

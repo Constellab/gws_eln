@@ -60,12 +60,25 @@ class ItemsListState(rx.State):
 
     @rx.var
     def items(self) -> list[ItemDTO]:
-        """Return the list of items as DTOs.
+        """Return the items to display, text-filtered in memory.
+
+        ``_items`` already holds every item for the sheet matching the dropdown
+        filters (loaded from the DB). The label/code search box filters that set
+        client-side, so typing never hits the database. Mirrors the DB semantics
+        of ``add_label_or_code_filter``: case-insensitive "contains" on label or
+        code.
 
         :return: List of ItemDTOs
         :rtype: list[ItemDTO]
         """
-        return self._items
+        text = self.search_text.strip().lower()
+        if not text:
+            return self._items
+        return [
+            item
+            for item in self._items
+            if text in (item.label or "").lower() or text in item.code.lower()
+        ]
 
     @rx.var
     def show_concentration_column(self) -> bool:
@@ -112,7 +125,6 @@ class ItemsListState(rx.State):
             with await main_state.authenticate_user():
                 search_builder = ItemSearchBuilder.build_filtered(
                     item_sheet_id=self._item_sheet_id,
-                    search_text=self.search_text,
                     location_id=_selected(self.filter_location_id),
                     supplier_id=_selected(self.filter_supplier_id),
                     status=ItemStatus(status_value) if status_value else None,
@@ -168,14 +180,16 @@ class ItemsListState(rx.State):
         self.filter_status = ALL_FILTER_VALUE
 
     @rx.event
-    async def handle_search_change(self, value: str):
+    def handle_search_change(self, value: str):
         """Handle text search filter change.
+
+        Only updates the search text; the ``items`` var filters the already
+        loaded list in memory, so no DB query is issued while typing.
 
         :param value: The search text
         :type value: str
         """
         self.search_text = value
-        await self._load_items()
 
     @rx.event
     async def handle_location_filter_change(self, value: str):

@@ -23,11 +23,15 @@ def _filter_bar() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.hstack(
-        # Search input
+        # Search input. Filtering is done in memory (see
+        # ItemSheetsListState.item_sheets), so it stays instant without hitting
+        # the DB. debounce_timeout=0 disables Reflex's implicit 300ms debounce on
+        # controlled inputs, so the list filters on every keystroke.
         rx.input(
             placeholder="Search item sheets...",
             value=ItemSheetsListState.search_text,
             on_change=ItemSheetsListState.handle_search_change,
+            debounce_timeout=0,
             width="200px",
         ),
         # Supplier filter

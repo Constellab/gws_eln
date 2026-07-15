@@ -46,11 +46,15 @@ def _filter_bar() -> rx.Component:
     :rtype: rx.Component
     """
     return rx.hstack(
-        # Search input (item number)
+        # Search input (item number). Filtering is done in memory (see
+        # ItemsListState.items), so it stays instant without hitting the DB.
+        # debounce_timeout=0 disables Reflex's implicit 300ms debounce on
+        # controlled inputs, so the list filters on every keystroke.
         rx.input(
             placeholder="Search label or code...",
             value=ItemsListState.search_text,
             on_change=ItemsListState.handle_search_change,
+            debounce_timeout=0,
             width="200px",
         ),
         # Location filter

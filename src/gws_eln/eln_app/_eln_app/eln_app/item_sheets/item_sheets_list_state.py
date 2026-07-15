@@ -25,7 +25,7 @@ class ItemSheetsListState(rx.State):
     with filtering capabilities.
     """
 
-    item_sheets: list[ItemSheetDTO] = []
+    _item_sheets: list[ItemSheetDTO] = []
     is_loading: bool = False
     error_message: str = ""
 
@@ -37,6 +37,23 @@ class ItemSheetsListState(rx.State):
     filter_supplier_id: str = "__all__"
     filter_is_consumable: str = "__all__"  # "__all__", "true", "false"
     filter_unit_type: str = "__all__"
+
+    @rx.var
+    def item_sheets(self) -> list[ItemSheetDTO]:
+        """Return the item sheets to display, text-filtered in memory.
+
+        ``_item_sheets`` already holds every sheet matching the dropdown filters
+        (loaded from the DB). The name search box filters that set client-side,
+        so typing never hits the database. Mirrors the DB semantics of
+        ``add_name_filter``: case-insensitive "contains" on the name.
+
+        :return: List of ItemSheetDTOs
+        :rtype: list[ItemSheetDTO]
+        """
+        text = self.search_text.strip().lower()
+        if not text:
+            return self._item_sheets
+        return [sheet for sheet in self._item_sheets if text in sheet.name.lower()]
 
     async def _load_suppliers(self):
         """Load available suppliers for the filter dropdown."""
@@ -63,9 +80,6 @@ class ItemSheetsListState(rx.State):
             with await main_state.authenticate_user():
                 search_builder = ItemSheetSearchBuilder()
 
-                # Apply text search filter
-                if self.search_text:
-                    search_builder.add_name_filter(self.search_text)
 
                 # Apply supplier filter
                 if self.filter_supplier_id and self.filter_supplier_id != ALL_FILTER_VALUE:
@@ -83,7 +97,7 @@ class ItemSheetsListState(rx.State):
 
                 item_sheets = search_builder.search_all()
 
-                self.item_sheets = [item_sheet.to_dto() for item_sheet in item_sheets]
+                self._item_sheets = [item_sheet.to_dto() for item_sheet in item_sheets]
 
         finally:
             self.is_loading = False
@@ -95,14 +109,16 @@ class ItemSheetsListState(rx.State):
         await self.load_item_sheets()
 
     @rx.event
-    async def handle_search_change(self, value: str):
+    def handle_search_change(self, value: str):
         """Handle text search filter change.
+
+        Only updates the search text; the ``item_sheets`` var filters the
+        already loaded list in memory, so no DB query is issued while typing.
 
         :param value: The search text
         :type value: str
         """
         self.search_text = value
-        await self.load_item_sheets()
 
     @rx.event
     async def handle_supplier_filter_change(self, value: str):
