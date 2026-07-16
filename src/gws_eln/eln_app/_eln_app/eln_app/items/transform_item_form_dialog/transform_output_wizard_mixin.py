@@ -9,8 +9,10 @@ leaf state.
 """
 
 from dataclasses import replace
+from decimal import Decimal
 
 import reflex as rx
+from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item_dto import CreateItemDTO
 from gws_eln.items.item_service import ItemService
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
@@ -73,6 +75,55 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
     @rx.var
     def output_step2_active(self) -> bool:
         return self.output_step == OutputStep.ITEM
+
+    @rx.var
+    def split_remaining_display(self) -> str:
+        """Source quantity still available to allocate, for a split (else "").
+
+        Pool (the source's contributed quantity, or its full available quantity
+        if none is set yet) minus the outputs already committed — excluding the
+        one currently being edited. Shown as a hint and pre-filled on the next
+        output so the user does not have to subtract by hand.
+        """
+        if self.transform_kind != TransformKind.SPLIT.value:
+            return ""
+        source = self._fixed_output_source()
+        if source is None:
+            return ""
+        try:
+            remaining = self._split_remaining_base(self._editing_output_id)
+            remaining = remaining if remaining > 0 else Decimal(0)
+            unit_type = UnitType(source.unit_type)
+            value = UnitConverter.from_base_unit(remaining, source.unit, unit_type)
+            return f"{UnitConverter.format_number(value)} {source.unit}"
+        except Exception:  # noqa: BLE001 - a computed var must never raise
+            return ""
+
+    # ------------------------------------------------------------------ split remaining
+
+    def _split_source_pool_base(self) -> Decimal:
+        """Base-unit quantity available to split: the source's contributed amount.
+
+        Zero until the source's consumed quantity is set — the pool to allocate is
+        what the user decided to draw from the source, not its full stock."""
+        source = self._fixed_output_source()
+        if source is None or not source.qty:
+            return Decimal(0)
+        unit_type = UnitType(source.unit_type)
+        return UnitConverter.to_base_unit(Decimal(source.qty), source.unit, unit_type)
+
+    def _split_remaining_base(self, exclude_id: str) -> Decimal:
+        """Pool minus every committed output's quantity (excluding ``exclude_id``)."""
+        source = self._fixed_output_source()
+        if source is None:
+            return Decimal(0)
+        unit_type = UnitType(source.unit_type)
+        allocated = Decimal(0)
+        for row in self.outputs:
+            if row.id == exclude_id or not row.qty:
+                continue
+            allocated += UnitConverter.to_base_unit(Decimal(row.qty), row.unit, unit_type)
+        return self._split_source_pool_base() - allocated
 
     # ------------------------------------------------------------------ events
 
@@ -252,6 +303,19 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
             # A split child that is relabelled away from its source must be justified.
             if self.transform_kind == TransformKind.SPLIT.value:
                 item_state._reference_label = source_input.label
+                # The first output starts at 0; each subsequent output is proposed
+                # with the quantity still available (pool minus the outputs already
+                # committed), so the user does not subtract by hand.
+                if not self.outputs:
+                    item_state.form_quantity = "0"
+                else:
+                    remaining = self._split_remaining_base("")
+                    value = UnitConverter.from_base_unit(
+                        remaining if remaining > 0 else Decimal(0),
+                        source_input.unit,
+                        UnitType(source_input.unit_type),
+                    )
+                    item_state.form_quantity = UnitConverter.format_number(value)
         item_state.set_collect_callback(self._on_output_item_collected)
         self.output_create_sheet_mode = False
         self.output_step = OutputStep.ITEM

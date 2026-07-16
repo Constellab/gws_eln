@@ -227,6 +227,28 @@ def _extra_concentration_content() -> rx.Component:
     )
 
 
+def _split_remaining_hint() -> rx.Component:
+    """Info banner showing the source quantity still available to allocate (split)."""
+    return rx.cond(
+        _S.split_remaining_display != "",
+        rx.hstack(
+            rx.icon("info", size=14, color="var(--accent-11)", flex_shrink="0"),
+            rx.text(
+                f"Remaining from source: {_S.split_remaining_display}",
+                size="1",
+                color="var(--accent-11)",
+            ),
+            spacing="2",
+            align="center",
+            width="100%",
+            background="var(--accent-3)",
+            border="1px solid var(--accent-6)",
+            padding="0.375rem 0.5rem",
+            border_radius="0.5rem",
+        ),
+    )
+
+
 def _step2_body() -> rx.Component:
     """Step 2: the reused item creation form (collect mode)."""
     return rx.form(
@@ -236,6 +258,7 @@ def _step2_body() -> rx.Component:
         # row, and only for concentrate/dilute. Only this scroll box scrolls;
         # the footer below stays fixed with the dialog's padding.
         _scroll_box(
+            _split_remaining_hint(),
             rx.box(
                 item_form_content(
                     extra_concentration_content=_extra_concentration_content(),
