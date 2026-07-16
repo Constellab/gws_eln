@@ -18,6 +18,7 @@ from ...item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_component impo
 )
 from ..item_form_dialog.item_form_dialog_component import item_form_content
 from .transform_item_form_dialog_state import TransformItemFormDialogState
+from .transform_models import TransformInputRow
 from .transform_output_sheet_select_state import TransformOutputSheetSelectState
 
 _S = TransformItemFormDialogState
@@ -227,6 +228,51 @@ def _extra_concentration_content() -> rx.Component:
     )
 
 
+def _input_readout_line(row: TransformInputRow) -> rx.Component:
+    """One input's chosen quantity and concentration (read-only reminder)."""
+    return rx.hstack(
+        rx.code(row.code, size="1"),
+        rx.text(row.label, size="1", color="gray", no_of_lines=1),
+        rx.spacer(),
+        rx.cond(
+            row.consumed != "",
+            rx.badge(row.consumed, variant="soft", color_scheme="gray", size="1"),
+        ),
+        rx.cond(
+            row.init_conc != "",
+            rx.badge(
+                rx.icon("beaker", size=11),
+                f"{row.init_conc} {row.init_conc_unit}",
+                variant="soft",
+                color_scheme="iris",
+                size="1",
+            ),
+        ),
+        spacing="2",
+        align="center",
+        width="100%",
+    )
+
+
+def _inputs_readout() -> rx.Component:
+    """Read-only reminder of every consumable input's chosen quantity and
+    concentration (all kinds). Purely informative — nothing is subtracted."""
+    return rx.cond(
+        _S.consumable_inputs.length() > 0,
+        rx.vstack(
+            rx.text("INPUTS", size="1", weight="bold", letter_spacing="1px", color="gray"),
+            rx.foreach(_S.consumable_inputs, _input_readout_line),
+            spacing="1",
+            width="100%",
+            align="stretch",
+            padding="0.5rem",
+            background="var(--gray-2)",
+            border="1px solid var(--gray-4)",
+            border_radius="0.5rem",
+        ),
+    )
+
+
 def _split_remaining_hint() -> rx.Component:
     """Info banner showing the source quantity still available to allocate (split)."""
     return rx.cond(
@@ -258,6 +304,7 @@ def _step2_body() -> rx.Component:
         # row, and only for concentrate/dilute. Only this scroll box scrolls;
         # the footer below stays fixed with the dialog's padding.
         _scroll_box(
+            _inputs_readout(),
             _split_remaining_hint(),
             rx.box(
                 item_form_content(
