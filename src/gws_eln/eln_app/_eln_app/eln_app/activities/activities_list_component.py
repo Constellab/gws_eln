@@ -9,6 +9,7 @@ from gws_reflex_main import user_with_date_component
 
 from ..common.eln_app_router import ElnAppRouter
 from ..common.feedback_components import compact_warning
+from ..lineage.lineage_state import LineageState
 from ..locations.core.inline_location_component import inline_location_component
 from .activities_list_state import ALL_FILTER_VALUE, ActivitiesListState
 from .activity_type_component import activity_type_badge
@@ -116,7 +117,19 @@ def _row(activity: ActivityDTO) -> rx.Component:
     """
     return rx.table.row(
         rx.table.cell(
-            rx.box(activity_type_badge(activity.activity_type), width="fit-content"),
+            rx.hstack(
+                rx.box(activity_type_badge(activity.activity_type), width="fit-content"),
+                # A transformation links to its node in the lineage graph.
+                rx.cond(
+                    activity.has_lineage_node,
+                    rx.tooltip(
+                        rx.icon("git-fork", size=14, color="gray"),
+                        content="Show in lineage graph",
+                    ),
+                ),
+                spacing="2",
+                align="center",
+            ),
         ),
         rx.table.cell(
             _activity_description(activity),
@@ -135,6 +148,7 @@ def _row(activity: ActivityDTO) -> rx.Component:
                     "View note",
                     href=ElnAppRouter.get_note_detail_url(activity.note_id),
                     size="2",
+                    on_click=rx.stop_propagation,
                 ),
                 rx.fragment(),
             )
@@ -146,6 +160,9 @@ def _row(activity: ActivityDTO) -> rx.Component:
                 size="small",
             )
         ),
+        # Only transformation rows link to the graph; others stay inert.
+        on_click=LineageState.focus_activity(activity.id, activity.has_lineage_node),
+        cursor=rx.cond(activity.has_lineage_node, "pointer", "default"),
         style={":hover": {"background_color": "var(--gray-3)"}},
     )
 

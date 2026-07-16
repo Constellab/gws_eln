@@ -81,6 +81,9 @@ class ReactFlow(rx.Component):
     fit_view: rx.Var[bool]
     """Zoom/pan to fit all nodes on the initial render."""
 
+    fit_view_options: rx.Var[Mapping[str, Any]]
+    """Options for the initial ``fit_view`` (e.g. ``nodes`` to fit a subset, ``padding``, ``maxZoom``)."""
+
     nodes_draggable: rx.Var[bool]
     """Whether nodes can be dragged."""
 

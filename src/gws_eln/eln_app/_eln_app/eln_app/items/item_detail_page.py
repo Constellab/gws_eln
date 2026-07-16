@@ -15,6 +15,7 @@ from ..item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_component impor
     item_sheet_update_dialog,
 )
 from ..lineage.lineage_graph_component import lineage_graph_component
+from ..lineage.lineage_state import LineageState
 from ..locations.core.inline_location_component import inline_location_component
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from .core.item_actions_menu import item_actions_menu
@@ -269,7 +270,10 @@ def _main_content() -> rx.Component:
                 padding_top="1rem",
             ),
         ),
-        default_value="activities",
+        value=ItemDetailState.active_tab,
+        # A manual tab switch drops any activity focus so the lineage tab lands on
+        # the whole graph (focus_activity sets the tab programmatically instead).
+        on_change=[ItemDetailState.set_active_tab, LineageState.clear_activity_focus],
         width="100%",
     )
 

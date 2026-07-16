@@ -57,6 +57,7 @@ def _graph_canvas() -> rx.Component:
                 LineageNodeKind.ACTIVITY.value: activity_node,
             },
             fit_view=True,
+            fit_view_options=LineageState.fit_view_options,
             nodes_draggable=True,
             nodes_connectable=False,
             on_node_click=LineageState.node_click,

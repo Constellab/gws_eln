@@ -14,6 +14,7 @@ from gws_reflex_main import ReflexMainState
 
 from ..common.eln_app_router import ElnAppRouter
 from ..common.react_flow import Edge, Node
+from ..items.item_detail_state import ItemDetailState
 
 # Item node visual (background / border / text color) per status. Focus is a
 # border + background override on top. Carried as plain strings (see
@@ -74,6 +75,9 @@ class LineageState(rx.State):
     # Bumped on every (re)load. Used as the React Flow ``key`` so the uncontrolled
     # canvas remounts and picks up fresh nodes/edges after a live refresh.
     _version: int = 0
+    # Activity node the graph is centered on and highlights, when it was opened
+    # from its activities-list row. Reset whenever the focus item changes.
+    _focus_activity_id: str = ""
 
     _nodes: list[dict] = []
     _edges: list[dict] = []
@@ -87,6 +91,25 @@ class LineageState(rx.State):
     def graph_key(self) -> str:
         """React Flow key: changes on every reload so the canvas remounts fresh."""
         return f"{self._item_id or ''}:{self._version}"
+
+    @rx.var
+    def fit_view_options(self) -> dict:
+        """Initial fit-view options: center on the focused activity, else fit all.
+
+        When an activity is opened from its list row, the canvas remounts (new
+        ``graph_key``) and fits only that activity node, zoomed in, so the user
+        lands right on it. Otherwise it fits the whole graph.
+        """
+        if self._focus_activity_id and any(
+            node["id"] == self._focus_activity_id for node in self._nodes
+        ):
+            return {
+                "nodes": [{"id": self._focus_activity_id}],
+                "maxZoom": 1,
+                "padding": 0.6,
+                "duration": 600,
+            }
+        return {"padding": 0.1}
 
     @rx.var
     def has_graph(self) -> bool:
@@ -152,6 +175,7 @@ class LineageState(rx.State):
                             "activity_type": node.activity_type.value,
                             "has_input": node.id in with_input,
                             "has_output": node.id in with_output,
+                            "highlight": node.id == self._focus_activity_id,
                         },
                     }
                 )
@@ -221,15 +245,24 @@ class LineageState(rx.State):
             return
         await self._load_graph(item_id)
 
-    async def _load_graph(self, item_id: str) -> None:
+    async def _load_graph(self, item_id: str, focus_activity_id: str | None = None) -> None:
         """Fetch and build the lineage graph for an item (mount + navigation).
 
         :param item_id: The focus item ID.
         :type item_id: str
+        :param focus_activity_id: Activity node to highlight/center on. ``None``
+            keeps the current focus (unless the item changed, which clears it);
+            a string sets it.
+        :type focus_activity_id: str | None
         """
         if not item_id:
             return
         async with self:
+            # A focus never carries across items.
+            if item_id != self._item_id:
+                self._focus_activity_id = ""
+            if focus_activity_id is not None:
+                self._focus_activity_id = focus_activity_id
             self._item_id = item_id
             self._nodes = []
             self._edges = []
@@ -273,6 +306,51 @@ class LineageState(rx.State):
         self._nodes = [
             {**node, "data": {**node["data"], "show_batch": value}}
             if node.get("type") == LineageNodeKind.ITEM.value
+            else node
+            for node in self._nodes
+        ]
+        self._version += 1
+
+    @rx.event(background=True)
+    async def focus_activity(self, activity_id: str, has_lineage_node: bool):
+        """Open an activity from its list row: switch to the lineage tab, then
+        center and highlight its node on the graph.
+
+        Only transformation activities have a lineage node (``has_lineage_node``);
+        the call is a no-op for the others so the list row stays inert.
+
+        :param activity_id: The activity id (also its graph node id).
+        :type activity_id: str
+        :param has_lineage_node: Whether this activity has a node to focus.
+        :type has_lineage_node: bool
+        """
+        if not has_lineage_node:
+            return
+        async with self:
+            item_id = self.item_id
+            detail = await self.get_state(ItemDetailState)
+            detail.active_tab = "lineage"
+        await self._load_graph(item_id, focus_activity_id=activity_id)
+
+    @rx.event
+    def clear_activity_focus(self, _value: str = ""):
+        """Drop the activity focus/highlight on a manual tab switch.
+
+        Wired to the tabs' ``on_change``, which fires only on a real user click -
+        ``focus_activity`` switches the tab programmatically and does not trigger
+        it. So reaching the lineage tab any other way lands on the whole graph,
+        not the previously focused activity. Rebuilds the activity nodes without
+        the highlight in place and remounts the canvas (fit-all again).
+
+        :param _value: The newly selected tab value (unused; passed by on_change).
+        :type _value: str
+        """
+        if not self._focus_activity_id:
+            return
+        self._focus_activity_id = ""
+        self._nodes = [
+            {**node, "data": {**node["data"], "highlight": False}}
+            if node.get("type") == LineageNodeKind.ACTIVITY.value
             else node
             for node in self._nodes
         ]

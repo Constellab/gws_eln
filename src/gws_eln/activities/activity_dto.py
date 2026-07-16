@@ -104,5 +104,8 @@ class ActivityDTO(ModelDTO):
     # Override justification from the current item's perspective (its output row),
     # surfaced as a warning hint on that item's timeline. "" = none.
     override_reason: str = ""
+    # True when this activity is a node in the lineage graph (has ingredient
+    # inputs and outputs, i.e. a transformation), so its list row links to it.
+    has_lineage_node: bool = False
     created_by: UserDTO
     last_modified_by: UserDTO

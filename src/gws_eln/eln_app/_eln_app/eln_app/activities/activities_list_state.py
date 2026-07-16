@@ -6,6 +6,7 @@ import reflex as rx
 from gws_core import Logger
 from gws_eln.activities.activity import Activity
 from gws_eln.activities.activity_dto import ActivityDTO
+from gws_eln.activities.activity_input_role import ActivityInputRole
 from gws_eln.activities.activity_search_builder import ActivitySearchBuilder
 from gws_eln.activities.activity_type import ActivityType
 from gws_reflex_main import ReflexMainState
@@ -80,6 +81,9 @@ class ActivitiesListState(rx.State):
                 # Surface the override justification recorded for THIS item's output
                 # row (e.g. a split relabel), so the hint only shows on its timeline.
                 dto.override_reason = self._get_current_item_override_reason(dto)
+                # A transformation (ingredient inputs -> outputs) is a node in the
+                # lineage graph, so its row links to it.
+                dto.has_lineage_node = self._has_lineage_node(dto)
                 dtos.append(dto)
             self._activities = dtos
 
@@ -137,6 +141,21 @@ class ActivitiesListState(rx.State):
             ),
             "",
         )
+
+    def _has_lineage_node(self, dto: ActivityDTO) -> bool:
+        """Whether this activity is rendered as a node in the lineage graph.
+
+        The graph is bipartite item -> activity -> item, so only activities with
+        at least one ingredient input AND one output (the transformations) become
+        activity nodes. Receive/consume/move/relabel/use never do.
+
+        :param dto: The activity DTO (its inputs/outputs are already materialized)
+        :return: True when the activity has a lineage node to focus.
+        """
+        has_ingredient = any(
+            i.role == ActivityInputRole.INGREDIENT for i in dto.inputs
+        )
+        return has_ingredient and len(dto.outputs) > 0
 
     def _quantity_color(self, signed_quantity: str) -> str:
         """CSS color token for a signed quantity ("-" red, "+" green, "" default)."""

@@ -95,6 +95,7 @@ class ActivityNodeData(TypedDict):
     activity_type: str
     has_input: bool
     has_output: bool
+    highlight: bool
 
 
 @rx.memo
@@ -166,12 +167,28 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
 
 @rx.memo
 def activity_node(data: rx.Var[ActivityNodeData]) -> rx.Component:
-    """Custom node for an activity, rendered as its colored type badge."""
+    """Custom node for an activity, rendered as its colored type badge.
+
+    When ``highlight`` is set (the activity was opened from its list row) the
+    badge gets a colored ring so the focused activity stands out on the canvas.
+    """
     return rx.box(
         rx.cond(data["has_input"], react_flow_handle(type="target", position="top")),
         activity_type_badge(data["activity_type"]),
         rx.cond(data["has_output"], react_flow_handle(type="source", position="bottom")),
         height=f"{ACTIVITY_NODE_HEIGHT}px",
         box_sizing="border-box",
-        style={"display": "flex", "align-items": "center", "justify-content": "center"},
+        border_radius="6px",
+        style=rx.cond(
+            data["highlight"],
+            {
+                "display": "flex",
+                "align-items": "center",
+                "justify-content": "center",
+                "outline": "2px solid var(--accent-9)",
+                "outline-offset": "3px",
+                "box-shadow": "0 0 0 4px var(--accent-4)",
+            },
+            {"display": "flex", "align-items": "center", "justify-content": "center"},
+        ),
     )

@@ -44,6 +44,18 @@ class ItemDetailState(rx.State):
     batch_numbers: list[str] = []
     is_loading: bool = False
     error_message: str = ""
+    # Active main-content tab ("activities" / "lineage"). Controlled so clicking a
+    # transformation activity can switch to the lineage graph.
+    active_tab: str = "activities"
+
+    @rx.event
+    def set_active_tab(self, value: str):
+        """Switch the active main-content tab.
+
+        :param value: The tab value ("activities" or "lineage").
+        :type value: str
+        """
+        self.active_tab = value
 
     async def load_item(self, item_id: str):
         """Load a item by its ID.
@@ -85,6 +97,9 @@ class ItemDetailState(rx.State):
     @rx.event
     async def on_load(self):
         """Event handler called when the page loads."""
+        # Start every item on the activities tab (the lineage tab is hidden for
+        # non-consumable items, so a carried-over "lineage" value would show nothing).
+        self.active_tab = "activities"
         item_id = self.item_id
         if item_id:
             await self.load_item(item_id)
