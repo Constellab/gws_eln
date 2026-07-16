@@ -40,6 +40,10 @@ class ItemFormDialogState(FormDialogState, rx.State):
     # ItemSheet for which we're creating a item (required input)
     _item_sheet: ItemSheetDTO | None = None
 
+    # Best-effort preview of the code the backend will assign at save
+    # (computed when the sheet is loaded; indicative, see code_preview).
+    _next_code: str = ""
+
     # Form field default values
     form_unit_type: str = UnitType.COUNT.value
     form_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
@@ -107,14 +111,19 @@ class ItemFormDialogState(FormDialogState, rx.State):
     def code_preview(self) -> str:
         """Best-effort preview of the auto-generated code (informative only).
 
-        The authoritative code is assigned by the backend at creation.
-        This preview shows the sheet prefix + increment pattern.
+        Shows the next code the backend is expected to assign (sheet prefix +
+        MAX+1 increment), computed when the sheet is loaded. The authoritative
+        code is still assigned at save, so under concurrency (or a split) the
+        real value may differ. Falls back to the ``-XXXX`` pattern if the
+        increment could not be computed.
         """
+        if self._next_code:
+            return self._next_code
         if self._item_sheet:
             return f"{self._item_sheet.code}-XXXX"
         return ""
 
-    async def prepare_create_form(self, item_sheet_id: str):
+    async def prepare_create_form(self, item_sheet_id: str, code_offset: int = 0):
         """Load the sheet and reset the form for create mode, WITHOUT opening the dialog.
 
         Split out from :meth:`open_create_dialog` so the form can be reused inside
@@ -123,6 +132,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
         Args:
             item_sheet_id: The ID of the item_sheet for which to create a item (required)
+            code_offset: Items of this sheet already staged by the caller but not yet
+                saved, which will take a code before this one (see peek_next_item_code)
         """
         main_state: ReflexMainState
         async with self:
@@ -133,6 +144,8 @@ class ItemFormDialogState(FormDialogState, rx.State):
             item_sheet_service = ItemSheetService()
             item_sheet = item_sheet_service.get_item_sheet(item_sheet_id)
             self._item_sheet = item_sheet.to_dto()
+            # Guess the code the backend will assign, from existing item codes.
+            self._next_code = ItemService().peek_next_item_code(item_sheet, offset=code_offset)
 
         # Normal (persisting) open: clear any leftover collect callback.
         self._collect_callback = None
@@ -571,6 +584,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         """Clear all form state after successful operation."""
         self._collect_callback = None
         self._item_sheet = None
+        self._next_code = ""
         self.form_unit_type = UnitType.COUNT.value
         self.form_unit = UnitConverter.get_default_unit(UnitType.COUNT)
         self.form_quantity = ""

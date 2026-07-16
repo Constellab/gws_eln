@@ -1609,6 +1609,34 @@ class ItemService:
         message = str(error).lower()
         return "duplicate" in message and "code" in message
 
+    def peek_next_item_code(self, item_sheet: ItemSheet, offset: int = 0) -> str:
+        """Best-effort preview of the next code a new item of this sheet will get.
+
+        Same ``MAX + 1`` computation as :meth:`_generate_item_code` but purely
+        read-only: it does not reserve the code. The authoritative code is still
+        assigned at save, so a concurrent insert can shift the real value — treat
+        this as indicative only.
+
+        :param item_sheet: The sheet whose code prefixes the generated code
+        :type item_sheet: ItemSheet
+        :param offset: Number of not-yet-saved items of this sheet that will take a
+            code first (e.g. the outputs already staged in a split)
+        :type offset: int
+        :return: The code the next item is expected to receive
+        :rtype: str
+        """
+        prefix = f"{item_sheet.code}-"
+
+        max_increment = 0
+        for item in Item.select(Item.code).where(
+            (Item.item_sheet == item_sheet) & (Item.code.startswith(prefix))
+        ):
+            suffix = item.code[len(prefix) :]
+            if suffix.isdigit():
+                max_increment = max(max_increment, int(suffix))
+
+        return f"{prefix}{max_increment + 1 + offset:04d}"
+
     def _generate_item_code(self, item_sheet: ItemSheet) -> str:
         """Generate one unique item code for the sheet.
 
@@ -1625,17 +1653,7 @@ class ItemService:
         :return: A unique item code
         :rtype: str
         """
-        prefix = f"{item_sheet.code}-"
-
-        max_increment = 0
-        for item in Item.select(Item.code).where(
-            (Item.item_sheet == item_sheet) & (Item.code.startswith(prefix))
-        ):
-            suffix = item.code[len(prefix) :]
-            if suffix.isdigit():
-                max_increment = max(max_increment, int(suffix))
-
-        return f"{prefix}{max_increment + 1:04d}"
+        return self.peek_next_item_code(item_sheet)
 
     def _validate_and_convert_quantity(self, item: Item, quantity, unit: str):
         """

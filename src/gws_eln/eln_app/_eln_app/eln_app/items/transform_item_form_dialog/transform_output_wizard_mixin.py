@@ -8,9 +8,13 @@ the composing state's ``outputs`` list — all resolved at runtime on the merged
 leaf state.
 """
 
+from dataclasses import replace
+
 import reflex as rx
 from gws_eln.items.item_dto import CreateItemDTO
+from gws_eln.items.item_service import ItemService
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
+from gws_eln.items.item_sheet_service import ItemSheetService
 from gws_eln.locations.location_service import LocationService
 from gws_eln.utils.units_converter import UnitConverter
 from gws_reflex_base import ReflexAppException
@@ -116,7 +120,9 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         # Prepare the item form for the row's sheet, then prefill its fields and
         # arm collect mode (order matters: prepare clears the collect callback).
         item_state = await self.get_state(ItemFormDialogState)
-        await item_state.prepare_create_form(row.sheet_id)
+        await item_state.prepare_create_form(
+            row.sheet_id, code_offset=self._pending_code_offset(row.sheet_id)
+        )
         item_state.form_label = row.label
         item_state.form_quantity = row.qty
         item_state.form_unit = row.unit
@@ -180,6 +186,42 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
             return source
         return next((row for row in self.inputs if row.sheet_id == self.out_sheet_id), None)
 
+    def _pending_code_offset(self, sheet_id: str) -> int:
+        """How many staged outputs take a code on this sheet before the one being edited.
+
+        The outputs are only saved when the transform is submitted, so the item form's
+        peek must skip the codes the already-staged outputs of the same sheet will take.
+        """
+        offset = 0
+        for row in self.outputs:
+            if row.id and row.id == self._editing_output_id:
+                break
+            if row.sheet_id == sheet_id:
+                offset += 1
+        return offset
+
+    async def _refresh_output_code_previews(self):
+        """Renumber the staged outputs' code previews (base MAX+1 + rank within the sheet).
+
+        Called after the output list changes so a removal or an edit doesn't leave the
+        remaining rows on codes that shifted.
+        """
+        main_state = await self.get_state(ReflexMainState)
+        with await main_state.authenticate_user():
+            sheet_service = ItemSheetService()
+            item_service = ItemService()
+            sheets = {}
+            ranks: dict[str, int] = {}
+            rows = []
+            for row in self.outputs:
+                if row.sheet_id not in sheets:
+                    sheets[row.sheet_id] = sheet_service.get_item_sheet(row.sheet_id)
+                rank = ranks.get(row.sheet_id, 0)
+                ranks[row.sheet_id] = rank + 1
+                code = item_service.peek_next_item_code(sheets[row.sheet_id], offset=rank)
+                rows.append(replace(row, code_preview=code))
+            self.outputs = rows
+
     async def _advance_to_item_step(self):
         """Prepare the item form (collect mode) for the chosen sheet and go to step 2.
 
@@ -187,7 +229,9 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         arms collect mode (order matters: prepare clears the collect callback).
         """
         item_state = await self.get_state(ItemFormDialogState)
-        await item_state.prepare_create_form(self.out_sheet_id)
+        await item_state.prepare_create_form(
+            self.out_sheet_id, code_offset=self._pending_code_offset(self.out_sheet_id)
+        )
         # When the output shares an input's sheet (e.g. split, concentrate), prefill
         # the label and unit from that input as editable suggestions.
         source_input = self._output_source_input()
@@ -242,6 +286,9 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         """Callback from the item form (collect mode): add/replace the output row, close wizard."""
         loc_name = self._loc_names.get(dto.location_id, "—") if dto.location_id else "—"
         row_id = self._editing_output_id or f"out{len(self.outputs)}_{self.out_sheet_code}"
+        # Reuse the code the item form previewed, so the card shows the same value.
+        item_state = await self.get_state(ItemFormDialogState)
+        code_preview = item_state.code_preview
         row = TransformOutputRow(
             id=row_id,
             sheet_id=dto.item_sheet_id,
@@ -256,7 +303,7 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
             if dto.concentration is not None
             else "",
             conc_unit=dto.concentration_unit or "",
-            code_preview=f"{self.out_sheet_code}-XXXX",
+            code_preview=code_preview,
             produced=f"{UnitConverter.format_number(dto.quantity)} {dto.unit}",
             dilution_factor=self._pending_dilution_factor,
             concentration_method=(
@@ -274,8 +321,10 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         self.concentration_method = NO_CONCENTRATION_METHOD_VALUE
         self.output_dialog_opened = False
         self.output_step = OutputStep.SHEET
+        await self._refresh_output_code_previews()
 
     @rx.event
-    def remove_output(self, index: int):
+    async def remove_output(self, index: int):
         if 0 <= index < len(self.outputs):
             del self.outputs[index]
+            await self._refresh_output_code_previews()
