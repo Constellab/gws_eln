@@ -354,6 +354,7 @@ class ItemDTO(ItemSimpleDTO):
     pretty_quantity: str  # Pre-formatted quantity string for display
     concentration: Decimal | None
     concentration_unit: str | None
+    pretty_concentration: str | None = None  # Pre-formatted "value unit", zeros trimmed
     batch_number: str | None  # Own lot number (single); set at creation for origin items only
     storage_conditions: str | None
     item_sheet: ItemSheetDTO

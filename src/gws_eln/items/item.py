@@ -246,6 +246,7 @@ class Item(ModelWithUser):
             unit_type=self.unit_type,
             concentration=self.concentration,
             concentration_unit=self.concentration_unit,
+            pretty_concentration=self.get_pretty_concentration(),
             batch_number=self.batch_number,
             storage_conditions=self.storage_conditions,
             notes=self.notes,

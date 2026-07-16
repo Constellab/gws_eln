@@ -17,8 +17,14 @@ from .transform_models import INPUT_ROLE_DILUENT, INPUT_ROLE_TARGET, TransformKi
 
 
 def _to_result(item) -> InputSearchResultDTO:
-    display_text = f"{item.code} ({item.label})" if item.label else item.code
-    return InputSearchResultDTO(id=item.id, display_text=display_text, object=item.to_dto())
+    # The dropdown renders display_text as plain text (external web component), so
+    # everything goes on one line: "Label - CODE · <qty> · <concentration>".
+    dto = item.to_dto()
+    label_code = f"{dto.label} - {dto.code}" if dto.label else dto.code
+    extras = [dto.pretty_quantity, item.get_pretty_concentration()]
+    suffix = " · ".join(part for part in extras if part)
+    display_text = f"{label_code}   ·   {suffix}" if suffix else label_code
+    return InputSearchResultDTO(id=dto.id, display_text=display_text, object=dto)
 
 
 class TransformInputSelectState(rx.State):

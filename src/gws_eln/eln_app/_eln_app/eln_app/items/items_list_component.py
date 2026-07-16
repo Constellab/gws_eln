@@ -133,7 +133,7 @@ def _row(item: ItemDTO) -> rx.Component:
                     item.concentration,
                     rx.box(
                         rx.badge(
-                            f"{item.concentration} {item.concentration_unit}",
+                            item.pretty_concentration,
                             variant="soft",
                             color_scheme="iris",
                             size="1",
