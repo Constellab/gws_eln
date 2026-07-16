@@ -463,6 +463,11 @@ class ItemFormDialogState(FormDialogState, rx.State):
             notes,
         ) = self._validate_form_data(form_data)
 
+        # A consumable output item must carry an expiry date (same rule as a
+        # standalone create); collect mode always uses the consumable form.
+        if expiry_date is None:
+            raise ReflexAppException("Expiry date is required")
+
         concentration_unit = (
             self.form_concentration_unit
             if self.form_concentration_unit

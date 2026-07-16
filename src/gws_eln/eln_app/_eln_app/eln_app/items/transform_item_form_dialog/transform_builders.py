@@ -6,6 +6,7 @@ invalid input. They hold no Reflex state and perform no service calls, so the
 dialog state stays a thin orchestrator and this logic is unit-testable on its own.
 """
 
+from datetime import date
 from decimal import Decimal
 
 from gws_eln.core.concentration_method import ConcentrationMethod
@@ -128,6 +129,11 @@ def _instrument_ids(inputs: list[TransformInputRow]) -> list[str]:
     return [row.item_id for row in inputs if not row.is_consumable]
 
 
+def _output_expiry(output: TransformOutputRow) -> date | None:
+    """Parse the output row's expiry (ISO string) to a date, or None when unset."""
+    return date.fromisoformat(output.expiry_date) if output.expiry_date else None
+
+
 def _require_label(output: TransformOutputRow) -> str:
     """Return the output's stripped label, which is mandatory.
 
@@ -170,6 +176,7 @@ def build_split(
                 unit=row.unit,
                 location_id=row.location_id or None,
                 label=label,
+                expiry_date=_output_expiry(row),
                 override_reason=reason or None,
                 notes=row.notes or None,
             )
@@ -240,6 +247,7 @@ def build_combine(
         instrument_item_ids=_instrument_ids(inputs),
         output_location_id=output.location_id or None,
         output_label=_require_label(output),
+        output_expiry_date=_output_expiry(output),
         output_concentration=Decimal(output.conc) if output.conc else None,
         output_concentration_unit=output.conc_unit or None,
         output_notes=output.notes or None,
@@ -297,6 +305,7 @@ def build_concentrate(
         instrument_item_ids=_instrument_ids(inputs),
         output_location_id=output.location_id or None,
         output_label=_require_label(output),
+        output_expiry_date=_output_expiry(output),
         output_notes=output.notes or None,
         notes=notes,
         note_id=note_id,
@@ -355,6 +364,7 @@ def build_dilute(
         instrument_item_ids=_instrument_ids(inputs),
         output_location_id=output.location_id or None,
         output_label=_require_label(output),
+        output_expiry_date=_output_expiry(output),
         output_notes=output.notes or None,
         notes=notes,
         note_id=note_id,
@@ -389,6 +399,7 @@ def build_custom(
             label=_require_label(row),
             concentration=Decimal(row.conc) if row.conc else None,
             concentration_unit=row.conc_unit or None,
+            expiry_date=_output_expiry(row),
             notes=row.notes or None,
         )
         for row in outputs

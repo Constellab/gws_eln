@@ -155,3 +155,4 @@ class TransformOutputRow:
     concentration_method: str = ""  # ConcentrationMethod value (concentrate audit; "" when none)
     override_reason: str = ""  # justification when the label diverges from the source (split)
     notes: str = ""  # the output item's own note (kept off the activity's note)
+    expiry_date: str = ""  # ISO date (required for consumable outputs; "" when unset)

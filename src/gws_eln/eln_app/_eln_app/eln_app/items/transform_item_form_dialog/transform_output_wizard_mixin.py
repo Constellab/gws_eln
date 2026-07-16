@@ -187,6 +187,7 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         item_state.form_location_id = row.location_id
         item_state.form_override_reason = row.override_reason
         item_state.form_notes = row.notes
+        item_state.form_expiry_date = row.expiry_date
         # Re-arm the split relabel check against the source's label.
         if self.transform_kind == TransformKind.SPLIT.value:
             source = self._fixed_output_source()
@@ -392,6 +393,7 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
             ),
             override_reason=dto.override_reason or "",
             notes=dto.notes or "",
+            expiry_date=dto.expiry_date.isoformat() if dto.expiry_date else "",
         )
         if self._editing_output_id:
             self.outputs = [row if r.id == self._editing_output_id else r for r in self.outputs]
