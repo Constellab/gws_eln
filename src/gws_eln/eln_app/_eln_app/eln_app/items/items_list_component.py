@@ -12,7 +12,7 @@ from ..locations.core.location_select_component import location_select_component
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from ..suppliers.core.supplier_select_component import supplier_select_component
 from .core.item_actions_menu import item_actions_menu
-from .core.item_components import expiry_date_badge, item_inline, status_badge
+from .core.item_components import expiry_date_badge, quantity_badge, status_badge
 from .core.item_status_select_component import item_status_select_component
 from .delete_item_form_dialog.delete_item_form_dialog_component import (
     delete_item_dialog,
@@ -105,7 +105,23 @@ def _row(item: ItemDTO) -> rx.Component:
     """
     return rx.table.row(
         rx.table.cell(
-            item_inline(item),
+            rx.text(item.label, weight="medium"),
+        ),
+        rx.table.cell(
+            rx.code(item.code, size="1"),
+            width="1%",
+            white_space="nowrap",
+        ),
+        rx.table.cell(
+            rx.cond(
+                item.notes,
+                rx.text(item.notes, size="2", color="gray"),
+            )
+        ),
+        rx.table.cell(
+            rx.box(quantity_badge(item), width="fit-content"),
+            width="1%",
+            white_space="nowrap",
         ),
         rx.table.cell(
             inline_location_component(item.location),
@@ -118,9 +134,6 @@ def _row(item: ItemDTO) -> rx.Component:
                 rx.text("—", color="gray"),
             ),
             display=rx.breakpoints(initial="none", md="table-cell"),
-        ),
-        rx.table.cell(
-            rx.text(item.pretty_quantity),
         ),
         rx.cond(
             ItemsListState.show_concentration_column,
@@ -141,16 +154,21 @@ def _row(item: ItemDTO) -> rx.Component:
         ),
         rx.table.cell(rx.box(status_badge(item.status), width="fit-content")),
         rx.table.cell(
-            item_actions_menu(
-                item=item,
-                on_receive=lambda: ItemsListState.open_receive_dialog(item),
-                on_use=lambda: ItemsListState.open_use_dialog(item),
-                on_move=lambda: ItemsListState.open_move_dialog(item),
-                on_update=lambda: ItemsListState.open_update_dialog(item),
-                on_relabel=lambda: ItemsListState.open_relabel_dialog(item),
-                on_delete=lambda: ItemsListState.open_delete_dialog(item),
-                on_transform=lambda: ItemsListState.open_transform_dialog(item),
-                stop_propagation=True,
+            rx.box(
+                item_actions_menu(
+                    item=item,
+                    on_receive=lambda: ItemsListState.open_receive_dialog(item),
+                    on_use=lambda: ItemsListState.open_use_dialog(item),
+                    on_move=lambda: ItemsListState.open_move_dialog(item),
+                    on_update=lambda: ItemsListState.open_update_dialog(item),
+                    on_relabel=lambda: ItemsListState.open_relabel_dialog(item),
+                    on_delete=lambda: ItemsListState.open_delete_dialog(item),
+                    on_transform=lambda: ItemsListState.open_transform_dialog(item),
+                    stop_propagation=True,
+                ),
+                display="flex",
+                justify_content="flex-end",
+                align_items="center",
             ),
         ),
         on_click=rx.redirect(ElnAppRouter.get_item_detail_url(item.id)),
@@ -206,6 +224,14 @@ def _items_table() -> rx.Component:
                     rx.table.row(
                         rx.table.column_header_cell("Item"),
                         rx.table.column_header_cell(
+                            "Code", width="1%", white_space="nowrap"
+                        ),
+                        rx.table.column_header_cell("Description"),
+                        # Shrink to the widest quantity value.
+                        rx.table.column_header_cell(
+                            "Quantity", width="1%", white_space="nowrap"
+                        ),
+                        rx.table.column_header_cell(
                             "Location",
                             display=rx.breakpoints(initial="none", md="table-cell"),
                         ),
@@ -213,14 +239,22 @@ def _items_table() -> rx.Component:
                             "Supplier",
                             display=rx.breakpoints(initial="none", md="table-cell"),
                         ),
-                        rx.table.column_header_cell("Quantity"),
                         rx.cond(
                             ItemsListState.show_concentration_column,
                             rx.table.column_header_cell("Concentration"),
                         ),
-                        rx.table.column_header_cell("Expiry Date"),
-                        rx.table.column_header_cell("Status"),
-                        rx.table.column_header_cell("Actions"),
+                        # Shrink to the date badge width.
+                        rx.table.column_header_cell(
+                            "Expiry Date", width="1%", white_space="nowrap"
+                        ),
+                        # Shrink to the widest status badge.
+                        rx.table.column_header_cell(
+                            "Status", width="1%", white_space="nowrap"
+                        ),
+                        # Shrink to the header text; the menu button is right-aligned.
+                        rx.table.column_header_cell(
+                            "Actions", width="1%", white_space="nowrap", justify="end"
+                        ),
                     ),
                 ),
                 rx.table.body(rx.foreach(ItemsListState.items, _row)),

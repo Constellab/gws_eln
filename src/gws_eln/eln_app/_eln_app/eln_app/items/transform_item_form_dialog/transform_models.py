@@ -91,3 +91,4 @@ class TransformOutputRow:
     produced: str  # display
     dilution_factor: str = ""  # raw, for DTO (concentrate/dilute audit; "" when none)
     concentration_method: str = ""  # ConcentrationMethod value (concentrate audit; "" when none)
+    override_reason: str = ""  # justification when the label diverges from the source (split)

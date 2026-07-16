@@ -26,7 +26,12 @@ from ...item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_state import (
     ItemSheetFormDialogState,
 )
 from ..item_form_dialog.item_form_dialog_state import ItemFormDialogState
-from .transform_models import OutputStep, TransformInputRow, TransformOutputRow
+from .transform_models import (
+    OutputStep,
+    TransformInputRow,
+    TransformKind,
+    TransformOutputRow,
+)
 
 
 class TransformOutputWizardMixin(rx.State, mixin=True):
@@ -129,6 +134,12 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         item_state.form_concentration = row.conc
         item_state.form_concentration_unit = row.conc_unit or item_state.NO_CONCENTRATION_VALUE
         item_state.form_location_id = row.location_id
+        item_state.form_override_reason = row.override_reason
+        # Re-arm the split relabel check against the source's label.
+        if self.transform_kind == TransformKind.SPLIT.value:
+            source = self._fixed_output_source()
+            if source is not None:
+                item_state._reference_label = source.label
         item_state.set_collect_callback(self._on_output_item_collected)
 
         self.output_create_sheet_mode = False
@@ -238,6 +249,9 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         if source_input is not None:
             item_state.form_label = source_input.label
             item_state.form_unit = source_input.unit
+            # A split child that is relabelled away from its source must be justified.
+            if self.transform_kind == TransformKind.SPLIT.value:
+                item_state._reference_label = source_input.label
         item_state.set_collect_callback(self._on_output_item_collected)
         self.output_create_sheet_mode = False
         self.output_step = OutputStep.ITEM
@@ -311,6 +325,7 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
                 if self.concentration_method == NO_CONCENTRATION_METHOD_VALUE
                 else self.concentration_method
             ),
+            override_reason=dto.override_reason or "",
         )
         if self._editing_output_id:
             self.outputs = [row if r.id == self._editing_output_id else r for r in self.outputs]

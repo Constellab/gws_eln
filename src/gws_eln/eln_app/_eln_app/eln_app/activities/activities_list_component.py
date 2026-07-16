@@ -8,6 +8,7 @@ from gws_eln.activities.activity_type import ActivityType
 from gws_reflex_main import user_with_date_component
 
 from ..common.eln_app_router import ElnAppRouter
+from ..common.feedback_components import compact_warning
 from ..locations.core.inline_location_component import inline_location_component
 from .activities_list_state import ALL_FILTER_VALUE, ActivitiesListState
 from .activity_type_component import activity_type_badge
@@ -68,6 +69,11 @@ def _activity_description(activity: ActivityDTO) -> rx.Component:
             rx.text(activity.notes, size="2", color="gray"),
             rx.fragment(),
         ),
+        # Warning hint for a justified override on this item (e.g. a split relabel).
+        rx.cond(
+            activity.override_reason != "",
+            compact_warning(f"Label changed — reason: {activity.override_reason}"),
+        ),
         spacing="1",
         align="start",
     )
@@ -112,7 +118,13 @@ def _row(activity: ActivityDTO) -> rx.Component:
         rx.table.cell(
             rx.box(activity_type_badge(activity.activity_type), width="fit-content"),
         ),
-        rx.table.cell(_activity_description(activity)),
+        rx.table.cell(
+            _activity_description(activity),
+            width="400px",
+            max_width="400px",
+            white_space="normal",
+            overflow_wrap="anywhere",
+        ),
         rx.table.cell(
             rx.text(activity.pretty_quantity, color=activity.quantity_color, weight="medium"),
         ),
@@ -185,7 +197,9 @@ def _activities_table() -> rx.Component:
                 rx.table.header(
                     rx.table.row(
                         rx.table.column_header_cell("Type"),
-                        rx.table.column_header_cell("Description"),
+                        rx.table.column_header_cell(
+                            "Description", width="400px", max_width="400px"
+                        ),
                         rx.table.column_header_cell("Quantity"),
                         rx.table.column_header_cell("Note"),
                         rx.table.column_header_cell("By"),

@@ -168,6 +168,7 @@ class ActivityService:
         activity_output.item = item
         activity_output.quantity = output_dto.quantity
         activity_output.unit_type = output_dto.unit_type
+        activity_output.override_reason = output_dto.override_reason
         activity_output.save()
         return activity_output
 

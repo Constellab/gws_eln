@@ -77,6 +77,9 @@ class ActivitiesListState(rx.State):
                 current_item_pretty_quantity = self._get_current_item_pretty_quantity(dto)
                 dto.pretty_quantity = current_item_pretty_quantity
                 dto.quantity_color = self._quantity_color(current_item_pretty_quantity)
+                # Surface the override justification recorded for THIS item's output
+                # row (e.g. a split relabel), so the hint only shows on its timeline.
+                dto.override_reason = self._get_current_item_override_reason(dto)
                 dtos.append(dto)
             self._activities = dtos
 
@@ -114,6 +117,25 @@ class ActivitiesListState(rx.State):
                 None,
             )
             or ""
+        )
+
+    def _get_current_item_override_reason(self, dto: ActivityDTO) -> str:
+        """Override justification recorded for the current item's output entry.
+
+        Only outputs carry a reason (e.g. a split child relabelled from its
+        source), so the hint appears solely on that created item's timeline and
+        never on the source's. Returns "" when there is none.
+
+        :param dto: The activity DTO (its outputs are already materialized)
+        :return: The reason string, or "" if none
+        """
+        return next(
+            (
+                o.override_reason
+                for o in dto.outputs
+                if o.item.id == self._item_id and o.override_reason
+            ),
+            "",
         )
 
     def _quantity_color(self, signed_quantity: str) -> str:

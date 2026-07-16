@@ -41,6 +41,9 @@ class CreateItemDTO(BaseModelDTO):
     storage_conditions: str | None = None  # If None, inherits the item sheet's default
     notes: str | None = None
     note_id: str | None = None  # Link to Constellab Note
+    # Set in Transform collect mode when the user justifies a warning (e.g. a split
+    # output relabel). Ignored on a plain create.
+    override_reason: str | None = None
 
 
 class CreateItemsBulkDTO(BaseModelDTO):
@@ -158,6 +161,9 @@ class SplitOutputDTO(BaseModelDTO):
     label: str  # Required human-readable label (not unique)
     expiry_date: date | None = None  # Defaults to the source item's expiry_date if None
     notes: str | None = None
+    # Required when the label diverges from the source's: justification for the
+    # relabel, kept as an audit hint on the created item's activity timeline.
+    override_reason: str | None = None
 
 
 class SplitItemDTO(BaseModelDTO):

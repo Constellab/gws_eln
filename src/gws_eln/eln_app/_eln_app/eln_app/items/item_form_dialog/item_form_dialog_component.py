@@ -1,6 +1,7 @@
 import reflex as rx
 from gws_reflex_main import form_dialog_component
 
+from ...common.feedback_components import compact_warning
 from ...common.select_with_create_component import select_with_create
 from ...common.unit.concentration_unit_components import concentration_unit_select
 from ...common.unit.unit_components import quantity_unit_input
@@ -190,6 +191,28 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
                 # Required is validated in the state, not via the native HTML
                 # attribute, which would steal focus and block submit.
                 default_value=ItemFormDialogState.form_label,
+                # Tracked live so the label-divergence warning below reacts.
+                on_change=ItemFormDialogState.set_label,
+            ),
+            # Shown when the label diverges from a caller-set reference (e.g. a
+            # split output vs its source): warn and require a justification.
+            rx.cond(
+                ItemFormDialogState.label_changed,
+                rx.vstack(
+                    compact_warning(
+                        "This label differs from the original. Please give a reason for the change."
+                    ),
+                    rx.text_area(
+                        placeholder="Reason for changing the label (required)",
+                        value=ItemFormDialogState.form_override_reason,
+                        on_change=ItemFormDialogState.set_override_reason,
+                        width="100%",
+                        rows="2",
+                    ),
+                    width="100%",
+                    spacing="1",
+                    align="stretch",
+                ),
             ),
             width="100%",
             spacing="1",
@@ -344,7 +367,10 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
                 placeholder="Enter notes (optional)",
                 name="notes",
                 width="100%",
-                default_value=ItemFormDialogState.form_notes,
+                # Controlled: a text_area value is not reliably collected by the
+                # form's on_submit, so track it in state and read it there.
+                value=ItemFormDialogState.form_notes,
+                on_change=ItemFormDialogState.set_notes,
                 rows="3",
             ),
             width="100%",

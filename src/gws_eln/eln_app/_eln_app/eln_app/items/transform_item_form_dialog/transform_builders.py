@@ -154,15 +154,25 @@ def build_split(
     if len(outputs) < SPLIT_MIN_OUTPUTS:
         raise ReflexAppException(f"Split needs at least {SPLIT_MIN_OUTPUTS} outputs")
 
-    output_dtos = [
-        SplitOutputDTO(
-            quantity=Decimal(row.qty),
-            unit=row.unit,
-            location_id=row.location_id or None,
-            label=_require_label(row),
+    output_dtos = []
+    for row in outputs:
+        label = _require_label(row)
+        reason = (row.override_reason or "").strip()
+        # A label diverging from the source's must carry a justification.
+        if label != (source.label or "").strip() and not reason:
+            raise ReflexAppException(
+                f"Output '{label}' has a different label than the source "
+                f"'{source.label}': please give a reason for the change"
+            )
+        output_dtos.append(
+            SplitOutputDTO(
+                quantity=Decimal(row.qty),
+                unit=row.unit,
+                location_id=row.location_id or None,
+                label=label,
+                override_reason=reason or None,
+            )
         )
-        for row in outputs
-    ]
     dto = SplitItemDTO(
         quantity_contributed=Decimal(source.qty),
         unit=source.unit,

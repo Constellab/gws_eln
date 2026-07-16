@@ -1,6 +1,7 @@
 from gws_core import (
     NullableDecimalField,
     NullableEnumField,
+    NullableTextField,
     TypedForeignKeyField,
 )
 
@@ -40,6 +41,11 @@ class ActivityOutput(ModelWithUser):
     quantity = NullableDecimalField(max_digits=20, decimal_places=12)
     unit_type = NullableEnumField(choices=UnitType, max_length=20)
 
+    # Justification the user gave to proceed past a warning when this output was
+    # created (e.g. a split output whose label diverges from its source). Store-only
+    # audit; surfaced as a warning hint on the output item's activity timeline.
+    override_reason = NullableTextField()
+
     def get_pretty_quantity(self) -> str | None:
         """Get a human-readable string for the output quantity and unit type.
 
@@ -65,6 +71,7 @@ class ActivityOutput(ModelWithUser):
             quantity=self.quantity,
             unit_type=self.unit_type,
             pretty_quantity=self.get_pretty_quantity(),
+            override_reason=self.override_reason,
             created_at=self.created_at,
             last_modified_at=self.last_modified_at,
         )

@@ -31,6 +31,8 @@ class CreateActivityOutputDTO(BaseModelDTO):
     item_id: str  # The created item ID
     quantity: Decimal | None = None  # Snapshot of the output quantity at creation
     unit_type: UnitType | None = None
+    # Justification for proceeding past a warning while creating this output.
+    override_reason: str | None = None
 
 
 class CreateActivityDTO(BaseModelDTO):
@@ -75,6 +77,7 @@ class ActivityOutputDTO(ModelDTO):
     quantity: Decimal | None
     unit_type: UnitType | None
     pretty_quantity: str | None
+    override_reason: str | None = None
 
 
 class ActivityDTO(ModelDTO):
@@ -98,5 +101,8 @@ class ActivityDTO(ModelDTO):
     inputs: list[ActivityInputDTO]
     outputs: list[ActivityOutputDTO]
     quantity_color: str = ""  # CSS color token for pretty_quantity ("" = default)
+    # Override justification from the current item's perspective (its output row),
+    # surfaced as a warning hint on that item's timeline. "" = none.
+    override_reason: str = ""
     created_by: UserDTO
     last_modified_by: UserDTO

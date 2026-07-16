@@ -586,7 +586,10 @@ class ItemService:
             )
         )
 
+        # Discarding empties the item: the activity above already captured the
+        # discarded amount, so the remaining stock drops to zero.
         item.status = ItemStatus.DISCARDED
+        item.quantity = Decimal(0)
         item.save()
 
         return ItemActivityResult(item=item, activity=activity)
@@ -765,6 +768,7 @@ class ItemService:
                     item_id=item.id,
                     quantity=base_quantity,
                     unit_type=unit_type,
+                    override_reason=output_dto.override_reason,
                 )
             )
 
@@ -1420,8 +1424,10 @@ class ItemService:
             )
         )
 
-        # Update status to DISCARDED
+        # Update status to DISCARDED. The activity above captured the discarded
+        # amount, so the remaining stock drops to zero.
         item.status = ItemStatus.DISCARDED
+        item.quantity = Decimal(0)
         item.save()
 
         return DeleteItemResultDTO.DISCARDED

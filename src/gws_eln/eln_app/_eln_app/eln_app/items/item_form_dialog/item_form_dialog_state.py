@@ -62,6 +62,12 @@ class ItemFormDialogState(FormDialogState, rx.State):
     form_unit_count: int = 1
     form_serials: list[str] = [""]
 
+    # Reusable "justify a divergence" capture: when a reference label is set (by a
+    # caller such as the split output wizard), changing the label away from it
+    # requires a reason. Empty reference disables the check entirely (plain create).
+    _reference_label: str = ""
+    form_override_reason: str = ""
+
     # Bumped to remount the supplier/location selects after an on-the-fly create,
     # so Radix picks up the freshly-added option as the selected value.
     supplier_select_key: int = 0
@@ -79,6 +85,17 @@ class ItemFormDialogState(FormDialogState, rx.State):
     def collect_mode(self) -> bool:
         """Whether the dialog is collecting an item spec instead of persisting."""
         return self._collect_callback is not None
+
+    @rx.var
+    def label_changed(self) -> bool:
+        """Whether the label diverges from the reference set by the caller.
+
+        Drives the "justify the change" warning + reason field. Always False when
+        no reference label was set (a plain create never asks for a reason).
+        """
+        if not self._reference_label:
+            return False
+        return self.form_label.strip() != self._reference_label.strip()
 
     @rx.var
     def item_sheet_name(self) -> str:
@@ -152,6 +169,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
 
         # Reset form fields to defaults
         self.form_label = ""
+        # Reset the divergence check: a caller (e.g. split wizard) re-arms it after.
+        self._reference_label = ""
+        self.form_override_reason = ""
         self.form_quantity = ""
         self.form_concentration = ""
         self.form_batch_number = ""
@@ -260,6 +280,26 @@ class ItemFormDialogState(FormDialogState, rx.State):
         self.form_expiry_date = value
 
     @rx.event
+    def set_label(self, value: str):
+        """Track the label as it is typed, so ``label_changed`` reacts live."""
+        self.form_label = value
+
+    @rx.event
+    def set_notes(self, value: str):
+        """Track the notes as they are typed.
+
+        Read from state (not form_data) at submit: an ``rx.text_area`` value is
+        not reliably collected by the form's on_submit, so name-based capture
+        silently dropped the notes.
+        """
+        self.form_notes = value
+
+    @rx.event
+    def set_override_reason(self, value: str):
+        """Set the justification for a divergence flagged by ``label_changed``."""
+        self.form_override_reason = value
+
+    @rx.event
     def set_unit_count(self, value: str):
         """Set the number of non-consumable units to create and resize serials."""
         try:
@@ -352,7 +392,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
         # Keep "" (not None) when cleared: field is pre-filled with the sheet default,
         # so empty means "no condition" and must not fall back to it. None = not provided.
         storage_conditions = form_data.get("storage_conditions", "").strip()
-        notes = form_data.get("notes", "").strip() or None
+        # Notes come from state (on_change), not form_data: a text_area value is
+        # not reliably submitted with the form.
+        notes = self.form_notes.strip() or None
 
         # Values from state (select components)
         location_id = self.form_location_id
@@ -428,6 +470,13 @@ class ItemFormDialogState(FormDialogState, rx.State):
             else None
         )
 
+        # A label diverging from the caller's reference must carry a justification.
+        override_reason = self.form_override_reason.strip()
+        if self._reference_label and label != self._reference_label.strip() and not override_reason:
+            raise ReflexAppException(
+                "The label differs from the original: please give a reason for the change"
+            )
+
         dto = CreateItemDTO(
             item_sheet_id=self._item_sheet.id,
             quantity=quantity,
@@ -440,6 +489,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
             label=label,
             storage_conditions=storage_conditions,
             notes=notes,
+            override_reason=override_reason or None,
         )
 
         yield rx.toast.success("Output item defined")
@@ -525,7 +575,9 @@ class ItemFormDialogState(FormDialogState, rx.State):
         # Keep "" (not None) when cleared: field is pre-filled with the sheet default,
         # so empty means "no condition" and must not fall back to it. None = not provided.
         storage_conditions = form_data.get("storage_conditions", "").strip()
-        notes = form_data.get("notes", "").strip() or None
+        # Notes come from state (on_change), not form_data: a text_area value is
+        # not reliably submitted with the form.
+        notes = self.form_notes.strip() or None
         expiry_date = self._parse_expiry_date()  # next due date: optional for non-consumables
 
         location_id = self.form_location_id

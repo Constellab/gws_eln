@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from typing import cast
 
 import reflex as rx
-from gws_eln.items.item_dto import ItemSimpleDTO
+from gws_eln.items.item_dto import ItemDTO, ItemSimpleDTO
 from gws_eln.items.item_status import ItemStatus
 from gws_reflex_main import ReflexTheme
 
@@ -106,7 +106,30 @@ def status_badge(status: ItemStatus) -> rx.Component:
             ItemStatus.EXHAUSTED.value,
             rx.badge("Exhausted", color_scheme="amber", size="1"),
         ),
-        rx.badge("Discarded", color_scheme=ReflexTheme.TERTIARY, size="1"),
+        rx.badge("Discarded", color_scheme="ruby", size="1"),
+    )
+
+
+def quantity_badge(item: ItemDTO) -> rx.Component:
+    """Badge visualising an item's remaining quantity.
+
+    - Discarded item: red, like a removed item in the Transform dialog.
+    - Exhausted (quantity 0): amber, like the Exhausted status.
+    - Positive quantity: green.
+
+    :param item: The item DTO to display
+    :type item: ItemDTO
+    :return: The quantity badge component
+    :rtype: rx.Component
+    """
+    return rx.cond(
+        item.status == ItemStatus.DISCARDED.value,
+        rx.badge(item.pretty_quantity, color_scheme="ruby", size="1"),
+        rx.cond(
+            item.quantity == 0,
+            rx.badge(item.pretty_quantity, color_scheme="amber", size="1"),
+            rx.badge(item.pretty_quantity, color_scheme="grass", size="1"),
+        ),
     )
 
 
