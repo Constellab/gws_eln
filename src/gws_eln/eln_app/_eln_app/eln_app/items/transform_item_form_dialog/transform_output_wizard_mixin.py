@@ -186,6 +186,7 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
         item_state.form_concentration_unit = row.conc_unit or item_state.NO_CONCENTRATION_VALUE
         item_state.form_location_id = row.location_id
         item_state.form_override_reason = row.override_reason
+        item_state.form_notes = row.notes
         # Re-arm the split relabel check against the source's label.
         if self.transform_kind == TransformKind.SPLIT.value:
             source = self._fixed_output_source()
@@ -390,6 +391,7 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
                 else self.concentration_method
             ),
             override_reason=dto.override_reason or "",
+            notes=dto.notes or "",
         )
         if self._editing_output_id:
             self.outputs = [row if r.id == self._editing_output_id else r for r in self.outputs]

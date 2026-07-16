@@ -215,7 +215,8 @@ class CombineItemDTO(BaseModelDTO):
     output_expiry_date: date | None = None
     output_concentration: Decimal | None = None
     output_concentration_unit: str | None = None
-    notes: str | None = None
+    output_notes: str | None = None  # The output item's own note (not the activity's)
+    notes: str | None = None  # The transform's note — recorded on the activity only
     note_id: str | None = None  # Link to Constellab Note
 
 
@@ -240,7 +241,8 @@ class ConcentrateItemDTO(BaseModelDTO):
     output_location_id: str | None = None  # Defaults to the source's location if None
     output_label: str  # Required human-readable label (not unique)
     output_expiry_date: date | None = None  # Defaults to the source's expiry_date if None
-    notes: str | None = None
+    output_notes: str | None = None  # The output item's own note (not the activity's)
+    notes: str | None = None  # The transform's note — recorded on the activity only
     note_id: str | None = None  # Link to Constellab Note
 
 
@@ -276,7 +278,8 @@ class DiluteItemDTO(BaseModelDTO):
     output_location_id: str | None = None  # Defaults to the target's location if None
     output_label: str  # Required human-readable label (not unique)
     output_expiry_date: date | None = None  # Defaults to the target's expiry_date if None
-    notes: str | None = None
+    output_notes: str | None = None  # The output item's own note (not the activity's)
+    notes: str | None = None  # The transform's note — recorded on the activity only
     note_id: str | None = None  # Link to Constellab Note
 
 
@@ -310,6 +313,7 @@ class TransformOutputDTO(BaseModelDTO):
     concentration: Decimal | None = None
     concentration_unit: str | None = None
     expiry_date: date | None = None
+    notes: str | None = None  # The output item's own note (not the activity's)
 
 
 class TransformItemsDTO(BaseModelDTO):

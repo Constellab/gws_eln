@@ -171,6 +171,7 @@ def build_split(
                 location_id=row.location_id or None,
                 label=label,
                 override_reason=reason or None,
+                notes=row.notes or None,
             )
         )
     dto = SplitItemDTO(
@@ -241,6 +242,7 @@ def build_combine(
         output_label=_require_label(output),
         output_concentration=Decimal(output.conc) if output.conc else None,
         output_concentration_unit=output.conc_unit or None,
+        output_notes=output.notes or None,
         notes=notes,
         note_id=note_id,
     )
@@ -295,6 +297,7 @@ def build_concentrate(
         instrument_item_ids=_instrument_ids(inputs),
         output_location_id=output.location_id or None,
         output_label=_require_label(output),
+        output_notes=output.notes or None,
         notes=notes,
         note_id=note_id,
     )
@@ -352,6 +355,7 @@ def build_dilute(
         instrument_item_ids=_instrument_ids(inputs),
         output_location_id=output.location_id or None,
         output_label=_require_label(output),
+        output_notes=output.notes or None,
         notes=notes,
         note_id=note_id,
     )
@@ -385,6 +389,7 @@ def build_custom(
             label=_require_label(row),
             concentration=Decimal(row.conc) if row.conc else None,
             concentration_unit=row.conc_unit or None,
+            notes=row.notes or None,
         )
         for row in outputs
     ]

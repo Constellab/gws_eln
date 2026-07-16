@@ -893,7 +893,8 @@ class ItemService:
         output.label = self._normalize_required_label(dto.output_label)
         # Storage condition inherits the output's own sheet default
         output.storage_conditions = output_sheet.storage_conditions
-        output.notes = dto.notes.strip() if dto.notes else None
+        # The output item carries its own note; the transform note goes to the activity.
+        output.notes = dto.output_notes.strip() if dto.output_notes else None
         output.supplier = None
         self._save_with_unique_code(output, output_sheet)
 
@@ -929,6 +930,7 @@ class ItemService:
         location_id: str | None,
         label: str | None,
         expiry_date,
+        notes: str | None = None,
     ) -> tuple[Item, Decimal]:
         """Create the new output item of a dilute/concentrate.
 
@@ -959,7 +961,8 @@ class ItemService:
         output.label = self._normalize_required_label(label)
         # Storage condition inherits the output's own sheet default
         output.storage_conditions = reference_item.item_sheet.storage_conditions
-        output.notes = None
+        # The output item carries its own note; the transform note goes to the activity.
+        output.notes = notes.strip() if notes else None
         output.supplier = reference_item.supplier
         self._save_with_unique_code(output, reference_item.item_sheet)
 
@@ -1015,6 +1018,7 @@ class ItemService:
             location_id=dto.output_location_id,
             label=dto.output_label,
             expiry_date=dto.output_expiry_date,
+            notes=dto.output_notes,
         )
 
         activity = self._activity_service.log_activity(
@@ -1141,6 +1145,7 @@ class ItemService:
             location_id=dto.output_location_id,
             label=dto.output_label,
             expiry_date=dto.output_expiry_date,
+            notes=dto.output_notes,
         )
 
         activity = self._activity_service.log_activity(
@@ -1283,7 +1288,8 @@ class ItemService:
             output.label = self._normalize_required_label(output_dto.label)
             # Storage condition inherits the output's own sheet default
             output.storage_conditions = output_sheet.storage_conditions
-            output.notes = None
+            # The output item carries its own note; the transform note goes to the activity.
+            output.notes = output_dto.notes.strip() if output_dto.notes else None
             output.supplier = None
             self._save_with_unique_code(output, output_sheet)
 

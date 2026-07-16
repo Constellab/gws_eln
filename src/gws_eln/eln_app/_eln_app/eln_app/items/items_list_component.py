@@ -126,6 +126,26 @@ def _row(item: ItemDTO) -> rx.Component:
             width="1%",
             white_space="nowrap",
         ),
+        rx.cond(
+            ItemsListState.show_concentration_column,
+            rx.table.cell(
+                rx.cond(
+                    item.concentration,
+                    rx.box(
+                        rx.badge(
+                            f"{item.concentration} {item.concentration_unit}",
+                            variant="soft",
+                            color_scheme="iris",
+                            size="1",
+                        ),
+                        width="fit-content",
+                    ),
+                    rx.text("—", color="gray"),
+                ),
+                width="1%",
+                white_space="nowrap",
+            ),
+        ),
         rx.table.cell(
             inline_location_component(item.location),
             display=rx.breakpoints(initial="none", md="table-cell"),
@@ -137,16 +157,6 @@ def _row(item: ItemDTO) -> rx.Component:
                 rx.text("—", color="gray"),
             ),
             display=rx.breakpoints(initial="none", md="table-cell"),
-        ),
-        rx.cond(
-            ItemsListState.show_concentration_column,
-            rx.table.cell(
-                rx.cond(
-                    item.concentration,
-                    rx.text(f"{item.concentration} {item.concentration_unit}"),
-                    rx.text("—", color="gray"),
-                ),
-            ),
         ),
         rx.table.cell(
             rx.cond(
@@ -234,6 +244,12 @@ def _items_table() -> rx.Component:
                         rx.table.column_header_cell(
                             "Quantity", width="1%", white_space="nowrap"
                         ),
+                        rx.cond(
+                            ItemsListState.show_concentration_column,
+                            rx.table.column_header_cell(
+                                "Concentration", width="1%", white_space="nowrap"
+                            ),
+                        ),
                         rx.table.column_header_cell(
                             "Location",
                             display=rx.breakpoints(initial="none", md="table-cell"),
@@ -241,10 +257,6 @@ def _items_table() -> rx.Component:
                         rx.table.column_header_cell(
                             "Supplier",
                             display=rx.breakpoints(initial="none", md="table-cell"),
-                        ),
-                        rx.cond(
-                            ItemsListState.show_concentration_column,
-                            rx.table.column_header_cell("Concentration"),
                         ),
                         # Shrink to the date badge width.
                         rx.table.column_header_cell(
