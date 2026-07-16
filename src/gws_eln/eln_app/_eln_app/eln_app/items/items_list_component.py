@@ -144,7 +144,6 @@ def _row(item: ItemDTO) -> rx.Component:
             item_actions_menu(
                 item=item,
                 on_receive=lambda: ItemsListState.open_receive_dialog(item),
-                on_consume=lambda: ItemsListState.open_consume_dialog(item),
                 on_use=lambda: ItemsListState.open_use_dialog(item),
                 on_move=lambda: ItemsListState.open_move_dialog(item),
                 on_update=lambda: ItemsListState.open_update_dialog(item),

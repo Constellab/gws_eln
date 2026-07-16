@@ -264,17 +264,6 @@ class ItemsListState(rx.State):
         dialog_state.open_dialog_for_event(item, ItemEventType.RECEIVE)
 
     @rx.event
-    async def open_consume_dialog(self, item: ItemDTO):
-        """Open the consume stock dialog for a item.
-
-        :param item: The item to consume stock from
-        :type item: ItemDTO
-        """
-        dialog_state = await self.get_state(ItemEventFormDialogState)
-        dialog_state.set_callback_after_close(self._reload_items)
-        dialog_state.open_dialog_for_event(item, ItemEventType.CONSUME)
-
-    @rx.event
     async def open_move_dialog(self, item: ItemDTO):
         """Open the move item dialog for a item.
 

@@ -116,15 +116,6 @@ class ItemDetailState(rx.State):
         dialog_state.open_dialog_for_event(self.item, ItemEventType.RECEIVE)
 
     @rx.event
-    async def open_consume_dialog(self):
-        """Open the consume stock dialog for the current item."""
-        if not self.item:
-            return
-        dialog_state = await self.get_state(ItemEventFormDialogState)
-        dialog_state.set_callback_after_close(self._on_item_event_success)
-        dialog_state.open_dialog_for_event(self.item, ItemEventType.CONSUME)
-
-    @rx.event
     async def open_move_dialog(self):
         """Open the move item dialog for the current item."""
         if not self.item:

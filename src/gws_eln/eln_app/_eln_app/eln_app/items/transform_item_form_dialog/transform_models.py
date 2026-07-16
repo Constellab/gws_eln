@@ -26,6 +26,7 @@ class TransformKind(Enum):
     COMBINE = "combine"
     DILUTE = "dilute"
     CONCENTRATE = "concentrate"
+    CONSUME = "consume"
     CUSTOM = "transform"
 
 

@@ -94,6 +94,10 @@ class TransformItemFormDialogState(
         return self.transform_kind == TransformKind.COMBINE.value
 
     @rx.var
+    def kind_is_consume(self) -> bool:
+        return self.transform_kind == TransformKind.CONSUME.value
+
+    @rx.var
     def seed_is_volume(self) -> bool:
         """Whether the launching item is measured in a volume unit.
 
@@ -120,6 +124,7 @@ class TransformItemFormDialogState(
             TransformKind.COMBINE.value: "Combine",
             TransformKind.DILUTE.value: "Dilute",
             TransformKind.CONCENTRATE.value: "Concentrate",
+            TransformKind.CONSUME.value: "Consume",
             TransformKind.CUSTOM.value: "Custom transform",
         }.get(self.transform_kind, "Transform")
 
@@ -132,6 +137,7 @@ class TransformItemFormDialogState(
             TransformKind.COMBINE.value: "Several items → one new item.",
             TransformKind.DILUTE.value: "Target + diluent → one diluted item.",
             TransformKind.CONCENTRATE.value: "One item → one more concentrated item.",
+            TransformKind.CONSUME.value: "Reduce one item's stock (no new item).",
             TransformKind.CUSTOM.value: "Any number of inputs → any number of outputs.",
         }.get(self.transform_kind, "")
 
@@ -139,12 +145,13 @@ class TransformItemFormDialogState(
     def can_add_consumable_input(self) -> bool:
         """Whether another consumable input may be added for the current kind.
 
-        Split and concentrate take exactly one consumable input (the source);
-        other kinds are unconstrained for now.
+        Split, concentrate and consume take exactly one consumable input (the
+        source); other kinds are unconstrained for now.
         """
         if self.transform_kind in (
             TransformKind.SPLIT.value,
             TransformKind.CONCENTRATE.value,
+            TransformKind.CONSUME.value,
         ):
             return len(self.consumable_inputs) < 1
         return True
@@ -246,8 +253,11 @@ class TransformItemFormDialogState(
 
         Split needs a source consumable before producing children (outputs are
         otherwise unbounded); combine and concentrate produce exactly one output
-        (concentrate also needs its source first); other kinds are unconstrained.
+        (concentrate also needs its source first); consume produces none; other
+        kinds are unconstrained.
         """
+        if self.transform_kind == TransformKind.CONSUME.value:
+            return False
         if self.transform_kind == TransformKind.SPLIT.value:
             return len(self.consumable_inputs) >= 1
         if self.transform_kind == TransformKind.COMBINE.value:
@@ -409,31 +419,35 @@ class TransformItemFormDialogState(
 
     async def _create(self, form_data: dict):
         """Route to the dedicated service for the chosen transformation kind."""
-        if self.transform_kind == TransformKind.SPLIT.value:
-            async for event in self._create_split(form_data):
-                yield event
-            return
-        if self.transform_kind == TransformKind.COMBINE.value:
-            async for event in self._create_combine(form_data):
-                yield event
-            return
-        if self.transform_kind == TransformKind.CONCENTRATE.value:
-            async for event in self._create_concentrate(form_data):
-                yield event
-            return
-        if self.transform_kind == TransformKind.DILUTE.value:
-            async for event in self._create_dilute(form_data):
-                yield event
-            return
-        async for event in self._create_custom(form_data):
+        creator = {
+            TransformKind.SPLIT.value: self._create_split,
+            TransformKind.COMBINE.value: self._create_combine,
+            TransformKind.CONCENTRATE.value: self._create_concentrate,
+            TransformKind.DILUTE.value: self._create_dilute,
+            TransformKind.CONSUME.value: self._create_consume,
+        }.get(self.transform_kind, self._create_custom)
+        async for event in creator(form_data):
             yield event
 
-    async def _persist_and_finish(self, service_call: Callable[[], Any], success_msg: str):
+    @staticmethod
+    def _first_input_item(result: Any) -> ItemDTO | None:
+        """Post-close callback item for the transform kinds (first mutated input)."""
+        return result.inputs[0].to_dto() if result.inputs else None
+
+    async def _persist_and_finish(
+        self,
+        service_call: Callable[[], Any],
+        success_msg: str,
+        callback_item: Callable[[Any], ItemDTO | None] | None = None,
+    ):
         """Shared orchestration tail of every ``_create_*`` kind.
 
         Authenticate, run the (kind-specific) service call, link the note,
-        toast, and fire the post-close callback with the first affected item.
+        toast, and fire the post-close callback with the affected item. By
+        default the callback item is the first mutated input; ``callback_item``
+        overrides it for kinds whose result has a different shape (e.g. consume).
         """
+        get_callback_item = callback_item or self._first_input_item
         main_state: ReflexMainState
         async with self:
             main_state = await self.get_state(ReflexMainState)
@@ -445,8 +459,10 @@ class TransformItemFormDialogState(
         yield rx.toast.success(success_msg)
         await self._after_note_link(linked_note)
 
-        if self._callback_after_close and result.inputs:
-            await self._callback_after_close(result.inputs[0].to_dto())
+        if self._callback_after_close:
+            item = get_callback_item(result)
+            if item is not None:
+                await self._callback_after_close(item)
 
     async def _create_split(self, form_data: dict):
         """Split the single source item into the listed output items."""
@@ -491,6 +507,19 @@ class TransformItemFormDialogState(
         async for event in self._persist_and_finish(
             lambda: ItemService().dilute_item(target_id, dto),
             "Dilute saved — 1 item created",
+        ):
+            yield event
+
+    async def _create_consume(self, form_data: dict):
+        """Consume (reduce the stock of) the single source item; no output."""
+        notes = form_data.get("notes", "").strip() or None
+        source_id, dto = transform_builders.build_consume(
+            self.inputs, self.outputs, notes, self.note_dto_id
+        )
+        async for event in self._persist_and_finish(
+            lambda: ItemService().consume_quantity(source_id, dto),
+            "Stock consumed successfully",
+            callback_item=lambda result: result.item.to_dto(),
         ):
             yield event
 

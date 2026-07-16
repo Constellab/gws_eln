@@ -422,8 +422,9 @@ def _form_content() -> rx.Component:
     return rx.vstack(
         rx.hstack(
             _inputs_section(),
-            _center_arrow(),
-            _outputs_section(),
+            # Consume has no outputs: drop the arrow and the outputs column.
+            rx.cond(_S.kind_is_consume, rx.fragment(), _center_arrow()),
+            rx.cond(_S.kind_is_consume, rx.fragment(), _outputs_section()),
             align="stretch",
             spacing="1",
             width="100%",
@@ -482,6 +483,12 @@ def _chooser() -> rx.Component:
     return rx.vstack(
         dialog_header("Choose a transformation", close=_S.close_dialog),
         rx.grid(
+            _kind_card(
+                "flame",
+                "Consume",
+                "Reduce one item's stock (no new item).",
+                TransformKind.CONSUME.value,
+            ),
             _kind_card(
                 "git-fork",
                 "Split",
@@ -602,8 +609,13 @@ def _dialog() -> rx.Component:
     return rx.dialog.root(
         rx.dialog.content(
             rx.cond(_S.step_is_choose, _chooser(), _builder()),
-            # Narrow for the kind chooser, wide for the inputs/outputs builder.
-            max_width=rx.cond(_S.step_is_choose, "480px", "1024px"),
+            # Narrow for the kind chooser and the output-less consume builder;
+            # wide for the two-column inputs/outputs builder.
+            max_width=rx.cond(
+                _S.step_is_choose,
+                "480px",
+                rx.cond(_S.kind_is_consume, "520px", "1024px"),
+            ),
             max_height="90vh",
             display="flex",
             flex_direction="column",

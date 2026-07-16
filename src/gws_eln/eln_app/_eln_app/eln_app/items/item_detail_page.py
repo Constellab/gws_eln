@@ -283,7 +283,6 @@ def _actions_menu() -> rx.Component:
     return item_actions_menu(
         item=ItemDetailState.item,
         on_receive=ItemDetailState.open_receive_dialog,
-        on_consume=ItemDetailState.open_consume_dialog,
         on_use=ItemDetailState.open_use_dialog,
         on_move=ItemDetailState.open_move_dialog,
         on_update=ItemDetailState.open_update_dialog,

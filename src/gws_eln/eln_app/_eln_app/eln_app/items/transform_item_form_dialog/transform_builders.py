@@ -18,6 +18,7 @@ from gws_eln.items.item_dto import (
     CombineInputDTO,
     CombineItemDTO,
     ConcentrateItemDTO,
+    DecrementQuantityDTO,
     DiluteDiluentDTO,
     DiluteItemDTO,
     SplitItemDTO,
@@ -166,6 +167,33 @@ def build_split(
         quantity_contributed=Decimal(source.qty),
         unit=source.unit,
         outputs=output_dtos,
+        instrument_item_ids=_instrument_ids(inputs),
+        notes=notes,
+        note_id=note_id,
+    )
+    return source.item_id, dto
+
+
+def build_consume(
+    inputs: list[TransformInputRow],
+    outputs: list[TransformOutputRow],
+    notes: str | None,
+    note_id: str | None,
+) -> tuple[str, DecrementQuantityDTO]:
+    """Validate and build the consume DTO. Returns ``(source_item_id, dto)``.
+
+    A consume takes exactly one consumable source (with a quantity), optional
+    instruments, and produces no output — it only reduces the source's stock.
+    """
+    source = next((row for row in inputs if row.is_consumable), None)
+    if source is None or not source.qty:
+        raise ReflexAppException("Consume needs a source consumable item with a quantity")
+    if outputs:
+        raise ReflexAppException("Consume does not produce any output")
+
+    dto = DecrementQuantityDTO(
+        quantity=Decimal(source.qty),
+        unit=source.unit,
         instrument_item_ids=_instrument_ids(inputs),
         notes=notes,
         note_id=note_id,

@@ -12,7 +12,6 @@ EventHandlerOrCallable = rx.EventHandler | Callable
 def item_actions_menu(
     item: ItemDTO,
     on_receive: EventHandlerOrCallable,
-    on_consume: EventHandlerOrCallable,
     on_use: EventHandlerOrCallable,
     on_move: EventHandlerOrCallable,
     on_update: EventHandlerOrCallable,
@@ -26,7 +25,6 @@ def item_actions_menu(
     :param item: The item DTO to determine which actions to show
     :type item: ItemDTO
     :param on_receive: Event handler for receive stock action (consumable only)
-    :param on_consume: Event handler for consume stock action (consumable only)
     :param on_use: Event handler for use action (non-consumable only)
     :param on_move: Event handler for move item action
     :param on_update: Event handler for update item action
@@ -43,8 +41,9 @@ def item_actions_menu(
         """Wrap click handler with stop_propagation if needed."""
         return [rx.stop_propagation, handler] if stop_propagation else handler
 
-    # Consume and the transforms reduce a quantity, so they are only meaningful
-    # for consumable items. They are hidden for non-consumable items (instruments).
+    # Receive and the transforms reduce or add a quantity,
+    # so they are only meaningful for consumable items. They are hidden for
+    # non-consumable items (instruments).
     is_consumable = item.item_sheet.is_consumable
 
     def _consumable_item(handler: EventHandlerOrCallable, icon: str, label: str) -> rx.Component:
@@ -73,9 +72,8 @@ def item_actions_menu(
         ),
         rx.menu.content(
             _consumable_item(on_receive, "package-plus", "Receive Stock"),
-            _consumable_item(on_consume, "flame", "Consume Stock"),
             _non_consumable_item(on_use, "microscope", "Use Item"),
-            # The group above always has one entry (consumable -> receive/consume,
+            # The group above always has one entry (consumable -> receive,
             # non-consumable -> use), so the separator is always shown.
             rx.menu.separator(),
             rx.menu.item(
