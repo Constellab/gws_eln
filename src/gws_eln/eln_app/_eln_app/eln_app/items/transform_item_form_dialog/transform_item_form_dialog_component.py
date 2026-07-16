@@ -14,6 +14,9 @@ from .transform_input_dialog_component import transform_input_dialog
 from .transform_item_form_dialog_state import TransformItemFormDialogState
 from .transform_models import (
     INPUT_ROLE_TARGET,
+    KIND_DESCRIPTIONS,
+    KIND_SUBTITLES,
+    KIND_TITLES,
     TransformInputRow,
     TransformKind,
     TransformOutputRow,
@@ -454,14 +457,26 @@ def _form_content() -> rx.Component:
     )
 
 
-def _kind_card(icon: str, title: str, description: str, kind: str) -> rx.Component:
-    """One selectable transformation card in the wizard's first step."""
+def _kind_card(icon: str, kind: str) -> rx.Component:
+    """One selectable transformation card in the wizard's first step.
+
+    Shows the title and its short subtitle; an info tooltip to the right of the
+    title carries the full description (``KIND_DESCRIPTIONS``).
+    """
     return rx.card(
         rx.hstack(
             rx.icon(icon, size=24, color="var(--accent-11)", flex_shrink="0"),
             rx.vstack(
-                rx.text(title, size="2", weight="bold"),
-                rx.text(description, size="1", color="gray"),
+                rx.hstack(
+                    rx.text(KIND_TITLES[kind], size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=KIND_DESCRIPTIONS[kind],
+                    ),
+                    spacing="1",
+                    align="center",
+                ),
+                rx.text(KIND_SUBTITLES[kind], size="1", color="gray"),
                 spacing="1",
                 align="start",
                 flex="1",
@@ -483,49 +498,19 @@ def _chooser() -> rx.Component:
     return rx.vstack(
         dialog_header("Choose a transformation", close=_S.close_dialog),
         rx.grid(
-            _kind_card(
-                "flame",
-                "Consume",
-                "Reduce one item's stock (no new item).",
-                TransformKind.CONSUME.value,
-            ),
-            _kind_card(
-                "git-fork",
-                "Split",
-                "One source item → several new items.",
-                TransformKind.SPLIT.value,
-            ),
-            _kind_card(
-                "git-merge",
-                "Combine",
-                "Several items → one new item.",
-                TransformKind.COMBINE.value,
-            ),
+            _kind_card("flame", TransformKind.CONSUME.value),
+            _kind_card("git-fork", TransformKind.SPLIT.value),
+            _kind_card("git-merge", TransformKind.COMBINE.value),
             # Dilute/concentrate only apply to solutions with a volume unit.
             rx.cond(
                 _S.seed_is_volume,
-                _kind_card(
-                    "droplets",
-                    "Dilute",
-                    "Target + diluent → one diluted item.",
-                    TransformKind.DILUTE.value,
-                ),
+                _kind_card("droplets", TransformKind.DILUTE.value),
             ),
             rx.cond(
                 _S.seed_is_volume,
-                _kind_card(
-                    "filter",
-                    "Concentrate",
-                    "One item → one more concentrated item.",
-                    TransformKind.CONCENTRATE.value,
-                ),
+                _kind_card("filter", TransformKind.CONCENTRATE.value),
             ),
-            _kind_card(
-                "shuffle",
-                "Custom transform",
-                "Any number of inputs → any number of outputs.",
-                TransformKind.CUSTOM.value,
-            ),
+            _kind_card("shuffle", TransformKind.CUSTOM.value),
             columns="1",
             spacing="3",
             width="100%",
@@ -548,10 +533,23 @@ def _chooser() -> rx.Component:
     )
 
 
+def _builder_subtitle() -> rx.Component:
+    """Build-dialog subtitle: the short summary with an info tooltip (full description) at its end."""
+    return rx.hstack(
+        rx.text(_S.kind_subtitle, size="2", color="gray"),
+        rx.tooltip(
+            rx.icon("info", size=14, color="gray"),
+            content=_S.kind_description,
+        ),
+        align="center",
+        spacing="1",
+    )
+
+
 def _builder() -> rx.Component:
     """Wizard step 2: build the inputs/outputs for the chosen transformation."""
     return rx.vstack(
-        dialog_header(_S.kind_title, _S.kind_subtitle, close=_S.close_dialog),
+        dialog_header(_S.kind_title, _builder_subtitle(), close=_S.close_dialog),
         rx.form(
             rx.box(
                 _form_content(),

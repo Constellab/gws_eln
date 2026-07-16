@@ -181,7 +181,7 @@ def item_sheets_list_page() -> rx.Component:
                                     rx.table.column_header_cell("Type"),
                                     rx.table.column_header_cell("Creation"),
                                     rx.table.column_header_cell(
-                                        "Actions", width="100px", justify="end"
+                                        "", width="100px", justify="end"
                                     ),
                                 ),
                             ),

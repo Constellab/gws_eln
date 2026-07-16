@@ -32,6 +32,9 @@ from .transform_input_dialog_mixin import TransformInputDialogMixin
 from .transform_models import (
     INPUT_ROLE_DILUENT,
     INPUT_ROLE_TARGET,
+    KIND_DESCRIPTIONS,
+    KIND_SUBTITLES,
+    KIND_TITLES,
     OutputStep,
     TransformInputRow,
     TransformKind,
@@ -119,27 +122,17 @@ class TransformItemFormDialogState(
 
     @rx.var
     def kind_title(self) -> str:
-        return {
-            TransformKind.SPLIT.value: "Split",
-            TransformKind.COMBINE.value: "Combine",
-            TransformKind.DILUTE.value: "Dilute",
-            TransformKind.CONCENTRATE.value: "Concentrate",
-            TransformKind.CONSUME.value: "Consume",
-            TransformKind.CUSTOM.value: "Custom transform",
-        }.get(self.transform_kind, "Transform")
+        return KIND_TITLES.get(self.transform_kind, "Transform")
 
     @rx.var
     def kind_subtitle(self) -> str:
-        """One-line description of the chosen kind, shown as the dialog subtitle
-        (same text as the chooser cards)."""
-        return {
-            TransformKind.SPLIT.value: "One source item → several new items.",
-            TransformKind.COMBINE.value: "Several items → one new item.",
-            TransformKind.DILUTE.value: "Target + diluent → one diluted item.",
-            TransformKind.CONCENTRATE.value: "One item → one more concentrated item.",
-            TransformKind.CONSUME.value: "Reduce one item's stock (no new item).",
-            TransformKind.CUSTOM.value: "Any number of inputs → any number of outputs.",
-        }.get(self.transform_kind, "")
+        """Short one-line summary of the chosen kind, shown as the build dialog subtitle."""
+        return KIND_SUBTITLES.get(self.transform_kind, "")
+
+    @rx.var
+    def kind_description(self) -> str:
+        """Full description of the chosen kind, shown in the build title's info tooltip."""
+        return KIND_DESCRIPTIONS.get(self.transform_kind, "")
 
     @rx.var
     def can_add_consumable_input(self) -> bool:

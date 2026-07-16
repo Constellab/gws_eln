@@ -116,7 +116,10 @@ def _row(item: ItemDTO) -> rx.Component:
             rx.cond(
                 item.notes,
                 rx.text(item.notes, size="2", color="gray"),
-            )
+            ),
+            max_width="400px",
+            white_space="normal",
+            overflow_wrap="anywhere",
         ),
         rx.table.cell(
             rx.box(quantity_badge(item), width="fit-content"),
@@ -226,7 +229,7 @@ def _items_table() -> rx.Component:
                         rx.table.column_header_cell(
                             "Code", width="1%", white_space="nowrap"
                         ),
-                        rx.table.column_header_cell("Description"),
+                        rx.table.column_header_cell("Description", max_width="400px"),
                         # Shrink to the widest quantity value.
                         rx.table.column_header_cell(
                             "Quantity", width="1%", white_space="nowrap"
@@ -251,9 +254,9 @@ def _items_table() -> rx.Component:
                         rx.table.column_header_cell(
                             "Status", width="1%", white_space="nowrap"
                         ),
-                        # Shrink to the header text; the menu button is right-aligned.
+                        # No label; shrink to the menu button, which is right-aligned.
                         rx.table.column_header_cell(
-                            "Actions", width="1%", white_space="nowrap", justify="end"
+                            "", width="1%", white_space="nowrap", justify="end"
                         ),
                     ),
                 ),

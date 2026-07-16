@@ -37,6 +37,68 @@ class TransformStep(IntEnum):
     BUILD = 2  # build the inputs/outputs
 
 
+# One-line title per kind, shown on the chooser card and as the dialog title.
+KIND_TITLES: dict[str, str] = {
+    TransformKind.SPLIT.value: "Split",
+    TransformKind.COMBINE.value: "Combine",
+    TransformKind.DILUTE.value: "Dilute",
+    TransformKind.CONCENTRATE.value: "Concentrate",
+    TransformKind.CONSUME.value: "Consume",
+    TransformKind.CUSTOM.value: "Custom transform",
+}
+
+# Short one-line summary per kind, shown under the card title and as the dialog
+# subtitle. The full text lives in KIND_DESCRIPTIONS (the card's info tooltip).
+KIND_SUBTITLES: dict[str, str] = {
+    TransformKind.SPLIT.value: "One source item → several new items.",
+    TransformKind.COMBINE.value: "Several items → one new item.",
+    TransformKind.DILUTE.value: "Target + diluent → one diluted item.",
+    TransformKind.CONCENTRATE.value: "One item → one more concentrated item.",
+    TransformKind.CONSUME.value: "Reduce one item's stock (no new item).",
+    TransformKind.CUSTOM.value: "Any number of inputs → any number of outputs.",
+}
+
+# Full description per kind, shown in the chooser card's info tooltip.
+# Single source of truth so the tooltip and any reuse never drift.
+KIND_DESCRIPTIONS: dict[str, str] = {
+    TransformKind.SPLIT.value: (
+        "Use Split to divide one source item into two or more output items. The total "
+        "quantity of the outputs must not exceed the quantity taken from the source item. "
+        "Each output is created as a separate item and inherits relevant information and "
+        "traceability from the source item."
+    ),
+    TransformKind.COMBINE.value: (
+        "Use Combine when two or more source items are merged to create one new output "
+        "item. The quantities used from each input are deducted from their available "
+        "stock, and the new output item is linked to all source items through its "
+        "transformation history."
+    ),
+    TransformKind.DILUTE.value: (
+        "Use Dilute when one target item is mixed with one or more diluents to create one "
+        "new item with a lower concentration. The quantities used from the target and "
+        "diluent items are deducted from their available stock, and the output remains "
+        "linked to all inputs through its transformation history."
+    ),
+    TransformKind.CONCENTRATE.value: (
+        "Use Concentrate when exactly one source item is processed to create exactly one "
+        "output item with a higher concentration, typically by removing solvent or "
+        "reducing volume."
+    ),
+    TransformKind.CONSUME.value: (
+        "Use Consume when a quantity is used, spent, destroyed, or otherwise"
+        "removed from the available stock without creating any output item. "
+        "The consumed quantity is deducted from the source item, and the activity "
+        "remains recorded in the item history."
+    ),
+    TransformKind.CUSTOM.value: (
+        "Use Custom Transform when any number of input items must be converted into any "
+        "number of output items and the operation does not fit the predefined Split, "
+        "Combine, Dilute, or Concentrate transformations. The transformation records the "
+        "quantities, identities, and lineage of all inputs and outputs."
+    ),
+}
+
+
 # A combine needs at least this many consumable ingredients.
 COMBINE_MIN_INPUTS = 2
 
