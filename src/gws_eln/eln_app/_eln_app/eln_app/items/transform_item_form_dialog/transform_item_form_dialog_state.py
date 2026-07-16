@@ -29,6 +29,7 @@ from gws_reflex_main import ConfirmDialogState, FormDialogState, ReflexMainState
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
 from . import transform_builders
 from .transform_input_dialog_mixin import TransformInputDialogMixin
+from .transform_instrument_wizard_mixin import TransformInstrumentWizardMixin
 from .transform_models import (
     INPUT_ROLE_DILUENT,
     INPUT_ROLE_TARGET,
@@ -49,6 +50,7 @@ FormDialogCloseCallback = Callable[[ItemDTO], Coroutine[Any, Any, None]]
 class TransformItemFormDialogState(
     TransformInputDialogMixin,
     TransformOutputWizardMixin,
+    TransformInstrumentWizardMixin,
     NoteLinkableDialogState,
     FormDialogState,
     rx.State,
@@ -548,6 +550,12 @@ class TransformItemFormDialogState(
         self.output_step = OutputStep.SHEET
         self.output_create_sheet_mode = False
         self._editing_output_id = ""
+        self.instrument_dialog_opened = False
+        self.instrument_step = OutputStep.SHEET
+        self.instrument_create_sheet_mode = False
+        self.inst_sheet_id = ""
+        self.inst_sheet_code = ""
+        self.inst_sheet_name = ""
 
     async def _clear_form_state(self):
         self._reset_state()

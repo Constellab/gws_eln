@@ -30,14 +30,36 @@ def _search() -> rx.Component:
             min_input_search_length=0,
             init_search_on_focus=True,
         ),
-        input_search_component(
-            search_result=_SS.instrument_results,
-            selected_item=None,
-            item_selected=_S.select_input_item,
-            search_trigger=_SS.search_instruments,
-            placeholder="Search an instrument…",
-            min_input_search_length=0,
-            init_search_on_focus=True,
+        rx.vstack(
+            input_search_component(
+                search_result=_SS.instrument_results,
+                selected_item=None,
+                item_selected=_S.select_input_item,
+                search_trigger=_SS.search_instruments,
+                placeholder="Search an instrument…",
+                min_input_search_length=0,
+                init_search_on_focus=True,
+            ),
+            rx.hstack(
+                rx.divider(),
+                rx.text("or", size="1", color="gray", flex_shrink="0"),
+                rx.divider(),
+                align="center",
+                spacing="3",
+                width="100%",
+            ),
+            # Create a brand-new instrument on the fly (opens the instrument wizard).
+            rx.button(
+                rx.icon("plus", size=16),
+                "Create a new instrument",
+                type="button",
+                variant="outline",
+                width="100%",
+                on_click=_S.open_instrument_wizard,
+            ),
+            spacing="3",
+            width="100%",
+            align="stretch",
         ),
     )
 

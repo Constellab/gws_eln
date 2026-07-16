@@ -11,6 +11,7 @@ from gws_reflex_main import dialog_header
 
 from ...common.feedback_components import compact_warning
 from .transform_input_dialog_component import transform_input_dialog
+from .transform_instrument_wizard_component import transform_instrument_wizard
 from .transform_item_form_dialog_state import TransformItemFormDialogState
 from .transform_models import (
     INPUT_ROLE_TARGET,
@@ -628,7 +629,12 @@ def transform_item_dialog() -> rx.Component:
     """Dialog for the generic Transform activity (N inputs -> M outputs).
 
     Controlled by TransformItemFormDialogState.dialog_opened. Open it via
-    TransformItemFormDialogState.open_transform_dialog(item). Bundles the output
-    wizard (stacked on top) so every mount site gets it automatically.
+    TransformItemFormDialogState.open_transform_dialog(item). Bundles the input,
+    output and instrument wizards (stacked on top) so every mount site gets them.
     """
-    return rx.fragment(_dialog(), transform_input_dialog(), transform_output_wizard())
+    return rx.fragment(
+        _dialog(),
+        transform_input_dialog(),
+        transform_output_wizard(),
+        transform_instrument_wizard(),
+    )
