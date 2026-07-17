@@ -589,6 +589,7 @@ class ItemService:
         # Discarding empties the item: the activity above already captured the
         # discarded amount, so the remaining stock drops to zero.
         item.status = ItemStatus.DISCARDED
+        item.discard_reason = (dto.notes or "").strip() or None
         item.quantity = Decimal(0)
         item.save()
 
@@ -1377,9 +1378,71 @@ class ItemService:
         if item.is_discarded():
             raise BadRequestException(f"Item '{item.code}' is already discarded")
 
-        # Count activities where this item is the primary subject.
-        activity_count = Activity.count_by_item_id(item.id)
+        # If it only has the initial 'create' activity and fed no lineage, hard delete.
+        # (Descendants do NOT block a discard - they stay intact.)
+        if self._should_hard_delete(item):
+            # Delete associated activities first
+            Activity.delete().where(Activity.item == item).execute()
+            # Hard delete the item
+            item.delete_instance()
+            return DeleteItemResultDTO.DELETED
 
+        # Item has activity history
+        if not allow_discard:
+            raise BadRequestException(
+                f"Cannot delete item '{item.code}' because it has activity history."
+            )
+
+        # A discard (soft delete) must be justified.
+        reason = (notes or "").strip()
+        if not reason:
+            raise BadRequestException(
+                f"A reason is required to discard item '{item.code}'."
+            )
+
+        # Soft delete (mark as discarded)
+        # Create 'discard' activity entry
+        self._activity_service.log_activity(
+            CreateActivityDTO(
+                activity_type=ActivityType.DISCARD,
+                item_id=item.id,
+                quantity=item.quantity,
+                unit_type=item.unit_type,
+                notes=reason,
+                note_id=note_id,
+                inputs=[
+                    CreateActivityInputDTO(
+                        item_id=item.id,
+                        role=ActivityInputRole.INGREDIENT,
+                        quantity_contributed=item.quantity,
+                        unit_type=item.unit_type,
+                    )
+                ],
+            )
+        )
+
+        # Update status to DISCARDED and record the justification. The activity
+        # above captured the discarded amount, so the remaining stock drops to zero.
+        item.status = ItemStatus.DISCARDED
+        item.discard_reason = reason
+        item.quantity = Decimal(0)
+        item.save()
+
+        return DeleteItemResultDTO.DISCARDED
+
+    def _should_hard_delete(self, item: Item) -> bool:
+        """Whether deleting this item removes it outright (vs soft-discarding it).
+
+        An item is hard-deleted only when it carries no history worth keeping: at
+        most its initial 'create' activity and it never fed another item's
+        lineage. Otherwise it is discarded (soft delete), which requires a reason.
+
+        :param item: The (non-discarded) item about to be deleted.
+        :type item: Item
+        :return: True if the item would be permanently deleted.
+        :rtype: bool
+        """
+        activity_count = Activity.count_by_item_id(item.id)
         # An item that fed another item's lineage (an INGREDIENT input of some other
         # activity, e.g. a combine/dilute/concentrate source) must never be hard-deleted.
         contributed_to_lineage = (
@@ -1393,50 +1456,21 @@ class ItemService:
             .count()
             > 0
         )
+        return activity_count <= 1 and not contributed_to_lineage
 
-        # If it only has the initial 'create' activity and fed no lineage, hard delete.
-        # (Descendants do NOT block a discard - they stay intact.)
-        if activity_count <= 1 and not contributed_to_lineage:
-            # Delete associated activities first
-            Activity.delete().where(Activity.item == item).execute()
-            # Hard delete the item
-            item.delete_instance()
-            return DeleteItemResultDTO.DELETED
+    def will_discard_item(self, item_id: str) -> bool:
+        """Whether deleting this item would discard it (soft delete) - i.e. a
+        reason is required. False when it would be hard-deleted or is already gone.
 
-        # Item has activity history
-        if not allow_discard:
-            raise BadRequestException(
-                f"Cannot delete item '{item.code}' because it has activity history."
-            )
-
-        # Soft delete (mark as discarded)
-        # Create 'discard' activity entry
-        self._activity_service.log_activity(
-            CreateActivityDTO(
-                activity_type=ActivityType.DISCARD,
-                item_id=item.id,
-                quantity=item.quantity,
-                unit_type=item.unit_type,
-                notes=notes if notes else "Item discarded",
-                note_id=note_id,
-                inputs=[
-                    CreateActivityInputDTO(
-                        item_id=item.id,
-                        role=ActivityInputRole.INGREDIENT,
-                        quantity_contributed=item.quantity,
-                        unit_type=item.unit_type,
-                    )
-                ],
-            )
-        )
-
-        # Update status to DISCARDED. The activity above captured the discarded
-        # amount, so the remaining stock drops to zero.
-        item.status = ItemStatus.DISCARDED
-        item.quantity = Decimal(0)
-        item.save()
-
-        return DeleteItemResultDTO.DISCARDED
+        :param item_id: The item to test.
+        :type item_id: str
+        :return: True if a delete would soft-discard the item.
+        :rtype: bool
+        """
+        item = self.get_item(item_id)
+        if item.is_discarded():
+            return False
+        return not self._should_hard_delete(item)
 
     @staticmethod
     def _assert_has_concentration(item: Item, action: str) -> None:

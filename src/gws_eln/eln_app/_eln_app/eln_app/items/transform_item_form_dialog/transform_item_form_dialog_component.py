@@ -466,7 +466,7 @@ def _kind_card(icon: str, kind: str) -> rx.Component:
     """
     return rx.card(
         rx.hstack(
-            rx.icon(icon, size=24, color="var(--accent-11)", flex_shrink="0"),
+            rx.icon(icon, size=24, color="var(--accent-7)", flex_shrink="0"),
             rx.vstack(
                 rx.hstack(
                     rx.text(KIND_TITLES[kind], size="2", weight="bold"),

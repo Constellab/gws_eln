@@ -8,6 +8,7 @@ def item_sheet_actions_menu(
     on_delete: rx.EventHandler | Callable,
     on_create_item: rx.EventHandler | Callable | None = None,
     stop_propagation: bool = False,
+    disabled: rx.Var[bool] | bool = False,
 ) -> rx.Component:
     """Create the actions menu for a item_sheet.
 
@@ -20,6 +21,9 @@ def item_sheet_actions_menu(
     :type on_create_item: rx.EventHandler | Callable | None
     :param stop_propagation: Whether to stop event propagation (useful in table rows)
     :type stop_propagation: bool
+    :param disabled: When true, the whole menu is hidden so no action is possible
+        (used for a discarded sheet, which is locked).
+    :type disabled: rx.Var[bool] | bool
     :return: The actions menu component
     :rtype: rx.Component
     """
@@ -38,7 +42,7 @@ def item_sheet_actions_menu(
             rx.menu.separator(),
         ]
 
-    return rx.menu.root(
+    menu = rx.menu.root(
         rx.menu.trigger(
             rx.button(
                 rx.icon("ellipsis-vertical", size=18),
@@ -62,3 +66,6 @@ def item_sheet_actions_menu(
             ),
         ),
     )
+
+    # A discarded sheet is locked: hide the actions menu entirely.
+    return rx.cond(disabled, rx.fragment(), menu)

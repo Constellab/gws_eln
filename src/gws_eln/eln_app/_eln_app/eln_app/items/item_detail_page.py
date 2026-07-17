@@ -7,6 +7,7 @@ from ..activities.activities_list_component import activities_list_component
 from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
 from ..common.detail_page_layout import detail_content_layout
+from ..common.feedback_components import compact_error
 from ..common.page_layout import page_layout
 from ..item_sheets.core.item_sheet_components import (
     inline_item_sheet_link,
@@ -101,6 +102,17 @@ def _details_sidebar() -> rx.Component:
             width="100%",
             align="center",
             margin_bottom="1rem",
+        ),
+        # Red banner when the item has been discarded.
+        rx.cond(
+            ItemDetailState.item.discard_reason,
+            rx.box(
+                compact_error(
+                    f"Discarded — reason: {ItemDetailState.item.discard_reason}"
+                ),
+                width="100%",
+                margin_bottom="1rem",
+            ),
         ),
         # Main info grid (label + value per row)
         rx.grid(

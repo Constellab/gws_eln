@@ -2,11 +2,14 @@
 
 import reflex as rx
 from gws_eln.items.item_sheet import ItemSheet
-from gws_eln.items.item_sheet_dto import ItemSheetDTO
+from gws_eln.items.item_sheet_dto import DeleteItemSheetMode, ItemSheetDTO
 from gws_eln.items.item_sheet_service import ItemSheetService
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
+from gws_reflex_main import ReflexMainState
 
 from ..common.eln_app_router import ElnAppRouter
+from .delete_item_sheet_form_dialog.delete_item_sheet_form_dialog_state import (
+    DeleteItemSheetFormDialogState,
+)
 from .item_sheet_form_dialog.item_sheet_form_dialog_state import ItemSheetFormDialogState
 
 
@@ -77,27 +80,20 @@ class ItemSheetDetailState(rx.State):
 
     @rx.event
     async def open_delete_dialog(self):
-        """Open the delete item_sheet confirmation dialog."""
+        """Open the delete/discard item_sheet dialog."""
         if not self.item_sheet:
             return
 
-        delete_dialog_state = await self.get_state(ConfirmDialogState)
-        delete_dialog_state.open_dialog(
-            title="Delete item sheet",
-            content=f"Are you sure you want to delete the item sheet '{self.item_sheet.name}'?",
-            action=lambda: self._delete_action(self.item_sheet.id),
-        )
+        delete_dialog_state = await self.get_state(DeleteItemSheetFormDialogState)
+        delete_dialog_state.set_callback_after_close(self._on_delete_close)
+        # open_delete_dialog may yield a toast (e.g. a blocked sheet); forward it.
+        async for event in delete_dialog_state.open_delete_dialog(self.item_sheet):
+            yield event
 
-    async def _delete_action(self, item_sheet_id: str):
-        """Delete the item_sheet and navigate back to the list.
-
-        :param item_sheet_id: The ID of the item_sheet to delete
-        :type item_sheet_id: str
-        """
-        main_state = await self.get_state(ReflexMainState)
-        with await main_state.authenticate_user():
-            item_sheet_service = ItemSheetService()
-            item_sheet_service.delete_item_sheet(item_sheet_id)
-
-        yield rx.toast.success("Item sheet deleted successfully")
-        yield rx.redirect(ElnAppRouter.get_item_sheet_list_url())
+    async def _on_delete_close(self, mode: DeleteItemSheetMode):
+        """After delete: leave for the list if the sheet is gone, else reload it
+        (a discarded sheet stays, now showing its red reason banner)."""
+        if mode == DeleteItemSheetMode.DELETE:
+            yield rx.redirect(ElnAppRouter.get_item_sheet_list_url())
+        else:
+            await self.load_item_sheet(self.item_sheet.id)

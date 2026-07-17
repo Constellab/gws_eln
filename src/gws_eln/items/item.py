@@ -87,6 +87,10 @@ class Item(ModelWithUser):
     # Additional information
     notes = NullableTextField()
 
+    # Justification captured when the item is discarded (soft-deleted). Shown as a
+    # red banner on the item's detail/list. Null while the item is not discarded.
+    discard_reason = NullableTextField()
+
     # Status for soft delete
     status = TypedEnumField(
         choices=ItemStatus, max_length=20, default=ItemStatus.ACTIVE, index=True
@@ -250,6 +254,7 @@ class Item(ModelWithUser):
             batch_number=self.batch_number,
             storage_conditions=self.storage_conditions,
             notes=self.notes,
+            discard_reason=self.discard_reason,
             status=self.status,
             created_at=self.created_at,
             last_modified_at=self.last_modified_at,

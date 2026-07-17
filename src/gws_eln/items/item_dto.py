@@ -363,6 +363,7 @@ class ItemDTO(ItemSimpleDTO):
     serial_number: str | None
     expiry_date: date | None
     notes: str | None
+    discard_reason: str | None = None  # Justification, set when the item is discarded
     status: ItemStatus
     created_at: datetime
     last_modified_at: datetime

@@ -4,9 +4,24 @@ ItemSheet DTOs for create and update operations.
 Defines data transfer objects for ItemSheetService operations.
 """
 
+from enum import Enum
+
 from gws_core import BaseModelDTO, ModelDTO, UserDTO
 from gws_eln.core.unit_type import UnitType
 from gws_eln.suppliers.supplier_dto import SupplierDTO
+
+
+class DeleteItemSheetMode(Enum):
+    """How deleting an item sheet will resolve, given its items.
+
+    - DELETE: no items at all -> hard delete, no reason needed.
+    - DISCARD: only discarded items -> soft delete, a reason is required.
+    - BLOCKED: at least one non-discarded item -> deletion refused.
+    """
+
+    DELETE = "delete"
+    DISCARD = "discard"
+    BLOCKED = "blocked"
 
 
 class CreateItemSheetDTO(BaseModelDTO):
@@ -42,5 +57,7 @@ class ItemSheetDTO(ModelDTO):
     is_consumable: bool
     unit_type: UnitType
     storage_conditions: str | None
+    discard_reason: str | None = None  # Justification, set when the sheet is discarded
+    is_discarded: bool = False  # True once the sheet is discarded (locks all actions)
     created_by: UserDTO
     last_modified_by: UserDTO

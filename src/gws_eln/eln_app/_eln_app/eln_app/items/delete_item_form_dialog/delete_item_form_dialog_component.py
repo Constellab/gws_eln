@@ -10,10 +10,15 @@ from .delete_item_form_dialog_state import DeleteItemFormDialogState
 def _form_content() -> rx.Component:
     """Form content for deleting/discarding a item."""
     return rx.vstack(
-        # Warning callout
+        # Warning callout: message depends on whether it discards or hard-deletes.
         rx.callout(
-            "This action cannot be undone. If the item has activity history, "
-            "it will be marked as discarded instead of deleted.",
+            rx.cond(
+                DeleteItemFormDialogState.will_discard,
+                "This item has activity history, so it will be marked as discarded "
+                "(not deleted). A reason is required.",
+                "This item has no history and will be permanently deleted. "
+                "This action cannot be undone.",
+            ),
             icon="triangle_alert",
             color="red",
         ),
@@ -66,11 +71,16 @@ def _form_content() -> rx.Component:
             spacing="1",
             align="start",
         ),
-        # Reusable notes form section
-        use_discard_form_section(
-            form_notes=DeleteItemFormDialogState.form_notes,
-            notes_label="Reason (optional)",
-            notes_placeholder="Enter reason for deleting/discarding this item",
+        # Reason: only when discarding. A hard-deleted item leaves no trace, so a
+        # reason would be visible nowhere - the field is hidden entirely then.
+        rx.cond(
+            DeleteItemFormDialogState.will_discard,
+            use_discard_form_section(
+                form_notes=DeleteItemFormDialogState.form_notes,
+                notes_label="Reason *",
+                notes_placeholder="Enter reason for discarding this item",
+                on_notes_change=DeleteItemFormDialogState.set_notes,
+            ),
         ),
         width="100%",
         spacing="3",

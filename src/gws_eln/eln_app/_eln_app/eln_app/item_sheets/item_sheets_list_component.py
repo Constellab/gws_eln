@@ -5,6 +5,7 @@ from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_reflex_main import main_component, user_with_date_component
 
 from ..common.eln_app_router import ElnAppRouter
+from ..common.feedback_components import compact_error
 from ..common.page_layout import page_layout
 from ..common.unit.unit_type_select_component import unit_type_select_component
 from ..items.core.item_components import consumable_badge
@@ -12,6 +13,9 @@ from ..items.item_form_dialog.item_form_dialog_component import create_item_dial
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from ..suppliers.core.supplier_select_component import supplier_select_component
 from .core.item_sheet_actions_menu import item_sheet_actions_menu
+from .delete_item_sheet_form_dialog.delete_item_sheet_form_dialog_component import (
+    delete_item_sheet_dialog,
+)
 from .item_sheet_form_dialog.item_sheet_form_dialog_component import item_sheet_update_dialog
 from .item_sheets_list_state import ALL_FILTER_VALUE, ItemSheetsListState
 
@@ -91,6 +95,8 @@ def _create_item_sheet_button() -> rx.Component:
         item_sheet_update_dialog(),
         # Controlled dialog (no trigger) for creating an item from a row's actions menu.
         create_item_dialog(),
+        # Controlled dialog (no trigger) for deleting/discarding a sheet.
+        delete_item_sheet_dialog(),
     )
 
 
@@ -106,9 +112,17 @@ def _row(item_sheet: ItemSheetDTO) -> rx.Component:
         rx.table.cell(rx.text(item_sheet.name)),
         rx.table.cell(rx.code(item_sheet.code)),
         rx.table.cell(
-            rx.cond(
-                item_sheet.description,
-                rx.text(item_sheet.description, size="2", color="gray"),
+            rx.vstack(
+                rx.cond(
+                    item_sheet.description,
+                    rx.text(item_sheet.description, size="2", color="gray"),
+                ),
+                rx.cond(
+                    item_sheet.discard_reason,
+                    compact_error(f"Discarded — reason: {item_sheet.discard_reason}"),
+                ),
+                spacing="1",
+                align="start",
             )
         ),
         rx.table.cell(
@@ -128,6 +142,8 @@ def _row(item_sheet: ItemSheetDTO) -> rx.Component:
                     on_delete=lambda: ItemSheetsListState.open_delete_dialog(item_sheet),
                     on_create_item=lambda: ItemSheetsListState.open_create_item_dialog(item_sheet),
                     stop_propagation=True,
+                    # A discarded sheet is locked: no actions possible.
+                    disabled=item_sheet.is_discarded,
                 ),
                 display="flex",
                 justify_content="flex-end",

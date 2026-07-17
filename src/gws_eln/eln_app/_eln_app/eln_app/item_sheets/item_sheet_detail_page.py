@@ -6,12 +6,16 @@ from gws_reflex_main import main_component, right_sidebar_close_button, user_inl
 from ..common.breadcrumb.breadcrumb_component import breadcrumb_component
 from ..common.breadcrumb.breadcrumb_state import BreadcrumbState
 from ..common.detail_page_layout import detail_content_layout
+from ..common.feedback_components import compact_error
 from ..common.page_layout import page_layout
 from ..items.core.item_components import consumable_badge
 from ..items.items_list_component import items_list_component
 from ..items.items_list_state import ItemsListState
 from ..suppliers.core.inline_supplier_component import inline_supplier_component
 from .core.item_sheet_actions_menu import item_sheet_actions_menu
+from .delete_item_sheet_form_dialog.delete_item_sheet_form_dialog_component import (
+    delete_item_sheet_dialog,
+)
 from .item_sheet_detail_state import ItemSheetDetailState
 from .item_sheet_form_dialog.item_sheet_form_dialog_component import item_sheet_update_dialog
 
@@ -70,6 +74,17 @@ def _details_sidebar() -> rx.Component:
             width="100%",
             align="center",
             margin_bottom="1rem",
+        ),
+        # Red banner when the sheet has been discarded (soft-deleted).
+        rx.cond(
+            ItemSheetDetailState.item_sheet.discard_reason,
+            rx.box(
+                compact_error(
+                    f"Discarded — reason: {ItemSheetDetailState.item_sheet.discard_reason}"
+                ),
+                width="100%",
+                margin_bottom="1rem",
+            ),
         ),
         # Main info grid (label + value per row)
         rx.grid(
@@ -173,11 +188,16 @@ def _create_item_button() -> rx.Component:
     :return: The create item button component
     :rtype: rx.Component
     """
-    return rx.button(
-        rx.icon("plus", size=18),
-        "Create New Item",
-        size="2",
-        on_click=ItemsListState.open_create_dialog,
+    # A discarded sheet is locked: no new items can be created under it.
+    return rx.cond(
+        ItemSheetDetailState.item_sheet.is_discarded,
+        rx.fragment(),
+        rx.button(
+            rx.icon("plus", size=18),
+            "Create New Item",
+            size="2",
+            on_click=ItemsListState.open_create_dialog,
+        ),
     )
 
 
@@ -194,8 +214,10 @@ def _header() -> rx.Component:
         item_sheet_actions_menu(
             on_update=ItemSheetDetailState.open_update_dialog,
             on_delete=ItemSheetDetailState.open_delete_dialog,
+            disabled=ItemSheetDetailState.item_sheet.is_discarded,
         ),
         item_sheet_update_dialog(),
+        delete_item_sheet_dialog(),
         width="100%",
         align="center",
         spacing="4",

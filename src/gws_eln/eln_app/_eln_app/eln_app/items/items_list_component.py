@@ -4,6 +4,7 @@ import reflex as rx
 from gws_eln.items.item_dto import ItemDTO
 
 from ..common.eln_app_router import ElnAppRouter
+from ..common.feedback_components import compact_error
 from ..item_sheets.item_sheet_form_dialog.item_sheet_form_dialog_component import (
     item_sheet_update_dialog,
 )
@@ -113,9 +114,17 @@ def _row(item: ItemDTO) -> rx.Component:
             white_space="nowrap",
         ),
         rx.table.cell(
-            rx.cond(
-                item.notes,
-                rx.text(item.notes, size="2", color="gray"),
+            rx.vstack(
+                rx.cond(
+                    item.notes,
+                    rx.text(item.notes, size="2", color="gray"),
+                ),
+                rx.cond(
+                    item.discard_reason,
+                    compact_error(f"Discarded — reason: {item.discard_reason}"),
+                ),
+                spacing="1",
+                align="start",
             ),
             max_width="400px",
             white_space="normal",

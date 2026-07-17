@@ -65,8 +65,19 @@ def use_discard_form_section(
     form_notes: rx.Var[str],
     notes_label: str = "Notes",
     notes_placeholder: str = "Enter notes (optional)",
+    on_notes_change: rx.EventHandler | None = None,
 ) -> rx.Component:
-    """Form section for use/discard operations: notes only."""
+    """Form section for use/discard operations: notes only.
+
+    Pass ``on_notes_change`` to make the field controlled (value + on_change),
+    which is required when the note must be validated on submit (a text_area is
+    not reliably captured by the form's on_submit otherwise).
+    """
+    text_area_props = (
+        {"value": form_notes, "on_change": on_notes_change}
+        if on_notes_change is not None
+        else {"default_value": form_notes}
+    )
     return rx.fragment(
         rx.vstack(
             rx.text(notes_label, size="2", weight="bold"),
@@ -74,8 +85,8 @@ def use_discard_form_section(
                 placeholder=notes_placeholder,
                 name="notes",
                 width="100%",
-                default_value=form_notes,
                 rows="3",
+                **text_area_props,
             ),
             width="100%",
             spacing="1",

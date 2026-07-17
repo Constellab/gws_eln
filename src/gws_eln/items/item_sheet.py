@@ -61,6 +61,11 @@ class ItemSheet(ModelWithUser):
     # Inherited by items, overridable per item.
     storage_conditions = NullableCharField(max_length=255)
 
+    # Justification captured when the sheet is discarded (soft-deleted because it
+    # still holds discarded items). Non-null marks the sheet as discarded; a sheet
+    # with no items at all is hard-deleted instead and leaves no row.
+    discard_reason = NullableTextField()
+
     class Meta:
         table_name = "gws_eln_item_sheets"
         database = ElnDbManager.get_instance().db
@@ -83,6 +88,8 @@ class ItemSheet(ModelWithUser):
             is_consumable=self.is_consumable,
             unit_type=self.unit_type,
             storage_conditions=self.storage_conditions,
+            discard_reason=self.discard_reason,
+            is_discarded=self.discard_reason is not None,
             created_at=self.created_at,
             last_modified_at=self.last_modified_at,
             created_by=self.created_by.to_dto(),

@@ -4,13 +4,15 @@ import reflex as rx
 from gws_eln.core.unit_type import UnitType
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_eln.items.item_sheet_search_builder import ItemSheetSearchBuilder
-from gws_eln.items.item_sheet_service import ItemSheetService
 from gws_eln.suppliers.supplier_dto import SupplierDTO
 from gws_eln.suppliers.supplier_search_builder import SupplierSearchBuilder
-from gws_reflex_main import ConfirmDialogState, ReflexMainState
+from gws_reflex_main import ReflexMainState
 
 from ..items.item_form_dialog.item_form_dialog_state import ItemFormDialogState
 from ..items.items_list_state import ItemsListState
+from .delete_item_sheet_form_dialog.delete_item_sheet_form_dialog_state import (
+    DeleteItemSheetFormDialogState,
+)
 from .item_sheet_detail_state import ItemSheetDetailState
 from .item_sheet_form_dialog.item_sheet_form_dialog_state import ItemSheetFormDialogState
 
@@ -196,32 +198,19 @@ class ItemSheetsListState(rx.State):
 
     @rx.event
     async def open_delete_dialog(self, item_sheet: ItemSheetDTO):
-        """Open the delete item_sheet confirmation dialog.
+        """Open the delete/discard item_sheet dialog.
 
         :param item_sheet: The item_sheet to delete
         :type item_sheet: ItemSheetDTO
         """
-        delete_dialog_state = await self.get_state(ConfirmDialogState)
+        delete_dialog_state = await self.get_state(DeleteItemSheetFormDialogState)
+        delete_dialog_state.set_callback_after_close(self._on_delete_close)
+        # open_delete_dialog may yield a toast (e.g. a blocked sheet); forward it.
+        async for event in delete_dialog_state.open_delete_dialog(item_sheet):
+            yield event
 
-        delete_dialog_state.open_dialog(
-            title="Delete item sheet",
-            content=f"Are you sure you want to delete the item sheet '{item_sheet.name}'?",
-            action=lambda: self._delete_action(item_sheet.id),
-        )
-
-    async def _delete_action(self, item_sheet_id: str):
-        """Delete the item_sheet.
-
-        :param item_sheet_id: The ID of the item_sheet to delete
-        :type item_sheet_id: str
-        """
-        main_state = await self.get_state(ReflexMainState)
-        with await main_state.authenticate_user():
-            item_sheet_service = ItemSheetService()
-            item_sheet_service.delete_item_sheet(item_sheet_id)
-
-        yield rx.toast.success("Item sheet deleted successfully")
-
+    async def _on_delete_close(self, _mode):
+        """Reload the list after a sheet was deleted or discarded."""
         await self.load_item_sheets()
 
     @rx.event

@@ -11,7 +11,12 @@ import unicodedata
 from gws_core import BadRequestException, CurrentUserService
 from gws_eln.items.item import Item
 from gws_eln.items.item_sheet import ItemSheet
-from gws_eln.items.item_sheet_dto import CreateItemSheetDTO, UpdateItemSheetDTO
+from gws_eln.items.item_sheet_dto import (
+    CreateItemSheetDTO,
+    DeleteItemSheetMode,
+    UpdateItemSheetDTO,
+)
+from gws_eln.items.item_status import ItemStatus
 from gws_eln.suppliers.supplier import Supplier
 
 # A sheet code is exactly 4 characters using A-Z and 0-9.
@@ -206,27 +211,78 @@ class ItemSheetService:
 
         return item_sheet
 
-    def delete_item_sheet(self, item_sheet_id: str) -> bool:
+    def get_delete_mode(self, item_sheet_id: str) -> DeleteItemSheetMode:
+        """Resolve how deleting a sheet will play out, given its items.
+
+        - No items -> DELETE (hard delete, no reason).
+        - Only discarded items -> DISCARD (soft delete, reason required).
+        - At least one non-discarded item -> BLOCKED (deletion refused).
+
+        :param item_sheet_id: The ID of the item sheet to test.
+        :type item_sheet_id: str
+        :return: The delete mode.
+        :rtype: DeleteItemSheetMode
         """
-        Delete an item sheet if not referenced by any items.
+        return self._delete_mode(self.get_item_sheet(item_sheet_id))
+
+    def delete_item_sheet(
+        self, item_sheet_id: str, reason: str | None = None
+    ) -> DeleteItemSheetMode:
+        """Delete or discard an item sheet depending on its items.
+
+        A sheet with no items is hard-deleted. A sheet that still holds items,
+        all discarded, is soft-discarded and keeps its row (a reason is required
+        and stored). A sheet with any non-discarded item cannot be deleted.
 
         :param item_sheet_id: The ID of the item sheet to delete
         :type item_sheet_id: str
-        :return: True if deletion was successful
-        :rtype: bool
+        :param reason: Justification, required when the sheet is discarded
+        :type reason: str | None
+        :return: DELETE if hard-deleted, DISCARD if soft-discarded
+        :rtype: DeleteItemSheetMode
         :raises NotFoundException: If item sheet not found
-        :raises BadRequestException: If item sheet is referenced by items
+        :raises BadRequestException: If the sheet has non-discarded items, or a
+            reason is missing when one is required
         """
-        # Get existing item sheet
         item_sheet = self.get_item_sheet(item_sheet_id)
+        mode = self._delete_mode(item_sheet)
 
-        # Check for references
-        self._check_no_item_references(item_sheet)
+        if mode == DeleteItemSheetMode.BLOCKED:
+            raise BadRequestException(
+                f"Cannot delete item sheet '{item_sheet.name}' because it still has "
+                "active items. Discard or delete all its items first."
+            )
 
-        # Delete
-        item_sheet.delete_instance()
+        if mode == DeleteItemSheetMode.DELETE:
+            item_sheet.delete_instance()
+            return DeleteItemSheetMode.DELETE
 
-        return True
+        # DISCARD: the sheet keeps its (discarded) items, so it is soft-deleted
+        # with a mandatory justification.
+        justification = (reason or "").strip()
+        if not justification:
+            raise BadRequestException(
+                f"A reason is required to discard item sheet '{item_sheet.name}'."
+            )
+        item_sheet.discard_reason = justification
+        item_sheet.save()
+        return DeleteItemSheetMode.DISCARD
+
+    def _delete_mode(self, item_sheet: ItemSheet) -> DeleteItemSheetMode:
+        """Compute the delete mode for a sheet from its items' statuses."""
+        has_any = Item.select().where(Item.item_sheet == item_sheet).exists()
+        if not has_any:
+            return DeleteItemSheetMode.DELETE
+        has_non_discarded = (
+            Item.select()
+            .where(
+                (Item.item_sheet == item_sheet) & (Item.status != ItemStatus.DISCARDED)
+            )
+            .exists()
+        )
+        if has_non_discarded:
+            return DeleteItemSheetMode.BLOCKED
+        return DeleteItemSheetMode.DISCARD
 
     def _validate_item_sheet_name(self, name: str) -> None:
         """
@@ -290,17 +346,3 @@ class ItemSheetService:
         :rtype: bool
         """
         return Item.select().where(Item.item_sheet == item_sheet).exists()
-
-    def _check_no_item_references(self, item_sheet: ItemSheet) -> None:
-        """
-        Check that item sheet is not referenced by any items.
-
-        :param item_sheet: Item sheet to check
-        :type item_sheet: ItemSheet
-        :raises BadRequestException: If item sheet is referenced
-        """
-        if self._has_items(item_sheet):
-            raise BadRequestException(
-                f"Cannot delete item sheet '{item_sheet.name}' because it has existing items. "
-                "Delete all items first."
-            )
