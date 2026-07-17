@@ -11,19 +11,17 @@ class ConcentrationMethod(Enum):
     """The physical method used to concentrate a solution (audit, optional)."""
 
     EVAPORATION = "evaporation"
-    ULTRAFILTRATION = "ultrafiltration"
     LYOPHILIZATION = "lyophilization"
-    PRECIPITATION = "precipitation"
-    CENTRIFUGAL_CONCENTRATION = "centrifugal_concentration"
+    SOLVENT_REMOVAL = "solvent_removal"
+    OTHER = "other"
 
 
 # Human-readable labels, in display order.
 CONCENTRATION_METHOD_LABELS: dict[ConcentrationMethod, str] = {
     ConcentrationMethod.EVAPORATION: "Evaporation",
-    ConcentrationMethod.ULTRAFILTRATION: "Ultrafiltration",
+    ConcentrationMethod.SOLVENT_REMOVAL: "Solvent removal",
     ConcentrationMethod.LYOPHILIZATION: "Lyophilization",
-    ConcentrationMethod.PRECIPITATION: "Precipitation",
-    ConcentrationMethod.CENTRIFUGAL_CONCENTRATION: "Centrifugal concentration",
+    ConcentrationMethod.OTHER: "Other",
 }
 
 
