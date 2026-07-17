@@ -18,10 +18,7 @@ from .notes.notes_page import notes_page
 from .suppliers.suppliers_list_state import SuppliersListState
 from .suppliers.suppliers_page import suppliers_page
 
-# eln_theme.css restores the custom teal accent (the shared gws_theme.css scopes
-# it under `.radix-themes.light`, which does not match this app's DOM). Served
-# from assets/ at the site root.
-app = register_gws_reflex_app(rx.App(stylesheets=["/eln_theme.css"]))
+app = register_gws_reflex_app(rx.App())
 app.backend_exception_handler = eln_backend_exception_handler
 
 
