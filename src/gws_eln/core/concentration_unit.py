@@ -21,6 +21,8 @@ class ConcentrationUnitFamily(Enum):
 
     MOLAR = "molar"
     MASS_VOLUME = "mass_volume"
+    VOLUME_VOLUME = "volume_volume"
+    MASS_MASS = "mass_mass"
     ACTIVITY_VOLUME = "activity_volume"
     CELLS_VOLUME = "cells_volume"
     COPIES_VOLUME = "copies_volume"
@@ -30,6 +32,8 @@ class ConcentrationUnitFamily(Enum):
 CONCENTRATION_FAMILY_LABELS: dict[ConcentrationUnitFamily, str] = {
     ConcentrationUnitFamily.MOLAR: "Molar",
     ConcentrationUnitFamily.MASS_VOLUME: "Mass / volume",
+    ConcentrationUnitFamily.VOLUME_VOLUME: "Volume / volume",
+    ConcentrationUnitFamily.MASS_MASS: "Mass / mass",
     ConcentrationUnitFamily.ACTIVITY_VOLUME: "Activity / volume",
     ConcentrationUnitFamily.CELLS_VOLUME: "Cells / volume",
     ConcentrationUnitFamily.COPIES_VOLUME: "Copies / volume",
@@ -47,11 +51,25 @@ CONCENTRATION_CONVERSION_FACTORS: dict[ConcentrationUnitFamily, dict[str, Decima
         "nM": Decimal("1E-9"),
     },
     # base: g/L  (1 mg/mL = 1 g/L ; 1 µg/mL = 1 ng/µL = 1E-3 g/L)
+    # "% w/v" is mass per volume too: 1 % w/v = 1 g per 100 mL = 10 g/L (exact),
+    # so it converts losslessly with the rest of the family (e.g. NaCl 0.9% w/v = 9 g/L).
     ConcentrationUnitFamily.MASS_VOLUME: {
         "g/L": Decimal("1"),
         "mg/mL": Decimal("1"),
         "µg/mL": Decimal("1E-3"),
         "ng/µL": Decimal("1E-3"),
+        "% w/v": Decimal("10"),
+    },
+    # Relative (percentage) concentrations. Each is its own family: a volume
+    # fraction cannot be converted to a mass fraction (nor to g/L) without the
+    # densities, so they never convert across families.
+    # base: % v/v  (mL of solute per 100 mL of solution, e.g. acetonitrile 30% v/v)
+    ConcentrationUnitFamily.VOLUME_VOLUME: {
+        "% v/v": Decimal("1"),
+    },
+    # base: % w/w  (g of solute per 100 g of solution, e.g. nitric acid 65% w/w)
+    ConcentrationUnitFamily.MASS_MASS: {
+        "% w/w": Decimal("1"),
     },
     # base: U/mL  (1 U/µL = 1E3 U/mL)
     ConcentrationUnitFamily.ACTIVITY_VOLUME: {
