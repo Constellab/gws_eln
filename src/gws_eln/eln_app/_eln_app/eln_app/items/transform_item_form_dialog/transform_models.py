@@ -16,10 +16,13 @@ class OutputStep(IntEnum):
 
 
 class TransformKind(Enum):
-    """The transformation chosen in the wizard's first step.
+    """The activity chosen in the wizard's first step.
 
     Values match ``ActivityType`` for the specialised kinds; ``CUSTOM`` is the
-    generic N->M transform (``ActivityType.TRANSFORM``).
+    generic N->M transform (``ActivityType.TRANSFORM``). ``MOVE`` and ``RELABEL``
+    are not transformations and are only offered when the chooser is launched
+    from a note: they carry the chooser card's copy, then hand over to their own
+    standalone dialog instead of this wizard's build step.
     """
 
     SPLIT = "split"
@@ -27,6 +30,8 @@ class TransformKind(Enum):
     DILUTE = "dilute"
     CONCENTRATE = "concentrate"
     CONSUME = "consume"
+    MOVE = "move"
+    RELABEL = "relabel"
     CUSTOM = "transform"
 
 
@@ -44,6 +49,8 @@ KIND_TITLES: dict[str, str] = {
     TransformKind.DILUTE.value: "Dilute",
     TransformKind.CONCENTRATE.value: "Concentrate",
     TransformKind.CONSUME.value: "Consume",
+    TransformKind.MOVE.value: "Move",
+    TransformKind.RELABEL.value: "Relabel",
     TransformKind.CUSTOM.value: "Custom transform",
 }
 
@@ -55,6 +62,8 @@ KIND_SUBTITLES: dict[str, str] = {
     TransformKind.DILUTE.value: "Target + diluent → one diluted item.",
     TransformKind.CONCENTRATE.value: "One item → one more concentrated item.",
     TransformKind.CONSUME.value: "Reduce one item's stock (no new item).",
+    TransformKind.MOVE.value: "Change one item's location.",
+    TransformKind.RELABEL.value: "Change one item's label.",
     TransformKind.CUSTOM.value: "Any number of inputs → any number of outputs.",
 }
 
@@ -89,6 +98,16 @@ KIND_DESCRIPTIONS: dict[str, str] = {
         "removed from the available stock without creating any output item. "
         "The consumed quantity is deducted from the source item, and the activity "
         "remains recorded in the item history."
+    ),
+    TransformKind.MOVE.value: (
+        "Use Move when an item physically changes location, without any change to its "
+        "quantity or identity. The item's location is updated and the move is recorded "
+        "in its history, keeping the trail of where it has been stored."
+    ),
+    TransformKind.RELABEL.value: (
+        "Use Relabel when an item's label must be corrected or renamed, without any "
+        "change to its quantity, location or identity. The previous and new labels are "
+        "both recorded in the item history."
     ),
     TransformKind.CUSTOM.value: (
         "Use Custom Transform when any number of input items must be converted into any "

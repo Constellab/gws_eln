@@ -51,6 +51,18 @@ class NoteLinkableDialogState(rx.State, mixin=True):
         self._note_callback = callback
         self._note_linked = False
 
+    def transfer_note_context_to(self, target: "NoteLinkableDialogState"):
+        """Hand this dialog's note context over to another dialog and forget it.
+
+        Used by a dialog that only dispatches (a chooser): the target becomes
+        responsible for the block, so this one must drop its context — otherwise
+        closing it would remove the very block the target is about to fill.
+        """
+        target.set_note_context(
+            self._note_id, self._note_block_id, self._note_rich_text, self._note_callback
+        )
+        self.clear_note_context()
+
     def clear_note_context(self):
         """Disarm note linking (call from ``_clear_form_state``)."""
         self._note_id = ""

@@ -458,15 +458,17 @@ def _form_content() -> rx.Component:
     )
 
 
-def _kind_card(icon: str, kind: str) -> rx.Component:
-    """One selectable transformation card in the wizard's first step.
+def _kind_card(icon: str, kind: str, on_click=None) -> rx.Component:
+    """One selectable activity card in the wizard's first step.
 
     Shows the title and its short subtitle; an info tooltip to the right of the
-    title carries the full description (``KIND_DESCRIPTIONS``).
+    title carries the full description (``KIND_DESCRIPTIONS``). By default the
+    card moves on to this dialog's build step; ``on_click`` overrides it for the
+    kinds that hand over to their own standalone dialog (move / relabel).
     """
     return rx.card(
         rx.hstack(
-            rx.icon(icon, size=24, color="var(--accent-7)", flex_shrink="0"),
+            rx.icon(icon, size=20, color="var(--accent-7)", flex_shrink="0"),
             rx.vstack(
                 rx.hstack(
                     rx.text(KIND_TITLES[kind], size="2", weight="bold"),
@@ -478,7 +480,7 @@ def _kind_card(icon: str, kind: str) -> rx.Component:
                     align="center",
                 ),
                 rx.text(KIND_SUBTITLES[kind], size="1", color="gray"),
-                spacing="1",
+                spacing="0",
                 align="start",
                 flex="1",
                 min_width="0",
@@ -487,19 +489,37 @@ def _kind_card(icon: str, kind: str) -> rx.Component:
             align="center",
             width="100%",
         ),
-        on_click=lambda: _S.select_transform_kind(kind),
+        on_click=on_click if on_click is not None else (lambda: _S.select_transform_kind(kind)),
         cursor="pointer",
         width="100%",
+        padding="8px 12px",
         style={":hover": {"background_color": "var(--gray-3)"}},
     )
 
 
 def _chooser() -> rx.Component:
-    """Wizard step 1: pick the transformation to perform."""
+    """Wizard step 1: pick the activity to perform.
+
+    Launched from a note the dialog records any activity (move and relabel
+    included); launched from an item it only offers the transformations.
+    """
     return rx.vstack(
-        dialog_header("Choose a transformation", close=_S.close_dialog),
+        dialog_header(
+            rx.cond(_S.is_activity_dialog, "Choose an activity", "Choose a transformation"),
+            close=_S.close_dialog,
+        ),
         rx.grid(
             _kind_card("flame", TransformKind.CONSUME.value),
+            # Move / relabel are not transformations: they hand over to their own
+            # dialog rather than opening this one's build step.
+            rx.cond(
+                _S.is_activity_dialog,
+                _kind_card("map-pin", TransformKind.MOVE.value, _S.open_move_activity),
+            ),
+            rx.cond(
+                _S.is_activity_dialog,
+                _kind_card("pencil", TransformKind.RELABEL.value, _S.open_relabel_activity),
+            ),
             _kind_card("git-fork", TransformKind.SPLIT.value),
             _kind_card("git-merge", TransformKind.COMBINE.value),
             # Dilute/concentrate only apply to solutions with a volume unit.
@@ -513,20 +533,8 @@ def _chooser() -> rx.Component:
             ),
             _kind_card("shuffle", TransformKind.CUSTOM.value),
             columns="1",
-            spacing="3",
+            spacing="2",
             width="100%",
-        ),
-        rx.hstack(
-            rx.button(
-                "Cancel",
-                type="button",
-                variant="soft",
-                color_scheme="gray",
-                on_click=_S.close_dialog,
-            ),
-            justify="end",
-            width="100%",
-            margin_top="1rem",
         ),
         width="100%",
         min_width="0",

@@ -6,6 +6,7 @@ from gws_eln.items.item_dto import ItemDTO, MoveItemDTO
 from gws_eln.items.item_service import ItemService
 from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
+from gws_reflex_main.gws_components import InputSearchResultDTO
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
 
@@ -16,16 +17,31 @@ class MoveItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State
     """State management for the move item dialog functionality.
 
     This dialog is used to move a item to a different location.
-    The item must be provided when opening the dialog.
+    The item is either provided when opening the dialog (launched from that
+    item), or picked in the dialog itself (launched from a note's activity
+    chooser, which knows no item).
     """
 
-    # Item being moved (required input)
+    # Item being moved
     _item: ItemDTO | None = None
+    # Item picker, only shown when the dialog was opened without an item.
+    form_item: InputSearchResultDTO | None = None
+    _item_is_selectable: bool = False
 
     # Form field for destination location
     form_location_id: str = ""
 
     _callback_after_close: FormDialogCloseCallback | None = None
+
+    @rx.var
+    def item_is_selectable(self) -> bool:
+        """Whether the dialog picks its own item (opened without one)."""
+        return self._item_is_selectable
+
+    @rx.var
+    def has_item(self) -> bool:
+        """Whether an item is set, either passed in or picked."""
+        return self._item is not None
 
     @rx.var
     def code(self) -> str:
@@ -48,6 +64,19 @@ class MoveItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State
             return self._item.location.name
         return ""
 
+    def open_dialog_for_item(self, item: ItemDTO | None):
+        """Open the dialog, picking the item in-dialog when none is given.
+
+        :param item: The item to move, or None to let the user pick one
+        :type item: ItemDTO | None
+        """
+        self._item = item
+        self.form_item = None
+        self._item_is_selectable = item is None
+        self.form_location_id = ""
+        self.is_update_mode = False
+        self.dialog_opened = True
+
     @rx.event
     async def open_move_dialog(self, item: ItemDTO):
         """Open the dialog to move the specified item.
@@ -55,17 +84,17 @@ class MoveItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State
         Args:
             item: The item to move (required)
         """
-        # Store the item being moved
-        self._item = item
+        self.open_dialog_for_item(item)
 
-        # Reset form fields
-        self.form_location_id = ""
-
-        # Set to create mode (not update mode)
-        self.is_update_mode = False
-
-        # Open the dialog
-        self.dialog_opened = True
+    @rx.event
+    def set_item(self, value: dict):
+        """Pick the item to move."""
+        if not value:
+            self.form_item = None
+            self._item = None
+            return
+        self.form_item = InputSearchResultDTO.from_json_object(value, ItemDTO)
+        self._item = self.form_item.object
 
     @rx.event
     def set_location_id(self, value: str):
@@ -107,7 +136,7 @@ class MoveItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State
             Reflex events (rx.toast)
         """
         if not self._item:
-            raise ReflexAppException("Item is required")
+            raise ReflexAppException("Please select an item")
 
         # Validate and parse form data
         location_id = self._validate_form_data(form_data)
@@ -137,6 +166,8 @@ class MoveItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.State
     async def _clear_form_state(self):
         """Clear all form state after successful operation."""
         self._item = None
+        self.form_item = None
+        self._item_is_selectable = False
         self.form_location_id = ""
         self.clear_note_context()
         self.is_update_mode = False

@@ -27,6 +27,10 @@ from gws_reflex_base import ReflexAppException
 from gws_reflex_main import ConfirmDialogState, FormDialogState, ReflexMainState
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
+from ..move_item_form_dialog.move_item_form_dialog_state import MoveItemFormDialogState
+from ..relabel_item_form_dialog.relabel_item_form_dialog_state import (
+    RelabelItemFormDialogState,
+)
 from . import transform_builders
 from .transform_input_dialog_mixin import TransformInputDialogMixin
 from .transform_instrument_wizard_mixin import TransformInstrumentWizardMixin
@@ -103,15 +107,28 @@ class TransformItemFormDialogState(
         return self.transform_kind == TransformKind.CONSUME.value
 
     @rx.var
+    def is_activity_dialog(self) -> bool:
+        """Whether the chooser offers every activity, or only the transformations.
+
+        Launched from a note, the dialog records any activity of the protocol, so
+        move and relabel are offered alongside the transformations. Launched from
+        an item, it stays a transform dialog: move and relabel are reachable from
+        that item's own actions menu instead.
+        """
+        return bool(self._note_id)
+
+    @rx.var
     def seed_is_volume(self) -> bool:
         """Whether the launching item is measured in a volume unit.
 
         Dilute and concentrate only make sense for solutions with a volume unit,
         so those two activities are hidden in the chooser for any other unit type.
+        Launched with no item (from a note) there is nothing to gate on, so this
+        offers them and the inputs are validated at build time instead.
         """
-        # Empty until a launching item is set
+        # Empty when the dialog was opened without a launching item
         if not self._launch_unit_type:
-            return False
+            return True
         return UnitType(self._launch_unit_type).is_volume()
 
     @rx.var
@@ -296,20 +313,22 @@ class TransformItemFormDialogState(
     # ------------------------------------------------------------------ open / kind
 
     @rx.event
-    async def open_transform_dialog(self, item: ItemDTO):
+    async def open_transform_dialog(self, item: ItemDTO | None = None):
         """Open the wizard at the kind-selection step.
 
         The launching item is stashed and only seeded as the first input once the
         user picks a transformation kind (see :meth:`select_transform_kind`).
+        Pass no item to start from scratch (e.g. launched from a note): the build
+        step then opens with no input selected, for the user to add them.
 
-        :param item: The item the transform was launched from
-        :type item: ItemDTO
+        :param item: The item the transform was launched from, or None to start empty
+        :type item: ItemDTO | None
         """
         self._reset_state()
         await self._load_locations()
         self.is_update_mode = False
         self._seed_item = item
-        self._launch_unit_type = item.unit_type.value
+        self._launch_unit_type = item.unit_type.value if item else ""
         self.transform_step = TransformStep.CHOOSE
         self.dialog_opened = True
 
@@ -331,6 +350,12 @@ class TransformItemFormDialogState(
             raise ReflexAppException(
                 "Dilute and concentrate are only available for items measured in a volume unit"
             )
+        # Move/relabel are only offered from a note (see `is_activity_dialog`).
+        if (
+            kind in (TransformKind.MOVE.value, TransformKind.RELABEL.value)
+            and not self.is_activity_dialog
+        ):
+            raise ReflexAppException("Move and relabel are not transformations")
         self.transform_kind = kind
         self.transform_step = TransformStep.BUILD
         if self._seed_item is not None:
@@ -343,6 +368,29 @@ class TransformItemFormDialogState(
     def back_to_chooser(self):
         """Return to the kind-selection step."""
         self.transform_step = TransformStep.CHOOSE
+
+    async def _dispatch_item_activity(self, state_class: type):
+        """Hand the chooser over to a standalone single-item dialog.
+
+        Move and relabel are not transformations: they have their own dialog,
+        which picks its own item. The note context moves with them so the created
+        activity still lands in the note block.
+        """
+        target = await self.get_state(state_class)
+        target.set_callback_after_close(None)
+        self.transfer_note_context_to(target)
+        target.open_dialog_for_item(None)
+        await self.close_dialog()
+
+    @rx.event
+    async def open_move_activity(self):
+        """Chooser -> the standalone Move dialog."""
+        await self._dispatch_item_activity(MoveItemFormDialogState)
+
+    @rx.event
+    async def open_relabel_activity(self):
+        """Chooser -> the standalone Relabel dialog."""
+        await self._dispatch_item_activity(RelabelItemFormDialogState)
 
     def _fixed_output_source(self) -> TransformInputRow | None:
         """The input whose sheet the output inherits when the sheet is fixed.

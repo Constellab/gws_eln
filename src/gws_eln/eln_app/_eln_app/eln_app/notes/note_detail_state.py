@@ -5,7 +5,9 @@ from gws_core import Note, NoteDTO, NoteService, RichTextDTO
 from gws_reflex_main import ConfirmDialogState, ReflexMainState
 
 from ..common.eln_app_router import ElnAppRouter
-from .note_activity_form_dialog.note_activity_form_dialog_state import NoteActivityFormDialogState
+from ..items.transform_item_form_dialog.transform_item_form_dialog_state import (
+    TransformItemFormDialogState,
+)
 from .note_form_dialog.note_form_dialog_state import NoteFormDialogState
 
 
@@ -138,13 +140,16 @@ class NoteDetailState(rx.State):
             if not block_id:
                 raise ValueError("block_id is required in the event data")
 
-            form_state = await self.get_state(NoteActivityFormDialogState)
-            form_state.set_callback_after_close(self._on_note_activity_added)
-            form_state.open_dialog(
-                note_id=self.note.id,
-                note_block_id=block_id,
-                rich_text_content=rich_text,
+            # Open the transform wizard straight away, with no launching item: the
+            # user picks the kind, then builds the inputs/outputs from scratch. The
+            # note context arms it to link the created activity back to the block
+            # (and to drop the empty block if the user cancels).
+            transform_state = await self.get_state(TransformItemFormDialogState)
+            transform_state.set_callback_after_close(None)
+            transform_state.set_note_context(
+                self.note.id, block_id, rich_text, self._on_note_activity_added
             )
+            await transform_state.open_transform_dialog()
 
     async def _on_note_activity_added(self, note: Note):
         """Callback when a note activity is added to refresh the note.

@@ -8,6 +8,7 @@ from gws_eln.items.item_dto import ItemDTO, RelabelItemDTO
 from gws_eln.items.item_service import ItemService
 from gws_reflex_base import ReflexAppException
 from gws_reflex_main import FormDialogState, ReflexMainState
+from gws_reflex_main.gws_components import InputSearchResultDTO
 
 from ...notes.note_linkable_dialog_state import NoteLinkableDialogState
 
@@ -18,16 +19,31 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
     """State management for the relabel item dialog functionality.
 
     This dialog is used to relabel a item (change its label).
-    The item must be provided when opening the dialog.
+    The item is either provided when opening the dialog (launched from that
+    item), or picked in the dialog itself (launched from a note's activity
+    chooser, which knows no item).
     """
 
-    # Item being relabeled (required input)
+    # Item being relabeled
     _item: ItemDTO | None = None
+    # Item picker, only shown when the dialog was opened without an item.
+    form_item: InputSearchResultDTO | None = None
+    _item_is_selectable: bool = False
 
     # Form fields
     form_label: str = ""
 
     _callback_after_close: FormDialogCloseCallback | None = None
+
+    @rx.var
+    def item_is_selectable(self) -> bool:
+        """Whether the dialog picks its own item (opened without one)."""
+        return self._item_is_selectable
+
+    @rx.var
+    def has_item(self) -> bool:
+        """Whether an item is set, either passed in or picked."""
+        return self._item is not None
 
     @rx.var
     def current_code(self) -> str:
@@ -43,6 +59,19 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
             return self._item.label or "(No label)"
         return ""
 
+    def open_dialog_for_item(self, item: ItemDTO | None):
+        """Open the dialog, picking the item in-dialog when none is given.
+
+        :param item: The item to relabel, or None to let the user pick one
+        :type item: ItemDTO | None
+        """
+        self._item = item
+        self.form_item = None
+        self._item_is_selectable = item is None
+        self.form_label = (item.label or "") if item else ""
+        self.is_update_mode = False
+        self.dialog_opened = True
+
     @rx.event
     async def open_relabel_dialog(self, item: ItemDTO):
         """Open the dialog to relabel the specified item.
@@ -50,17 +79,24 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
         Args:
             item: The item to relabel (required)
         """
-        # Store the item being relabeled
-        self._item = item
+        self.open_dialog_for_item(item)
 
-        # Initialize form fields with current values
-        self.form_label = item.label or ""
+    @rx.event
+    def set_item(self, value: dict):
+        """Pick the item to relabel, prefilling the label with its current one."""
+        if not value:
+            self.form_item = None
+            self._item = None
+            self.form_label = ""
+            return
+        self.form_item = InputSearchResultDTO.from_json_object(value, ItemDTO)
+        self._item = self.form_item.object
+        self.form_label = self._item.label or ""
 
-        # Set to create mode (not update mode for this dialog)
-        self.is_update_mode = False
-
-        # Open the dialog
-        self.dialog_opened = True
+    @rx.event
+    def set_label(self, value: str):
+        """Handle the new-label input change."""
+        self.form_label = value
 
     def _validate_form_data(self, form_data: dict) -> RelabelItemDTO:
         """Validate and parse form data.
@@ -74,8 +110,9 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
         Raises:
             Exception: If validation fails
         """
-        # Get values from form data
-        label = form_data.get("label", "").strip()
+        # Read the label from the state: the field is controlled, so it holds the
+        # value prefilled when the item was picked.
+        label = self.form_label.strip()
 
         # Check if the label changed
         label_changed = label != (self._item.label or "") if self._item else True
@@ -95,7 +132,7 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
             Reflex events (rx.toast)
         """
         if not self._item:
-            raise ReflexAppException("Item is required")
+            raise ReflexAppException("Please select an item")
 
         # Validate and parse form data
         dto = self._validate_form_data(form_data)
@@ -125,6 +162,8 @@ class RelabelItemFormDialogState(NoteLinkableDialogState, FormDialogState, rx.St
     async def _clear_form_state(self):
         """Clear all form state after successful operation."""
         self._item = None
+        self.form_item = None
+        self._item_is_selectable = False
         self.form_label = ""
         self.clear_note_context()
         self.is_update_mode = False

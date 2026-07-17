@@ -96,15 +96,26 @@ def use_discard_form_section(
 
 def relabel_form_section(
     form_label: rx.Var[str],
+    on_label_change: rx.EventHandler | None = None,
 ) -> rx.Component:
-    """Form section for relabel operation: new label."""
+    """Form section for relabel operation: new label.
+
+    Pass ``on_label_change`` to make the field controlled (value + on_change),
+    which is required when the item — and so the label to prefill — is only
+    chosen after the dialog is open (a default_value is applied on mount only).
+    """
+    input_props = (
+        {"value": form_label, "on_change": on_label_change}
+        if on_label_change is not None
+        else {"default_value": form_label}
+    )
     return rx.vstack(
         rx.text("New Label", size="2", weight="bold"),
         rx.input(
             placeholder="Enter new label (leave empty to clear)",
             name="label",
             width="100%",
-            default_value=form_label,
+            **input_props,
         ),
         width="100%",
         spacing="1",

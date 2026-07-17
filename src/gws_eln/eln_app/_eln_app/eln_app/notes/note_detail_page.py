@@ -10,9 +10,6 @@ from gws_reflex_main import (
 
 from ..common.detail_page_layout import detail_content_layout
 from ..common.page_layout import page_layout
-from ..items.item_event_form_dialog.item_event_form_dialog_component import (
-    item_event_form_dialog,
-)
 from ..items.move_item_form_dialog.move_item_form_dialog_component import move_item_dialog
 from ..items.relabel_item_form_dialog.relabel_item_form_dialog_component import (
     relabel_item_dialog,
@@ -22,9 +19,6 @@ from ..items.transform_item_form_dialog.transform_item_form_dialog_component imp
 )
 from .eln_note_component.eln_note_component import eln_note_component
 from .note_actions_menu import note_actions_menu
-from .note_activity_form_dialog.note_activity_form_dialog_component import (
-    note_activity_form_dialog,
-)
 from .note_detail_state import NoteDetailState
 from .note_form_dialog.note_form_dialog_component import note_update_dialog
 
@@ -208,12 +202,11 @@ def _header() -> rx.Component:
         ),
         right_sidebar_open_button(),
         note_update_dialog(),
-        note_activity_form_dialog(),
-        # Shared activity dialogs launched from the note chooser
+        # The /activity block opens the shared activity chooser (no launching
+        # item); move and relabel are dispatched to their own dialogs from it.
         transform_item_dialog(),
         move_item_dialog(),
         relabel_item_dialog(),
-        item_event_form_dialog(),
         width="100%",
         align="center",
         spacing="4",

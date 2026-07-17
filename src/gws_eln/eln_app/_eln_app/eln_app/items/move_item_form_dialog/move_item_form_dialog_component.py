@@ -2,11 +2,28 @@ import reflex as rx
 from gws_reflex_main import form_dialog_component
 
 from ...activities.activity_form_sections import move_form_section
+from ..core.item_select_component import item_select_component
 from .move_item_form_dialog_state import MoveItemFormDialogState
 
+_S = MoveItemFormDialogState
 
-def _form_content() -> rx.Component:
-    """Form content for moving a item to a new location."""
+
+def _item_select() -> rx.Component:
+    """Item picker, shown only when the dialog was opened without an item."""
+    return rx.vstack(
+        rx.text("Item*", size="2", weight="bold"),
+        item_select_component(
+            placeholder="Search an item...",
+            selected_item=_S.form_item,
+            item_selected=_S.set_item,
+        ),
+        width="100%",
+        spacing="1",
+    )
+
+
+def _item_info() -> rx.Component:
+    """Item info and destination, shown once the item is known."""
     return rx.vstack(
         # Item info (read-only display): name and code side by side
         rx.hstack(
@@ -61,6 +78,20 @@ def _form_content() -> rx.Component:
             form_location_id=MoveItemFormDialogState.form_location_id,
             on_location_change=MoveItemFormDialogState.set_location_id,
         ),
+        width="100%",
+        spacing="3",
+    )
+
+
+def _form_content() -> rx.Component:
+    """Form content for moving a item to a new location.
+
+    Launched from a note the item is unknown, so it is picked first and the rest
+    of the form only appears once it is set.
+    """
+    return rx.vstack(
+        rx.cond(_S.item_is_selectable, _item_select()),
+        rx.cond(_S.has_item, _item_info()),
         width="100%",
         spacing="3",
     )
