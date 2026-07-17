@@ -22,6 +22,7 @@ from gws_eln.items.item import Item
 from gws_eln.lineage.lineage_dto import (
     ACTIVITY_NODE_HEIGHT,
     ITEM_NODE_HEIGHT,
+    ITEM_NODE_MIN_WIDTH,
     LineageEdgeDTO,
     LineageGraphDTO,
     LineageNodeDTO,
@@ -33,8 +34,15 @@ from gws_eln.lineage.lineage_repo import LineageRepo
 # outputs. Item layer L sits at y = L * 2 * ROW_GAP (even rows); an activity
 # sits on the odd row just above its outputs.
 _ROW_GAP = 150
-# Horizontal spacing between sibling items on the same layer (frontend pixels).
-_X_SPACING = 220
+# Minimum horizontal gap (px) kept between the EDGES of two sibling item cards.
+# Sibling spacing is width-aware (see _distribute_x), so a long label pushes its
+# neighbours further apart instead of overlapping them.
+_X_GAP = 80
+# Item-node width estimation (the node is a 2-column grid, see lineage_nodes):
+# col1 = max(label, code), col2 = max(quantity, concentration).
+_CHAR_WIDTH = 7.0  # approx px per character at the node font size
+_NODE_COL_GAP = 8  # grid column-gap in the node
+_NODE_PADDING_X = 12  # node horizontal padding (each side)
 # Minimum center-to-center distance between two activity badges on the same row.
 _ACTIVITY_MIN_GAP = 150
 # Shift the activity down by half the node-height difference so its in/out edges
@@ -370,9 +378,11 @@ class LineageService:
         nodes: list[LineageNodeDTO] = []
         for level in sorted(by_layer, key=abs):
             ordered = self._order_layer(by_layer[level], level, activities, producers, consumers, item_x)
-            count = len(ordered)
-            for index, item in enumerate(ordered):
-                position_x = (index - (count - 1) / 2) * _X_SPACING
+            # Space siblings by their estimated width so a long label pushes its
+            # neighbours apart instead of overlapping them.
+            widths = [self._estimate_item_width(item) for item in ordered]
+            positions = self._distribute_x(widths)
+            for item, position_x in zip(ordered, positions, strict=True):
                 item_x[item.id] = position_x
                 nodes.append(
                     LineageNodeDTO(
@@ -391,6 +401,51 @@ class LineageService:
                     )
                 )
         return nodes
+
+    def _estimate_item_width(self, item: Item) -> float:
+        """Estimate an item node's rendered width (px) from its text.
+
+        The node is a 2-column grid (see ``lineage_nodes.item_node``): the left
+        column holds the label (row 1) and code (row 2), the right column the
+        quantity and concentration. Column widths are the widest of their two
+        rows; the total is both columns plus the grid gap and the node padding,
+        floored at the node's min width. Used to space siblings without overlap.
+
+        :param item: The item whose node width to estimate.
+        :type item: Item
+        :return: Estimated node width in pixels.
+        :rtype: float
+        """
+        col1 = max(len(item.label or ""), len(item.code or ""))
+        col2 = max(
+            len(item.get_pretty_quantity() or ""),
+            len(item.get_pretty_concentration() or ""),
+        )
+        content = col1 * _CHAR_WIDTH
+        if col2:
+            content += _NODE_COL_GAP + col2 * _CHAR_WIDTH
+        return max(ITEM_NODE_MIN_WIDTH, content + 2 * _NODE_PADDING_X)
+
+    def _distribute_x(self, widths: list[float]) -> list[float]:
+        """Center x positions for a row of cards, spaced by their widths.
+
+        Cards are laid left to right so adjacent ones keep ``_X_GAP`` between
+        their edges (center-to-center = half each width + gap), then the whole
+        row is shifted so it stays centered on x=0 (like the previous fixed grid).
+
+        :param widths: Each card's width, in placement order.
+        :type widths: list[float]
+        :return: The centered center-x of each card, same order.
+        :rtype: list[float]
+        """
+        if not widths:
+            return []
+        positions = [0.0]
+        for index in range(1, len(widths)):
+            gap = widths[index - 1] / 2 + widths[index] / 2 + _X_GAP
+            positions.append(positions[-1] + gap)
+        shift = -(positions[0] + positions[-1]) / 2
+        return [position + shift for position in positions]
 
     def _producers_and_consumers(
         self, activities: dict[str, dict]

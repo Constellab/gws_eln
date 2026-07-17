@@ -13,7 +13,11 @@ side share the single handle.
 from typing import TypedDict
 
 import reflex as rx
-from gws_eln.lineage.lineage_dto import ACTIVITY_NODE_HEIGHT, ITEM_NODE_HEIGHT
+from gws_eln.lineage.lineage_dto import (
+    ACTIVITY_NODE_HEIGHT,
+    ITEM_NODE_HEIGHT,
+    ITEM_NODE_MIN_WIDTH,
+)
 
 from ..activities.activity_type_component import activity_type_badge
 from ..common.react_flow import react_flow_handle
@@ -153,7 +157,7 @@ def item_node(data: rx.Var[ItemNodeData]) -> rx.Component:
         padding="8px 12px",
         border_radius="8px",
         font_size="11px",
-        min_width="120px",
+        min_width=f"{ITEM_NODE_MIN_WIDTH}px",
         height=f"{ITEM_NODE_HEIGHT}px",
         box_sizing="border-box",
         position="relative",

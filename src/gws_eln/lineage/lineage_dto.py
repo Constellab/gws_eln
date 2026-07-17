@@ -19,6 +19,9 @@ from gws_eln.items.item_status import ItemStatus
 # React Flow node components (lineage_nodes).
 ITEM_NODE_HEIGHT = 52
 ACTIVITY_NODE_HEIGHT = 24
+# Minimum item-node width (px), shared so the backend width-aware spacing matches
+# the node component's own min width.
+ITEM_NODE_MIN_WIDTH = 120
 
 
 class LineageNodeKind(Enum):
