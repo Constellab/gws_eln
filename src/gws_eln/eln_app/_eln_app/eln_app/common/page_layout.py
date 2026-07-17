@@ -18,8 +18,9 @@ def sidebar_content() -> rx.Component:
         title="Lab flow",
         subtitle="By Constellab",
         menu_items=[
+            menu_item_component("house", "Home", "/"),
             menu_item_component(
-                "notebook-text", "Notes", "/", additional_active_route_prefixes=["/notes"]
+                "notebook-text", "Notes", "/notes", additional_active_route_prefixes=["/notes"]
             ),
             menu_item_component(
                 "package",

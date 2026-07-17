@@ -2,13 +2,22 @@ class ElnAppRouter:
     """Router for the ELN application."""
 
     @staticmethod
+    def get_home_url() -> str:
+        """Get the URL for the home page (the two entry-point cards).
+
+        :return: The home URL
+        :rtype: str
+        """
+        return "/"
+
+    @staticmethod
     def get_notes_list_url() -> str:
         """Get the URL for the notes list page.
 
         :return: The notes list URL
         :rtype: str
         """
-        return "/"
+        return "/notes"
 
     @staticmethod
     def get_note_detail_url(note_id: str) -> str:

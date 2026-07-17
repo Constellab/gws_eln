@@ -2,6 +2,7 @@ import reflex as rx
 from gws_reflex_main import register_gws_reflex_app
 
 from .exception_handler import eln_backend_exception_handler
+from .home.home_page import home_page
 from .item_sheets.item_sheet_detail_page import item_sheet_detail_page
 from .item_sheets.item_sheet_detail_state import ItemSheetDetailState
 from .item_sheets.item_sheets_list_state import ItemSheetsListState
@@ -22,7 +23,13 @@ app = register_gws_reflex_app(rx.App())
 app.backend_exception_handler = eln_backend_exception_handler
 
 
-@rx.page(route="/", on_load=[NotesListState.on_load])
+@rx.page(route="/")
+def home():
+    """Home page: the two entry points (stocks / protocols)."""
+    return home_page()
+
+
+@rx.page(route="/notes", on_load=[NotesListState.on_load])
 def notes():
     """Notes page."""
     return notes_page()
@@ -30,7 +37,7 @@ def notes():
 
 @rx.page(route="/item_sheets", on_load=[ItemSheetsListState.on_load])
 def index():
-    """ItemSheets page (home)."""
+    """ItemSheets page."""
     return item_sheets_page()
 
 
