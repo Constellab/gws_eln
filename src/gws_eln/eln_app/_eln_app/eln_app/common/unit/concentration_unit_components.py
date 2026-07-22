@@ -1,9 +1,15 @@
 import reflex as rx
 from gws_eln.core.concentration_unit import CONCENTRATION_UNITS
+from gws_reflex_main.gws_components import select_component
 
 # Sentinel value for the "no concentration unit" option. rx.select cannot use an
 # empty/None value, so this string represents "no selection".
 NO_CONCENTRATION_VALUE = "__none__"
+
+_CONCENTRATION_UNIT_DATA = [
+    {"value": NO_CONCENTRATION_VALUE, "label": "No concentration"},
+    *[{"value": unit, "label": unit} for unit in CONCENTRATION_UNITS],
+]
 
 
 def concentration_unit_select(
@@ -25,14 +31,9 @@ def concentration_unit_select(
     :param kwargs: Additional props passed to select.root (e.g. value, on_change)
     :return: A reflex component for concentration unit selection
     """
-    none_item = rx.select.item("No concentration", value=NO_CONCENTRATION_VALUE)
-
-    return rx.select.root(
-        rx.select.trigger(placeholder=placeholder, width=width),
-        rx.select.content(
-            none_item,
-            *[rx.select.item(unit, value=unit) for unit in CONCENTRATION_UNITS],
-        ),
+    return select_component(
+        data=_CONCENTRATION_UNIT_DATA,
+        placeholder=placeholder,
         name=name,
         disabled=disabled,
         width=width,

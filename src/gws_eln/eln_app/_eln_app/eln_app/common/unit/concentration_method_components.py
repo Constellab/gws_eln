@@ -3,10 +3,19 @@ from gws_eln.core.concentration_method import (
     CONCENTRATION_METHOD_LABELS,
     ConcentrationMethod,
 )
+from gws_reflex_main.gws_components import select_component
 
 # Sentinel value for the "no method" option. rx.select cannot use an empty/None
 # value, so this string represents "no selection".
 NO_CONCENTRATION_METHOD_VALUE = "__none__"
+
+_CONCENTRATION_METHOD_DATA = [
+    {"value": NO_CONCENTRATION_METHOD_VALUE, "label": "No method"},
+    *[
+        {"value": method.value, "label": CONCENTRATION_METHOD_LABELS[method]}
+        for method in ConcentrationMethod
+    ],
+]
 
 
 def concentration_method_select(
@@ -25,17 +34,9 @@ def concentration_method_select(
     :param kwargs: Additional props passed to select.root (e.g. value, on_change)
     :return: A reflex component for concentration method selection
     """
-    none_item = rx.select.item("No method", value=NO_CONCENTRATION_METHOD_VALUE)
-
-    return rx.select.root(
-        rx.select.trigger(placeholder=placeholder, width=width),
-        rx.select.content(
-            none_item,
-            *[
-                rx.select.item(CONCENTRATION_METHOD_LABELS[method], value=method.value)
-                for method in ConcentrationMethod
-            ],
-        ),
+    return select_component(
+        data=_CONCENTRATION_METHOD_DATA,
+        placeholder=placeholder,
         name=name,
         width=width,
         **kwargs,

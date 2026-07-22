@@ -1,5 +1,6 @@
 import reflex as rx
 from gws_eln.activities.activity_type import ActivityType
+from gws_reflex_main.gws_components import select_component
 
 ACTIVITY_TYPE_OPTIONS = [
     (ActivityType.RECEIVE.value, "Receive"),
@@ -14,6 +15,8 @@ ACTIVITY_TYPE_OPTIONS = [
     (ActivityType.CONCENTRATE.value, "Concentrate"),
     (ActivityType.TRANSFORM.value, "Transform"),
 ]
+
+_ACTIVITY_TYPE_DATA = [{"value": value, "label": label} for value, label in ACTIVITY_TYPE_OPTIONS]
 
 
 def activity_type_select_component(
@@ -57,15 +60,15 @@ def activity_type_select_component(
             on_change=FilterState.set_activity_type,
         )
     """
-    all_item = rx.select.item(all_option[0], value=all_option[1]) if all_option else rx.fragment()
+    data = _ACTIVITY_TYPE_DATA
+    if all_option:
+        data = [{"value": all_option[1], "label": all_option[0]}, *_ACTIVITY_TYPE_DATA]
 
-    return rx.select.root(
-        rx.select.trigger(placeholder=placeholder, width=width),
-        rx.select.content(
-            all_item,
-            *[rx.select.item(label, value=value) for value, label in ACTIVITY_TYPE_OPTIONS],
-        ),
+    return select_component(
+        data=data,
+        placeholder=placeholder,
         name=name,
         disabled=disabled,
+        width=width,
         **kwargs,
     )

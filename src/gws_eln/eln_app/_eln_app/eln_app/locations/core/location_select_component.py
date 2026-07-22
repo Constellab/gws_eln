@@ -1,4 +1,5 @@
 import reflex as rx
+from gws_reflex_main.gws_components import select_component
 
 from .location_select_state import LocationSelectState
 
@@ -14,8 +15,9 @@ def location_select_component(
     """
     Reusable location select component.
 
-    This component uses LocationSelectState to load locations from the database.
-    The locations are loaded when the component mounts via on_load.
+    Searchable single-select dropdown (type to filter) built on the shared
+    ``select_component``. It uses LocationSelectState to load locations from the
+    database; the locations are loaded when the component mounts.
 
     Args:
         placeholder: Placeholder text for the select
@@ -23,7 +25,7 @@ def location_select_component(
         disabled: Whether the select is disabled
         width: Width of the select component
         all_option: Optional tuple of (label, value) for an "All" option at the top
-        **kwargs: Additional props to pass to the select.root component
+        **kwargs: Additional props to pass to the underlying select component
                  (e.g., on_change, value, default_value)
 
     Returns:
@@ -45,22 +47,21 @@ def location_select_component(
             on_change=FilterState.set_location_id,
         )
     """
-    all_item = rx.select.item(all_option[0], value=all_option[1]) if all_option else rx.fragment()
+    data = LocationSelectState.locations
+    if all_option:
+        data = (
+            rx.Var.create([{"value": all_option[1], "label": all_option[0]}])
+            + LocationSelectState.locations
+        )
 
-    return rx.select.root(
-        rx.select.trigger(placeholder=placeholder, width=width),
-        rx.select.content(
-            all_item,
-            rx.foreach(
-                LocationSelectState.locations,
-                lambda location: rx.select.item(
-                    location.label,
-                    value=location.value,
-                ),
-            ),
-        ),
+    return select_component(
+        data=data,
+        placeholder=placeholder,
+        searchable=True,
+        clearable=True,
         name=name,
         disabled=disabled,
+        width=width,
         on_mount=LocationSelectState.ensure_loaded,
         **kwargs,
     )

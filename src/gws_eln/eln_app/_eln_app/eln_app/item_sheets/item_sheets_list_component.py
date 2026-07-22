@@ -3,6 +3,7 @@
 import reflex as rx
 from gws_eln.items.item_sheet_dto import ItemSheetDTO
 from gws_reflex_main import main_component, user_with_date_component
+from gws_reflex_main.gws_components import select_component
 
 from ..common.eln_app_router import ElnAppRouter
 from ..common.feedback_components import compact_error
@@ -47,15 +48,16 @@ def _filter_bar() -> rx.Component:
             on_change=ItemSheetsListState.handle_supplier_filter_change,
         ),
         # Consumable filter
-        rx.select.root(
-            rx.select.trigger(placeholder="Type", width="160px"),
-            rx.select.content(
-                rx.select.item("All types", value=ALL_FILTER_VALUE),
-                rx.select.item("Consumable", value="true"),
-                rx.select.item("Non-consumable", value="false"),
-            ),
+        select_component(
+            data=[
+                {"value": ALL_FILTER_VALUE, "label": "All types"},
+                {"value": "true", "label": "Consumable"},
+                {"value": "false", "label": "Non-consumable"},
+            ],
+            placeholder="Type",
             value=ItemSheetsListState.filter_is_consumable,
             on_change=ItemSheetsListState.handle_consumable_filter_change,
+            width="160px",
         ),
         # Unit type filter
         unit_type_select_component(

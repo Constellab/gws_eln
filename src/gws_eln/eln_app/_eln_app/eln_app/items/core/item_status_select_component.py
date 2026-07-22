@@ -1,4 +1,5 @@
 import reflex as rx
+from gws_reflex_main.gws_components import select_component
 
 from .item_status_select_state import ItemStatusSelectState
 
@@ -44,21 +45,18 @@ def item_status_select_component(
             on_change=FilterState.set_status,
         )
     """
-    all_item = rx.select.item(all_option[0], value=all_option[1]) if all_option else rx.fragment()
+    data = ItemStatusSelectState.statuses
+    if all_option:
+        data = (
+            rx.Var.create([{"value": all_option[1], "label": all_option[0]}])
+            + ItemStatusSelectState.statuses
+        )
 
-    return rx.select.root(
-        rx.select.trigger(placeholder=placeholder, width=width),
-        rx.select.content(
-            all_item,
-            rx.foreach(
-                ItemStatusSelectState.statuses,
-                lambda status: rx.select.item(
-                    status.label,
-                    value=status.value,
-                ),
-            ),
-        ),
+    return select_component(
+        data=data,
+        placeholder=placeholder,
         name=name,
         disabled=disabled,
+        width=width,
         **kwargs,
     )

@@ -3,6 +3,7 @@ from typing import Literal
 import reflex as rx
 from gws_eln.core.unit_type import UnitType
 from gws_eln.utils.units_converter import UnitConverter
+from gws_reflex_main.gws_components import select_component
 
 LiteralSpacing = Literal["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
@@ -63,54 +64,26 @@ def quantity_unit_input(
             on_unit_change=MyState.set_unit,
         )
     """
-    # Build unit options from UnitConverter data
-    volume_units = UnitConverter.get_units_for_select(UnitType.VOLUME)
-    mass_units = UnitConverter.get_units_for_select(UnitType.MASS)
-    length_units = UnitConverter.get_units_for_select(UnitType.LENGTH)
-    mole_units = UnitConverter.get_units_for_select(UnitType.MOLE)
-    count_units = UnitConverter.get_units_for_select(UnitType.COUNT)
+    # Build unit options ({value, label}) from UnitConverter data, one list per
+    # unit type. get_units_for_select returns (symbol, label) pairs.
+    def _to_data(units):
+        return [{"value": symbol, "label": label} for symbol, label in units]
 
-    unit_select = rx.select.root(
-        rx.select.trigger(placeholder="Select unit", width="100%"),
-        rx.select.content(
-            rx.match(
-                unit_type,
-                (
-                    UnitType.VOLUME.value,
-                    rx.fragment(
-                        *[rx.select.item(label, value=symbol) for symbol, label in volume_units]
-                    ),
-                ),
-                (
-                    UnitType.MASS.value,
-                    rx.fragment(
-                        *[rx.select.item(label, value=symbol) for symbol, label in mass_units]
-                    ),
-                ),
-                (
-                    UnitType.LENGTH.value,
-                    rx.fragment(
-                        *[rx.select.item(label, value=symbol) for symbol, label in length_units]
-                    ),
-                ),
-                (
-                    UnitType.MOLE.value,
-                    rx.fragment(
-                        *[rx.select.item(label, value=symbol) for symbol, label in mole_units]
-                    ),
-                ),
-                (
-                    UnitType.COUNT.value,
-                    rx.fragment(
-                        *[rx.select.item(label, value=symbol) for symbol, label in count_units]
-                    ),
-                ),
-                # Default case
-                rx.fragment(
-                    *[rx.select.item(label, value=symbol) for symbol, label in count_units]
-                ),
-            ),
-        ),
+    count_data = _to_data(UnitConverter.get_units_for_select(UnitType.COUNT))
+    # The available units switch with the selected unit type; COUNT is the default.
+    unit_data = rx.match(
+        unit_type,
+        (UnitType.VOLUME.value, _to_data(UnitConverter.get_units_for_select(UnitType.VOLUME))),
+        (UnitType.MASS.value, _to_data(UnitConverter.get_units_for_select(UnitType.MASS))),
+        (UnitType.LENGTH.value, _to_data(UnitConverter.get_units_for_select(UnitType.LENGTH))),
+        (UnitType.MOLE.value, _to_data(UnitConverter.get_units_for_select(UnitType.MOLE))),
+        (UnitType.COUNT.value, count_data),
+        count_data,
+    )
+
+    unit_select = select_component(
+        data=unit_data,
+        placeholder="Select unit",
         name=unit_name,
         value=unit_value,
         on_change=on_unit_change,

@@ -70,6 +70,11 @@ class ItemSheetFormDialogState(FormDialogState, rx.State):
             },
         ]
 
+    @rx.var
+    def supplier_options(self) -> list[dict[str, str]]:
+        """Supplier options in the {value, label} format expected by the select."""
+        return [{"value": supplier.id, "label": supplier.name} for supplier in self.available_suppliers]
+
     async def _load_suppliers(self):
         """Load available suppliers for the dropdown."""
         main_state: ReflexMainState

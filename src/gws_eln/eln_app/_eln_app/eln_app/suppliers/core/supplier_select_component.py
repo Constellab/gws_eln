@@ -1,4 +1,5 @@
 import reflex as rx
+from gws_reflex_main.gws_components import select_component
 
 from .supplier_select_state import SupplierSelectState
 
@@ -14,8 +15,9 @@ def supplier_select_component(
     """
     Reusable supplier select component.
 
-    This component uses SupplierSelectState to load suppliers from the database.
-    The suppliers are loaded when the component mounts via on_load.
+    Searchable single-select dropdown (type to filter) built on the shared
+    ``select_component``. It uses SupplierSelectState to load suppliers from the
+    database; the suppliers are loaded when the component mounts.
 
     Args:
         placeholder: Placeholder text for the select
@@ -23,7 +25,7 @@ def supplier_select_component(
         disabled: Whether the select is disabled
         width: Width of the select component
         additional_option: Optional tuple of (label, value) for an additional option at the top
-        **kwargs: Additional props to pass to the select.root component
+        **kwargs: Additional props to pass to the underlying select component
                  (e.g., on_change, value, default_value)
 
     Returns:
@@ -45,26 +47,21 @@ def supplier_select_component(
             on_change=FilterState.set_supplier_id,
         )
     """
-    all_item = (
-        rx.select.item(additional_option[0], value=additional_option[1])
-        if additional_option
-        else rx.fragment()
-    )
+    data = SupplierSelectState.suppliers
+    if additional_option:
+        data = (
+            rx.Var.create([{"value": additional_option[1], "label": additional_option[0]}])
+            + SupplierSelectState.suppliers
+        )
 
-    return rx.select.root(
-        rx.select.trigger(placeholder=placeholder, width=width),
-        rx.select.content(
-            all_item,
-            rx.foreach(
-                SupplierSelectState.suppliers,
-                lambda supplier: rx.select.item(
-                    supplier.label,
-                    value=supplier.value,
-                ),
-            ),
-        ),
+    return select_component(
+        data=data,
+        placeholder=placeholder,
+        searchable=True,
+        clearable=True,
         name=name,
         disabled=disabled,
+        width=width,
         on_mount=SupplierSelectState.ensure_loaded,
         **kwargs,
     )

@@ -1,4 +1,5 @@
 import reflex as rx
+from gws_reflex_main.gws_components import select_component
 
 from .unit_type_select_state import UnitTypeSelectState
 
@@ -44,21 +45,18 @@ def unit_type_select_component(
             on_change=FilterState.set_unit_type,
         )
     """
-    all_item = rx.select.item(all_option[0], value=all_option[1]) if all_option else rx.fragment()
+    data = UnitTypeSelectState.unit_types
+    if all_option:
+        data = (
+            rx.Var.create([{"value": all_option[1], "label": all_option[0]}])
+            + UnitTypeSelectState.unit_types
+        )
 
-    return rx.select.root(
-        rx.select.trigger(placeholder=placeholder, width=width),
-        rx.select.content(
-            all_item,
-            rx.foreach(
-                UnitTypeSelectState.unit_types,
-                lambda unit_type: rx.select.item(
-                    unit_type.label,
-                    value=unit_type.value,
-                ),
-            ),
-        ),
+    return select_component(
+        data=data,
+        placeholder=placeholder,
         name=name,
         disabled=disabled,
+        width=width,
         **kwargs,
     )

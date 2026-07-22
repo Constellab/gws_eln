@@ -6,23 +6,21 @@ which carries the note context and links the created activity to the block.
 """
 
 import reflex as rx
+from gws_reflex_main.gws_components import select_component
 
 from ...items.core.item_select_component import item_select_component
-from .note_activity_form_dialog_state import NoteActivityFormDialogState
+from .note_activity_form_dialog_state import SUPPORTED_ACTIVITY_TYPES, NoteActivityFormDialogState
 
 S = NoteActivityFormDialogState
+
+_ACTIVITY_TYPE_DATA = [{"value": value, "label": label} for value, label in SUPPORTED_ACTIVITY_TYPES]
 
 
 def _activity_type_select() -> rx.Component:
     """Select limited to the activity types creatable from a note."""
-    return rx.select.root(
-        rx.select.trigger(placeholder="Select an activity type...", width="100%"),
-        rx.select.content(
-            rx.foreach(
-                S.activity_type_options,
-                lambda option: rx.select.item(option[1], value=option[0]),
-            ),
-        ),
+    return select_component(
+        data=_ACTIVITY_TYPE_DATA,
+        placeholder="Select an activity type...",
         value=S.form_activity_type,
         on_change=S.set_activity_type,
         width="100%",
