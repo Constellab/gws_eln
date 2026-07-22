@@ -151,6 +151,9 @@ class TransformInputRow:
     role: str = ""  # dilute role: INPUT_ROLE_TARGET / INPUT_ROLE_DILUENT ("" otherwise)
     init_conc: str = ""  # the item's current concentration (for concentrate/dilute checks)
     init_conc_unit: str = ""  # unit of init_conc ("" when none)
+    location_id: str = ""  # the item's location id (to prefill split outputs)
+    supplier_id: str = ""  # the item's supplier id ("" when none; to prefill split outputs)
+    expiry_date: str = ""  # the item's expiry date, ISO ("" when none; to prefill split outputs)
 
 
 @dataclass

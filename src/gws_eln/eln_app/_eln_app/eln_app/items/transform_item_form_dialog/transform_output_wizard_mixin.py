@@ -305,6 +305,18 @@ class TransformOutputWizardMixin(rx.State, mixin=True):
             # A split child that is relabelled away from its source must be justified.
             if self.transform_kind == TransformKind.SPLIT.value:
                 item_state._reference_label = source_input.label
+                # A split child inherits the source's location, expiry, supplier and
+                # concentration (the service copies them too); prefill them as editable
+                # suggestions so the user sees what will be carried over.
+                item_state.form_location_id = source_input.location_id
+                item_state.form_expiry_date = source_input.expiry_date
+                item_state.form_supplier_id = (
+                    source_input.supplier_id or item_state.NO_SUPPLIER_VALUE
+                )
+                item_state.form_concentration = source_input.init_conc
+                item_state.form_concentration_unit = (
+                    source_input.init_conc_unit or item_state.NO_CONCENTRATION_VALUE
+                )
                 # The first output starts at 0; each subsequent output is proposed
                 # with the quantity still available (pool minus the outputs already
                 # committed), so the user does not subtract by hand.

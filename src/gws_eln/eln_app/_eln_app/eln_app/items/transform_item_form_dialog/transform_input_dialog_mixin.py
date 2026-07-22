@@ -45,6 +45,9 @@ class TransformInputDialogMixin(rx.State, mixin=True):
     in_item_consumable: bool = True
     in_item_conc: str = ""  # the selected item's current concentration (raw)
     in_item_conc_unit: str = ""  # unit of in_item_conc ("" when none)
+    in_item_location_id: str = ""  # location id of the selected item (to prefill split outputs)
+    in_item_supplier_id: str = ""  # supplier id of the selected item ("" when none)
+    in_item_expiry_date: str = ""  # expiry date of the selected item, ISO ("" when none)
     in_unit_type: str = UnitType.COUNT.value
     in_qty: str = ""
     in_unit: str = UnitConverter.get_default_unit(UnitType.COUNT)
@@ -94,6 +97,9 @@ class TransformInputDialogMixin(rx.State, mixin=True):
         self.in_item_consumable = True
         self.in_item_conc = ""
         self.in_item_conc_unit = ""
+        self.in_item_location_id = ""
+        self.in_item_supplier_id = ""
+        self.in_item_expiry_date = ""
         self.in_unit_type = UnitType.COUNT.value
         self.in_qty = ""
         self.in_unit = UnitConverter.get_default_unit(UnitType.COUNT)
@@ -132,6 +138,9 @@ class TransformInputDialogMixin(rx.State, mixin=True):
                 else ""
             ),
             init_conc_unit=item.concentration_unit or "",
+            location_id=item.location.id,
+            supplier_id=item.supplier.id if item.supplier else "",
+            expiry_date=item.expiry_date.isoformat() if item.expiry_date else "",
         )
         self.inputs = self.inputs + [row]
 
@@ -153,6 +162,9 @@ class TransformInputDialogMixin(rx.State, mixin=True):
             else ""
         )
         self.in_item_conc_unit = item.concentration_unit or ""
+        self.in_item_location_id = item.location.id
+        self.in_item_supplier_id = item.supplier.id if item.supplier else ""
+        self.in_item_expiry_date = item.expiry_date.isoformat() if item.expiry_date else ""
         self.in_unit_type = item.unit_type.value
         # Default to the unit the item is displayed with (its pretty quantity), e.g. "kg".
         self.in_unit = UnitConverter.get_pretty_unit(item.quantity, item.unit_type)
@@ -202,6 +214,9 @@ class TransformInputDialogMixin(rx.State, mixin=True):
         self.in_item_consumable = row.is_consumable
         self.in_item_conc = row.init_conc
         self.in_item_conc_unit = row.init_conc_unit
+        self.in_item_location_id = row.location_id
+        self.in_item_supplier_id = row.supplier_id
+        self.in_item_expiry_date = row.expiry_date
         self.in_unit_type = row.unit_type
         self.in_qty = row.qty
         self.in_unit = row.unit
@@ -274,6 +289,9 @@ class TransformInputDialogMixin(rx.State, mixin=True):
             role=self._pending_input_role,
             init_conc=self.in_item_conc,
             init_conc_unit=self.in_item_conc_unit,
+            location_id=self.in_item_location_id,
+            supplier_id=self.in_item_supplier_id,
+            expiry_date=self.in_item_expiry_date,
         )
         if self._editing_input_id:
             self.inputs = [row if r.id == self._editing_input_id else r for r in self.inputs]
