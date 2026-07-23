@@ -78,7 +78,7 @@ def _scroll_box(*children) -> rx.Component:
         flex="1",
         min_height="0",
         width="100%",
-        padding_right="0.5rem",
+        padding="0.5rem",
     )
 
 

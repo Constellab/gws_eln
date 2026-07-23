@@ -559,7 +559,7 @@ def _builder() -> rx.Component:
                 flex="1 1 auto",
                 min_height="0",
                 width="100%",
-                padding_right="0.5rem",
+                padding="0.5rem",
             ),
             rx.hstack(
                 rx.button(
