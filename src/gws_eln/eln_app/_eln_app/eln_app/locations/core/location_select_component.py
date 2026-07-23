@@ -58,7 +58,6 @@ def location_select_component(
         data=data,
         placeholder=placeholder,
         searchable=True,
-        clearable=True,
         name=name,
         disabled=disabled,
         width=width,

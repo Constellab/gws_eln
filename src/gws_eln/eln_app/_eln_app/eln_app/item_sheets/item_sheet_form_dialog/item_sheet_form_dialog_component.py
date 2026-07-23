@@ -141,7 +141,6 @@ def _form_content() -> rx.Component:
                         ),
                         placeholder="Select a supplier (optional)",
                         searchable=True,
-                        clearable=True,
                         value=ItemSheetFormDialogState.form_supplier_id,
                         on_change=ItemSheetFormDialogState.set_supplier_id,
                         width="100%",
