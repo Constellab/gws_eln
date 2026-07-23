@@ -96,17 +96,8 @@ def _row_warns_no_concentration(row: TransformInputRow) -> rx.Var:
 def _row_shows_concentration(row: TransformInputRow) -> rx.Var:
     """Whether to surface this input's concentration on its card.
 
-    The "before" value for concentrate's source / dilute's target, and each
-    ingredient's concentration for a combine (shown whenever it exists)."""
-    return (
-        row.is_consumable
-        & (row.init_conc != "")
-        & (
-            _S.kind_is_concentrate
-            | _S.kind_is_combine
-            | (_S.kind_is_dilute & (row.role == INPUT_ROLE_TARGET))
-        )
-    )
+    Shown whenever the item carries one, whatever the transformation kind."""
+    return row.is_consumable & (row.init_conc != "")
 
 
 def _concentration_badge(value: rx.Var, unit: rx.Var) -> rx.Component:
