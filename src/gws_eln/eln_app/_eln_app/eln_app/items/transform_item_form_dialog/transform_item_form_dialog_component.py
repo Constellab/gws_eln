@@ -26,6 +26,18 @@ from .transform_output_wizard_component import transform_output_wizard
 
 _S = TransformItemFormDialogState
 
+# Pulsing accent halo drawing the eye to the "Add" badge until a quantity is set.
+_ADD_BADGE_PULSE = {
+    "cursor": "pointer",
+    "animation": "gws-add-pulse 1.6s ease-out infinite",
+    "@keyframes gws-add-pulse": {
+        "0%": {"boxShadow": "0 0 0 0 var(--accent-a7)"},
+        "75%": {"boxShadow": "0 0 0 7px transparent"},
+        "100%": {"boxShadow": "0 0 0 0 transparent"},
+    },
+    "@media (prefers-reduced-motion: reduce)": {"animation": "none"},
+}
+
 _CODE_BADGE = {
     "font_family": "monospace",
     "font_size": "11px",
@@ -145,7 +157,7 @@ def _input_row(row: TransformInputRow, editable: bool) -> rx.Component:
                             rx.icon("plus", size=12),
                             "Add",
                             variant="soft",
-                            style={"cursor": "pointer"},
+                            style=_ADD_BADGE_PULSE,
                         ),
                     ),
                 ),
