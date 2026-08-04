@@ -70,28 +70,32 @@ def _form_content() -> rx.Component:
             width="100%",
             spacing="1",
         ),
-        # Batch / lot number (own lot correction; empty clears it)
-        rx.vstack(
-            rx.hstack(
-                rx.text("Batch / lot number", size="2", weight="bold"),
-                rx.tooltip(
-                    rx.icon("info", size=14, color="gray"),
-                    content=(
-                        "Supplier lot number for this delivery (optional). Items "
-                        "derived from this one inherit its lot number."
+        # Batch / lot number (own lot correction; empty clears it).
+        # Consumables only: non-consumables carry serial numbers instead.
+        rx.cond(
+            UpdateItemFormDialogState.is_consumable,
+            rx.vstack(
+                rx.hstack(
+                    rx.text("Batch / lot number", size="2", weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=14, color="gray"),
+                        content=(
+                            "Supplier lot number for this delivery (optional). Items "
+                            "derived from this one inherit its lot number."
+                        ),
                     ),
+                    align="center",
+                    spacing="1",
                 ),
-                align="center",
+                rx.input(
+                    placeholder="Enter the batch/lot number (optional)",
+                    name="batch_number",
+                    width="100%",
+                    default_value=UpdateItemFormDialogState.form_batch_number,
+                ),
+                width="100%",
                 spacing="1",
             ),
-            rx.input(
-                placeholder="Enter the batch/lot number (optional)",
-                name="batch_number",
-                width="100%",
-                default_value=UpdateItemFormDialogState.form_batch_number,
-            ),
-            width="100%",
-            spacing="1",
         ),
         # Expiry Date + Storage conditions (side by side, equal width)
         rx.hstack(

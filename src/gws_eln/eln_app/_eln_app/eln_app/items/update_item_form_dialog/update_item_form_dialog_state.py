@@ -120,8 +120,12 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
 
         storage_conditions = form_data.get("storage_conditions", "").strip() or None
 
-        # Own lot number correction (optional; empty clears it)
-        batch_number = form_data.get("batch_number", "").strip() or None
+        # Own lot number correction (optional; empty clears it). Non-consumables
+        # don't expose the field: keep their stored value untouched.
+        if self._item and not self._item.item_sheet.is_consumable:
+            batch_number = self._item.batch_number
+        else:
+            batch_number = form_data.get("batch_number", "").strip() or None
 
         return UpdateItemDTO(
             notes=notes,

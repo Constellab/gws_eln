@@ -215,10 +215,11 @@ def _form_content(extra_concentration_content: rx.Component | None = None) -> rx
             width="100%",
             spacing="1",
         ),
-        # Batch / lot number (origin items only; hidden for transform outputs,
-        # which inherit their lot numbers from their ancestors).
+        # Batch / lot number (consumable origin items only; hidden for transform
+        # outputs, which inherit their lot numbers from their ancestors, and for
+        # non-consumables, which carry serial numbers instead).
         rx.cond(
-            ~ItemFormDialogState.collect_mode,
+            ItemFormDialogState.is_consumable & ~ItemFormDialogState.collect_mode,
             rx.vstack(
                 rx.hstack(
                     rx.text("Batch / lot number", size="2", weight="bold"),
