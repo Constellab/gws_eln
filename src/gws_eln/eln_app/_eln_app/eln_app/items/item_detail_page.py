@@ -189,8 +189,18 @@ def _details_sidebar() -> rx.Component:
                 ),
                 size="2",
             ),
-            # Expiry Date
-            rx.text("Expiry Date", size="2", color="gray", weight="medium"),
+            # Expiry date (consumables) / next due date (non-consumables, e.g.
+            # calibration or maintenance), same wording as the create form.
+            rx.text(
+                rx.cond(
+                    ItemDetailState.item.item_sheet.is_consumable,
+                    "Expiry Date",
+                    "Next due date",
+                ),
+                size="2",
+                color="gray",
+                weight="medium",
+            ),
             rx.box(expiry_date_badge(ItemDetailState.item.expiry_date)),
             # Status
             rx.text("Status", size="2", color="gray", weight="medium"),

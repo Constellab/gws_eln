@@ -46,6 +46,17 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
             return self._item.label
         return ""
 
+    @rx.var
+    def is_consumable(self) -> bool:
+        """Whether the item's sheet is consumable.
+
+        Non-consumables track a next due date (calibration/maintenance) instead
+        of an expiry date, so the date field is labelled accordingly.
+        """
+        if self._item:
+            return self._item.item_sheet.is_consumable
+        return True
+
     @rx.event
     async def open_update_dialog(self, item: ItemDTO):
         """Open the dialog to update the specified item.

@@ -92,6 +92,18 @@ class ItemsListState(rx.State):
         return any(item.concentration is not None for item in self._items)
 
     @rx.var
+    def expiry_column_label(self) -> str:
+        """Header of the expiry column, matching the sheet's nature.
+
+        Non-consumable sheets track a next due date (calibration/maintenance)
+        instead of an expiry date — same wording as the item form and the
+        detail panel. Every item of the list belongs to the same sheet.
+        """
+        if self._items and not self._items[0].item_sheet.is_consumable:
+            return "Next due date"
+        return "Expiry Date"
+
+    @rx.var
     def current_item_sheet_id(self) -> str:
         """Return the current item_sheet ID.
 

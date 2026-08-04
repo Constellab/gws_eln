@@ -267,9 +267,12 @@ def _items_table() -> rx.Component:
                             "Supplier",
                             display=rx.breakpoints(initial="none", md="table-cell"),
                         ),
-                        # Shrink to the date badge width.
+                        # Shrink to the date badge width. "Next due date" for a
+                        # non-consumable sheet, "Expiry Date" otherwise.
                         rx.table.column_header_cell(
-                            "Expiry Date", width="1%", white_space="nowrap"
+                            ItemsListState.expiry_column_label,
+                            width="1%",
+                            white_space="nowrap",
                         ),
                         # Shrink to the widest status badge.
                         rx.table.column_header_cell(

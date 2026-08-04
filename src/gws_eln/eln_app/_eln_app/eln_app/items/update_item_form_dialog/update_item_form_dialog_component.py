@@ -73,9 +73,22 @@ def _form_content() -> rx.Component:
         # Expiry Date + Storage conditions (side by side, equal width)
         rx.hstack(
             rx.vstack(
-                rx.text("Expiry Date", size="2", weight="bold"),
+                # "Next due date" for a non-consumable item, "Expiry Date" otherwise.
+                rx.text(
+                    rx.cond(
+                        UpdateItemFormDialogState.is_consumable,
+                        "Expiry Date",
+                        "Next due date",
+                    ),
+                    size="2",
+                    weight="bold",
+                ),
                 rx.input(
-                    placeholder="Select expiry date (optional)",
+                    placeholder=rx.cond(
+                        UpdateItemFormDialogState.is_consumable,
+                        "Select expiry date (optional)",
+                        "Select next due date (optional)",
+                    ),
                     name="expiry_date",
                     type="date",
                     width="100%",
