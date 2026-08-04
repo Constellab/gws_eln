@@ -105,15 +105,6 @@ class ItemFormDialogState(FormDialogState, rx.State):
         return ""
 
     @rx.var
-    def is_volume(self) -> bool:
-        """Whether the item is expressed in a volume unit.
-
-        Concentration (amount per volume) only applies to volume items, so the
-        concentration inputs are shown only when this is True.
-        """
-        return UnitType(self.form_unit_type).is_volume()
-
-    @rx.var
     def is_consumable(self) -> bool:
         """Whether the item sheet is consumable.
 
@@ -379,12 +370,7 @@ class ItemFormDialogState(FormDialogState, rx.State):
         ``ReflexAppException`` (surfaced as a toast) on the first invalid field.
         """
         quantity = self._parse_quantity(self.form_quantity.strip())
-        # Concentration only applies to volume items (amount per volume).
-        concentration = (
-            self._parse_concentration(self.form_concentration.strip())
-            if UnitType(self.form_unit_type).is_volume()
-            else None
-        )
+        concentration = self._parse_concentration(self.form_concentration.strip())
         expiry_date = self._parse_expiry_date()
         label = form_data.get("label", "").strip()
         if not label:

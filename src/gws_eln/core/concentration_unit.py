@@ -68,8 +68,12 @@ CONCENTRATION_CONVERSION_FACTORS: dict[ConcentrationUnitFamily, dict[str, Decima
         "% v/v": Decimal("1"),
     },
     # base: % w/w  (g of solute per 100 g of solution, e.g. nitric acid 65% w/w)
+    # 1 mg/g = 1 g per 1000 g = 0.1 % w/w (exact), so mass fractions convert
+    # losslessly within the family (e.g. a powder at 10 mg/g = 1 % w/w).
     ConcentrationUnitFamily.MASS_MASS: {
         "% w/w": Decimal("1"),
+        "mg/g": Decimal("0.1"),
+        "µg/g": Decimal("1E-4"),
     },
     # base: U/mL  (1 U/µL = 1E3 U/mL)
     ConcentrationUnitFamily.ACTIVITY_VOLUME: {

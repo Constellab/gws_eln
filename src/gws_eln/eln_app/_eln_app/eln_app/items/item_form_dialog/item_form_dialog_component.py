@@ -37,11 +37,10 @@ def _consumable_quantity_section(
             ),
         ),
         # Concentration value + unit (optional, recorded verbatim).
-        # Only meaningful for volume items (amount per volume), hidden otherwise.
-        rx.cond(
-            ItemFormDialogState.is_volume,
-            rx.hstack(
-                rx.vstack(
+        # Independent of the quantity unit: describes the proportion of a
+        # component in the product (e.g. 500 g of powder at 10 mg/g).
+        rx.hstack(
+            rx.vstack(
                     rx.text("Concentration", size="2", weight="bold"),
                     rx.input(
                         placeholder="Enter concentration (optional)",
