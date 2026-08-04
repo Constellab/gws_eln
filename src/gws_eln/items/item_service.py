@@ -477,7 +477,8 @@ class ItemService:
 
     def update_item(self, item_id: str, dto: UpdateItemDTO) -> Item:
         """
-        Correct/complete item metadata (notes, expiry_date, supplier, storage).
+        Correct/complete item metadata (notes, expiry_date, supplier, storage,
+        batch/lot number).
 
         Note: to change the label with activity logging, use relabel_item().
 
@@ -497,6 +498,9 @@ class ItemService:
 
         # Update storage condition (free text, None/empty clears it)
         item.storage_conditions = dto.storage_conditions.strip() if dto.storage_conditions else None
+
+        # Correct the item's own lot number (free text, None/empty clears it)
+        item.batch_number = dto.batch_number.strip() if dto.batch_number else None
 
         if dto.supplier_id is not None:
             item.supplier = SupplierService().get_supplier(dto.supplier_id)

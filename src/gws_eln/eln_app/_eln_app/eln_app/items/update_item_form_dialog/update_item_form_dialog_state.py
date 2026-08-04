@@ -17,8 +17,9 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
     """State management for the update item dialog functionality.
 
     This dialog corrects/completes item metadata (notes, expiry_date, supplier,
-    storage). Concentration is not editable here (identity-defining, set at
-    creation). The item must be provided when opening the dialog.
+    storage, batch/lot number). Concentration is not editable here
+    (identity-defining, set at creation). The item must be provided when
+    opening the dialog.
     """
 
     # Item being updated (required input)
@@ -29,6 +30,7 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
     form_expiry_date: str = ""
     form_supplier_id: str = ""
     form_storage_conditions: str = ""
+    form_batch_number: str = ""
 
     _callback_after_close: FormDialogCloseCallback | None = None
 
@@ -72,6 +74,7 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
         self.form_expiry_date = item.expiry_date.isoformat() if item.expiry_date else ""
         self.form_supplier_id = item.supplier.id if item.supplier else "__none__"
         self.form_storage_conditions = item.storage_conditions or ""
+        self.form_batch_number = item.batch_number or ""
 
         # Set to update mode
         self.is_update_mode = True
@@ -117,11 +120,15 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
 
         storage_conditions = form_data.get("storage_conditions", "").strip() or None
 
+        # Own lot number correction (optional; empty clears it)
+        batch_number = form_data.get("batch_number", "").strip() or None
+
         return UpdateItemDTO(
             notes=notes,
             expiry_date=expiry_date,
             supplier_id=supplier_id,
             storage_conditions=storage_conditions,
+            batch_number=batch_number,
         )
 
     async def _create(self, form_data: dict):
@@ -165,6 +172,7 @@ class UpdateItemFormDialogState(FormDialogState, rx.State):
         self.form_expiry_date = ""
         self.form_supplier_id = ""
         self.form_storage_conditions = ""
+        self.form_batch_number = ""
         self.is_update_mode = False
 
     def set_callback_after_close(self, callback: FormDialogCloseCallback | None):

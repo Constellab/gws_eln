@@ -117,12 +117,13 @@ class MoveItemDTO(BaseModelDTO):
 
 class UpdateItemDTO(BaseModelDTO):
     """DTO for correcting/completing item metadata (notes, expiry_date, supplier,
-    storage_conditions)."""
+    storage_conditions, batch_number)."""
 
     notes: str | None = None
     expiry_date: date | None = None
     supplier_id: str | None = None
     storage_conditions: str | None = None  # Override (free text); None clears it
+    batch_number: str | None = None  # Own lot number correction; None clears it
     note_id: str | None = None  # Link to Constellab Note
 
 
