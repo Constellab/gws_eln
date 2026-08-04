@@ -4,7 +4,6 @@ import reflex as rx
 from gws_reflex_main import main_component
 
 from ..common.eln_app_router import ElnAppRouter
-from ..common.page_layout import page_layout
 
 # Hover choreography: the whole card lifts, its icon grows and the arrow slides.
 # The nested selectors target the classes set on those two children below.
@@ -83,18 +82,39 @@ def _action_card(icon: str, title: str, description: str, url: str) -> rx.Compon
     )
 
 
+def _branding_header() -> rx.Component:
+    """App branding shown on the landing page, since the sidebar (which
+    normally carries it) is not displayed here.
+
+    :return: The branding header component.
+    :rtype: rx.Component
+    """
+    return rx.hstack(
+        rx.image(src="/constellab-logo.svg", height="2.5rem"),
+        rx.vstack(
+            rx.heading("Lab flow", size="4", line_height="1em"),
+            rx.text("By Constellab", size="1", color="var(--gray-9)", line_height="1em"),
+            spacing="1",
+        ),
+        align="center",
+        spacing="3",
+    )
+
+
 def home_page() -> rx.Component:
     """Create the home page with the two main entry points.
 
     One card leads to the item sheets (stock management), the other to the notes
-    (protocols).
+    (protocols). The landing page has no sidebar: the navigation menu only
+    appears once the user has entered one of the two sections.
 
     :return: The home page component.
     :rtype: rx.Component
     """
     return main_component(
-        page_layout(
+        rx.box(
             rx.vstack(
+                _branding_header(),
                 rx.vstack(
                     rx.heading("What would you like to do?", size="7"),
                     rx.text(
@@ -131,5 +151,9 @@ def home_page() -> rx.Component:
                 margin="0 auto",
                 padding_top="3rem",
             ),
+            width="100%",
+            height="100vh",
+            overflow_y="auto",
+            padding="2em",
         )
     )
