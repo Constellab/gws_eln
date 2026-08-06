@@ -28,7 +28,15 @@ class ElnAppAppConfig(AppConfig):
 )
 class GenerateElnApp(Task):
     """
-    Task that generates the Lab flow app.
+    Task that generates the Lab flow app: an Electronic Lab Notebook (ELN) Reflex app embedded in Constellab.
+
+    The app lets lab users:
+    - Write notes and link them to activities performed on items
+    - Track items and item sheets (create, move, transform, relabel, update, delete, use)
+    - Manage storage locations and suppliers
+    - Visualize the lineage between items (which item was produced from/used to create which other item)
+
+    Authentication is required; access is limited to authenticated Constellab users.
     """
 
     input_specs = InputSpecs()
